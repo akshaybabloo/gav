@@ -82,3 +82,26 @@ CMakeLists.txt.user*
 /build*/
 
 .idea/
+.qmlls.ini
+CMakeFiles/
+CMakeCache.txt
+.cmake/
+meta_types/
+Testing/
+qmltypes/
+gav/
+.qt/
+
+build.ninja
+
+cmake_install.cmake
+
+appgav_autogen/
+
+.ninja_deps
+
+.ninja_log
+
+appgav
+
+appgav_qmltyperegistrations.cpp
