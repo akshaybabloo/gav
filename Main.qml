@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 
 ApplicationWindow {
+    id: mainWindow
     width: 640
     height: 480
     visible: true
@@ -13,5 +14,10 @@ ApplicationWindow {
         path: "file://home/akshay/Downloads/Roux-design-system-demo-and-discussion.mp4"
 
         Debug {}
+    }
+
+    FontLoader {
+        id: materialSymbolsOutlined
+        source: "qrc:/assets/fonts/MaterialSymbolsOutlined.ttf"
     }
 }

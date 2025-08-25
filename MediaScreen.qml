@@ -7,11 +7,16 @@ Item {
 
     required property string path
 
+    AudioOutput {
+        id: audioOutput
+        volume: 0.5
+    }
+
     MediaPlayer {
         id: player
         source: path
         videoOutput: videoOutput
-        audioOutput: AudioOutput {}
+        audioOutput: audioOutput
     }
 
     VideoOutput {
@@ -31,6 +36,8 @@ Item {
     MediaControls {
         id: controlBar
         player: player
+        audioOutput: audioOutput
+        videoOutput: videoOutput
         anchors.bottom: parent.bottom
     }
 }
