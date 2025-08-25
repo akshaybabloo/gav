@@ -48,6 +48,7 @@ Item {
 
                 Button {
                     id: playPauseButton
+                    enabled: player.source !== ""
                     text: player.playbackState === MediaPlayer.PlayingState ? "\ue034" : "\ue037"
                     font.family: materialSymbolsOutlined.name
                     scale: 1.5

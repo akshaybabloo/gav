@@ -35,13 +35,18 @@ Item {
     }
 
     MouseArea {
+        id: mouseArea
         anchors.fill: parent
         hoverEnabled: true
+        property point lastPos: Qt.point(mouseX, mouseY)
 
         onPositionChanged: {
-            controlsAreVisible = true;
-            if (player.playbackState === MediaPlayer.PlayingState) {
-                hideControlsTimer.restart();
+            if (mouseX !== lastPos.x || mouseY !== lastPos.y) {
+                controlsAreVisible = true;
+                if (player.playbackState === MediaPlayer.PlayingState) {
+                    hideControlsTimer.restart();
+                }
+                lastPos = Qt.point(mouseX, mouseY);
             }
         }
     }
@@ -53,6 +58,7 @@ Item {
         onTriggered: {
             if (!controlBar.containsMouse) {
                 controlsAreVisible = false;
+                mouseArea.lastPos = Qt.point(-1, -1); // Reset position detector
             }
         }
     }
@@ -62,8 +68,9 @@ Item {
         player: player
         audioOutput: audioOutput
         videoOutput: videoOutput
+        width: parent.width // Ensure full width
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: controlsAreVisible ? 0 : -height
+        anchors.bottomMargin: controlsAreVisible ? 0 : -height // No gap
         opacity: controlsAreVisible ? 1 : 0
 
         Behavior on anchors.bottomMargin {
