@@ -37,12 +37,18 @@ qt_add_executable(appgav
     main.cpp
 )
 
+qt_add_resources(appgav "assets"
+    PREFIX "/"
+    FILES
+        qtquickcontrols2.conf
+        assets/fonts/MaterialSymbolsOutlined.ttf
+)
+
 qt_add_qml_module(appgav
     URI gav
     VERSION 1.0
     QML_FILES
         Main.qml
-        RESOURCES qtquickcontrols2.conf
         QML_FILES
             MediaScreen.qml
             Debug.qml
