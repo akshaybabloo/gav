@@ -43,7 +43,10 @@ qt_add_qml_module(appgav
     QML_FILES
         Main.qml
         RESOURCES qtquickcontrols2.conf
-        QML_FILES MediaScreen.qml
+        QML_FILES
+            MediaScreen.qml
+            Debug.qml
+            MediaControls.qml
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
