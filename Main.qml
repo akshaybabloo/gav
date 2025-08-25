@@ -22,7 +22,7 @@ ApplicationWindow {
                     text: qsTr("Open")
                     onTriggered: fileDialog.open()
                 }
-                MenuSeparator { }
+                MenuSeparator {}
                 Action {
                     text: qsTr("Exit")
                     onTriggered: Qt.quit()
@@ -72,18 +72,54 @@ ApplicationWindow {
         modal: true
         standardButtons: Dialog.Ok
         Text {
-            text: "GAV - A simple media player built with Qt\n\n"
+            text: "GAV - A simple media player built with Qt and FFmpeg"
+            color: "white"
+        }
+    }
+
+    Dialog {
+        id: unsupportedFileDialog
+        x: (parent.width - width) / 2
+        y: (parent.height - height) / 2
+        title: "Unsupported File"
+        modal: true
+        standardButtons: Dialog.Ok
+        Text {
+            text: "The dropped file is not a supported video format."
+            color: "white"
+        }
+    }
+
+    DropArea {
+        anchors.fill: parent // Or define specific size/position
+        onDropped: function (drop) {
+            if (drop.urls && drop.urls.length > 0) {
+                console.log("Dropped files:", drop.urls);
+                // Check if the dropped file is a video file (basic check) on index 0 only
+                var videoFileExtensions = [".mp4", ".avi", ".mkv"];
+                var fileUrl = drop.urls[0].toString().toLowerCase();
+                for (var i = 0; i < videoFileExtensions.length; i++) {
+                    if (fileUrl.endsWith(videoFileExtensions[i])) {
+                        mediaScreen.path = drop.urls[0];
+                        mainWindow.title = "GAV - " + drop.urls[0].toString().split('/').pop();
+                        return;
+                    }
+                }
+                console.log("The dropped file is not a supported video format.");
+                unsupportedFileDialog.open();
+            } else if (drop.text) {
+                console.log("Dropped text:", drop.text);
+            }
         }
     }
 
     FileDialog {
         id: fileDialog
-        currentFolder: StandardPaths.standardLocations(
-                           StandardPaths.VideosLocation)[0]
+        currentFolder: StandardPaths.standardLocations(StandardPaths.VideosLocation)[0]
         nameFilters: ["Video files (*.mp4 *.avi *.mkv)", "All files (*)"]
         onAccepted: {
-            mediaScreen.path = selectedFile
-            mainWindow.title = "GAV - " + selectedFile.toString().split('/').pop()
+            mediaScreen.path = selectedFile;
+            mainWindow.title = "GAV - " + selectedFile.toString().split('/').pop();
         }
     }
 
