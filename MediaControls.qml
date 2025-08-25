@@ -9,6 +9,14 @@ Item {
     height: 60
     width: parent.width
 
+    property bool containsMouse: controlMouseArea.containsMouse
+
+    MouseArea {
+        id: controlMouseArea
+        anchors.fill: parent
+        hoverEnabled: true
+    }
+
     required property MediaPlayer player
     required property AudioOutput audioOutput
     required property VideoOutput videoOutput
