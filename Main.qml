@@ -12,39 +12,56 @@ ApplicationWindow {
 
     property bool controlsVisibleAlias: mediaScreen.controlsAreVisible
 
-    menuBar: MenuBar {
-        id: menuBar
-        opacity: (mainWindow.visibility === Window.FullScreen && !controlsVisibleAlias) ? 0 : 1
+    // --- Reusable MenuBar definition ---
+    Component {
+        id: menuBarComponent
+        MenuBar {
+            Menu {
+                title: qsTr("File")
+                Action {
+                    text: qsTr("Open")
+                    onTriggered: fileDialog.open()
+                }
+                MenuSeparator { }
+                Action {
+                    text: qsTr("Exit")
+                    onTriggered: Qt.quit()
+                }
+            }
+            Menu {
+                title: qsTr("Help")
+                Action {
+                    text: qsTr("About")
+                    onTriggered: aboutDialog.open()
+                }
+            }
+        }
+    }
+
+    // --- Loader for WINDOWED mode ---
+    menuBar: Loader {
+        active: mainWindow.visibility !== Window.FullScreen
+        sourceComponent: menuBarComponent
+    }
+
+    // --- Loader for FULLSCREEN mode ---
+    Loader {
+        id: fullscreenMenuBarLoader
+        active: mainWindow.visibility === Window.FullScreen
+        y: 0
+        width: parent.width
+        height: item ? item.implicitHeight : 0
+        z: 100
+        opacity: !controlsVisibleAlias ? 0 : 1
         enabled: opacity > 0
 
         Behavior on opacity {
-            enabled: mainWindow.visibility === Window.FullScreen
             NumberAnimation {
                 duration: 300
             }
         }
 
-        Menu {
-            title: qsTr("File")
-            Action {
-                text: qsTr("Open")
-                onTriggered: {
-                    fileDialog.open()
-                }
-            }
-            MenuSeparator { }
-            Action {
-                text: qsTr("Exit")
-                onTriggered: Qt.quit()
-            }
-        }
-        Menu {
-            title: qsTr("Help")
-            Action {
-                text: qsTr("About")
-                onTriggered: aboutDialog.open()
-            }
-        }
+        sourceComponent: menuBarComponent
     }
 
     Dialog {
