@@ -14,17 +14,36 @@ Item {
     }
 
     MediaPlayer {
-        id: player
+        id: mediaPlayer
         source: path
         videoOutput: videoOutput
         audioOutput: audioOutput
 
         onPlaybackStateChanged: {
             if (playbackState === MediaPlayer.PlayingState) {
-                hideControlsTimer.start();
+                hideControlsTimer.start()
             } else {
-                controlsAreVisible = true;
-                hideControlsTimer.stop();
+                controlsAreVisible = true
+                hideControlsTimer.stop()
+            }
+        }
+
+        onErrorOccurred: function (error, errorString) {
+            if (error !== MediaPlayer.NoError) {
+                console.log(error, errorString)
+                unsupportedFileDialog.open()
+            }
+        }
+
+        onMediaStatusChanged: {
+            if (mediaPlayer.mediaStatus === MediaPlayer.LoadedMedia) {
+                console.log("Media loaded")
+                if (mediaPlayer.videoTracks.length > 0) {
+                    console.log("This media contains video.")
+                }
+                if (mediaPlayer.audioTracks.length > 0) {
+                    console.log("This media contains audio.")
+                }
             }
         }
     }
@@ -42,11 +61,11 @@ Item {
 
         onPositionChanged: {
             if (mouseX !== lastPos.x || mouseY !== lastPos.y) {
-                controlsAreVisible = true;
-                if (player.playbackState === MediaPlayer.PlayingState) {
-                    hideControlsTimer.restart();
+                controlsAreVisible = true
+                if (mediaPlayer.playbackState === MediaPlayer.PlayingState) {
+                    hideControlsTimer.restart()
                 }
-                lastPos = Qt.point(mouseX, mouseY);
+                lastPos = Qt.point(mouseX, mouseY)
             }
         }
     }
@@ -57,15 +76,15 @@ Item {
         repeat: false
         onTriggered: {
             if (!controlBar.containsMouse) {
-                controlsAreVisible = false;
-                mouseArea.lastPos = Qt.point(-1, -1); // Reset position detector
+                controlsAreVisible = false
+                mouseArea.lastPos = Qt.point(-1, -1) // Reset position detector
             }
         }
     }
 
     MediaControls {
         id: controlBar
-        player: player
+        player: mediaPlayer
         audioOutput: audioOutput
         videoOutput: videoOutput
         width: parent.width // Ensure full width

@@ -2,6 +2,7 @@ import QtCore
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
+import QtQuick.Layouts
 
 ApplicationWindow {
     id: mainWindow
@@ -22,7 +23,8 @@ ApplicationWindow {
                     text: qsTr("Open")
                     onTriggered: fileDialog.open()
                 }
-                MenuSeparator {}
+                MenuSeparator {
+                }
                 Action {
                     text: qsTr("Exit")
                     onTriggered: Qt.quit()
@@ -95,18 +97,8 @@ ApplicationWindow {
         onDropped: function (drop) {
             if (drop.urls && drop.urls.length > 0) {
                 console.log("Dropped files:", drop.urls);
-                // Check if the dropped file is a video file (basic check) on index 0 only
-                var videoFileExtensions = [".mp4", ".avi", ".mkv"];
-                var fileUrl = drop.urls[0].toString().toLowerCase();
-                for (var i = 0; i < videoFileExtensions.length; i++) {
-                    if (fileUrl.endsWith(videoFileExtensions[i])) {
-                        mediaScreen.path = drop.urls[0];
-                        mainWindow.title = "GAV - " + drop.urls[0].toString().split('/').pop();
-                        return;
-                    }
-                }
-                console.log("The dropped file is not a supported video format.");
-                unsupportedFileDialog.open();
+                mediaScreen.path = drop.urls[0];
+                mainWindow.title = "GAV - " + drop.urls[0].toString().split('/').pop();
             } else if (drop.text) {
                 console.log("Dropped text:", drop.text);
             }
@@ -116,18 +108,94 @@ ApplicationWindow {
     FileDialog {
         id: fileDialog
         currentFolder: StandardPaths.standardLocations(StandardPaths.VideosLocation)[0]
-        nameFilters: ["Video files (*.mp4 *.avi *.mkv)", "All files (*)"]
+        nameFilters: ["All files (*)"]
         onAccepted: {
             mediaScreen.path = selectedFile;
             mainWindow.title = "GAV - " + selectedFile.toString().split('/').pop();
         }
     }
 
-    MediaScreen {
-        id: mediaScreen
-        height: parent.height
-        width: parent.width
-        path: ""
+    ListModel {
+        id: playList
+        ListElement {
+            name: "Some name"
+            path: "path://something"
+            type: "audio"
+            icon: "\ue405"
+        }
+        ListElement {
+            name: "Some name"
+            path: "path://something"
+            type: "video"
+            icon: "\ueb87"
+        }
+    }
+
+    SplitView {
+        id: splitView
+        anchors.fill: parent
+
+        handle: Rectangle {
+            id: handleSeparator
+            width: 1
+            color: "#3a3a3e"
+            implicitWidth: 1
+        }
+
+        MediaScreen {
+            id: mediaScreen
+            path: ""
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.minimumWidth: 400
+        }
+
+        Pane {
+            id: playlistPane
+            Layout.fillHeight: true
+            Layout.minimumWidth: 180
+            Layout.preferredWidth: 280
+            Layout.maximumWidth: 500
+            background: Rectangle {
+                color: "#1e1e1e"
+            }
+
+            ListView {
+                id: playListView
+                anchors.fill: parent
+                clip: true
+
+                model: playList
+                delegate: ItemDelegate {
+                    width: parent.width
+                    height: 48
+                    padding: 8
+
+                    contentItem: Row {
+                        spacing: 12
+                        anchors.verticalCenter: parent.verticalCenter
+
+                        Text {
+                            text: model.icon
+                            font.family: materialSymbolsOutlined.name
+                            font.pixelSize: 24
+                            color: "white"
+                        }
+                        Text {
+                            text: model.name
+                            color: "white"
+                            font.pixelSize: 14
+                            elide: Text.ElideRight
+                        }
+                    }
+
+                    background: Rectangle {
+                        color: parent.down ? "#4a4a4e" : (parent.hovered ? "#2a2a2e" : "transparent")
+                        radius: 4
+                    }
+                }
+            }
+        }
     }
 
     FontLoader {
