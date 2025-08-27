@@ -6,6 +6,9 @@ Item {
     width: parent.width
 
     required property string path
+    property alias player: mediaPlayer
+    property alias audioOutput: audioOutput
+    property alias videoOutput: videoOutput
     property bool controlsAreVisible: true
 
     AudioOutput {
@@ -16,7 +19,7 @@ Item {
     MediaPlayer {
         id: mediaPlayer
         source: path
-        videoOutput: videoOutput
+        videoOutput: mediaPlayer.videoAvailable ? videoOutput : null
         audioOutput: audioOutput
 
         onPlaybackStateChanged: {
@@ -37,6 +40,7 @@ Item {
 
         onMediaStatusChanged: {
             if (mediaPlayer.mediaStatus === MediaPlayer.LoadedMedia) {
+                videoOutput.visible = mediaPlayer.videoTracks.length > 0;
                 console.log("Media loaded")
                 if (mediaPlayer.videoTracks.length > 0) {
                     console.log("This media contains video.")
@@ -44,6 +48,8 @@ Item {
                 if (mediaPlayer.audioTracks.length > 0) {
                     console.log("This media contains audio.")
                 }
+            } else if (mediaPlayer.mediaStatus === MediaPlayer.NoMedia || mediaPlayer.mediaStatus === MediaPlayer.InvalidMedia) {
+                videoOutput.visible = false;
             }
         }
     }
@@ -51,6 +57,7 @@ Item {
     VideoOutput {
         id: videoOutput
         anchors.fill: parent
+        visible: false
     }
 
     MouseArea {
@@ -82,26 +89,27 @@ Item {
         }
     }
 
-    MediaControls {
-        id: controlBar
-        player: mediaPlayer
-        audioOutput: audioOutput
-        videoOutput: videoOutput
-        width: parent.width // Ensure full width
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: controlsAreVisible ? 0 : -height // No gap
-        opacity: controlsAreVisible ? 1 : 0
+    // MediaControls {
+    //     id: controlBar
+    //     player: mediaPlayer
+    //     audioOutput: audioOutput
+    //     videoOutput: videoOutput
+    //     width: parent.width // Ensure full width
+    //     anchors.bottom: parent.bottom
+    //     anchors.bottomMargin: controlsAreVisible ? 0 : -height // No gap
+    //     opacity: controlsAreVisible ? 1 : 0
 
-        Behavior on anchors.bottomMargin {
-            NumberAnimation {
-                duration: 300
-                easing.type: Easing.OutCubic
-            }
-        }
-        Behavior on opacity {
-            NumberAnimation {
-                duration: 300
-            }
-        }
-    }
+    //     Behavior on anchors.bottomMargin {
+    //         NumberAnimation {
+    //             duration: 300
+    //             easing.type: Easing.OutCubic
+    //         }
+    //     }
+    //     Behavior on opacity {
+    //         NumberAnimation {
+    //             duration: 300
+    //         }
+    //     }
+    // }
 }
+

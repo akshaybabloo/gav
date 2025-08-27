@@ -23,8 +23,7 @@ ApplicationWindow {
                     text: qsTr("Open")
                     onTriggered: fileDialog.open()
                 }
-                MenuSeparator {
-                }
+                MenuSeparator {}
                 Action {
                     text: qsTr("Exit")
                     onTriggered: Qt.quit()
@@ -92,108 +91,159 @@ ApplicationWindow {
         }
     }
 
+    function getMediaInfo(fileUrl) {
+        var path = fileUrl.toString()
+        // On Windows, fileUrl can start with 'file:///'
+        if (path.startsWith('file:///')) {
+            path = path.substring(8)
+        }
+        var name = path.substring(path.lastIndexOf('/') + 1)
+        var extension = name.substring(name.lastIndexOf('.') + 1).toLowerCase()
+        var videoExtensions = ["mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"]
+        var audioExtensions = ["mp3", "wav", "ogg", "flac", "aac", "wma"]
+
+        if (videoExtensions.indexOf(extension) !== -1) {
+            return {
+                "name": name,
+                "path": fileUrl,
+                "type": "video",
+                "icon": "\ueb87"
+            }
+        } else if (audioExtensions.indexOf(extension) !== -1) {
+            return {
+                "name": name,
+                "path": fileUrl,
+                "type": "audio",
+                "icon": "\ue405"
+            }
+        } else {
+            return null
+        }
+    }
+
     DropArea {
-        anchors.fill: parent // Or define specific size/position
+        anchors.fill: parent
         onDropped: function (drop) {
             if (drop.urls && drop.urls.length > 0) {
-                console.log("Dropped files:", drop.urls);
-                mediaScreen.path = drop.urls[0];
-                mainWindow.title = "GAV - " + drop.urls[0].toString().split('/').pop();
-            } else if (drop.text) {
-                console.log("Dropped text:", drop.text);
+                var firstFileSet = false
+                for (var i = 0; i < drop.urls.length; i++) {
+                    var mediaInfo = getMediaInfo(drop.urls[i])
+                    if (mediaInfo) {
+                        playList.append(mediaInfo)
+                        if (!firstFileSet) {
+                            mediaScreen.path = mediaInfo.path
+                            mainWindow.title = "GAV - " + mediaInfo.name
+                            playListView.currentIndex = playList.count - 1
+                            firstFileSet = true
+                        }
+                    } else {
+                        unsupportedFileDialog.open()
+                    }
+                }
             }
         }
     }
 
     FileDialog {
         id: fileDialog
-        currentFolder: StandardPaths.standardLocations(StandardPaths.VideosLocation)[0]
-        nameFilters: ["All files (*)"]
+        currentFolder: StandardPaths.standardLocations(
+                           StandardPaths.VideosLocation)[0]
+        nameFilters: ["Video Files (*.mp4 *.avi *.mkv *.mov *.wmv)", "Audio Files (*.mp3 *.wav *.ogg)", "All files (*)"]
         onAccepted: {
-            mediaScreen.path = selectedFile;
-            mainWindow.title = "GAV - " + selectedFile.toString().split('/').pop();
+            var mediaInfo = getMediaInfo(selectedFile)
+            if (mediaInfo) {
+                playList.append(mediaInfo)
+                mediaScreen.path = mediaInfo.path
+                mainWindow.title = "GAV - " + mediaInfo.name
+                playListView.currentIndex = playList.count - 1
+            } else {
+                unsupportedFileDialog.open()
+            }
         }
     }
 
     ListModel {
         id: playList
-        ListElement {
-            name: "Some name"
-            path: "path://something"
-            type: "audio"
-            icon: "\ue405"
+    }
+
+    MediaScreen {
+        id: mediaScreen
+        anchors.fill: parent
+        visible: false
+        path: ""
+    }
+
+    ListView {
+        id: playListView
+        anchors.fill: parent
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+
+        model: playList
+
+        ScrollBar.vertical: ScrollBar {}
+
+        onCurrentIndexChanged: {
+            if (currentIndex !== -1) {
+                var item = playList.get(currentIndex)
+                mediaScreen.path = item.path
+                mainWindow.title = "GAV - " + item.name
+            }
         }
-        ListElement {
-            name: "Some name"
-            path: "path://something"
-            type: "video"
-            icon: "\ueb87"
+
+        delegate: ItemDelegate {
+            width: parent.width
+            height: 40
+            padding: 8
+
+            onDoubleClicked: {
+                mediaScreen.player.play()
+            }
+
+            contentItem: Row {
+                spacing: 12
+                anchors.verticalCenter: parent.verticalCenter
+
+                Text {
+                    text: model.icon
+                    font.family: materialSymbolsOutlined.name
+                    font.pixelSize: 24
+                    color: "white"
+                }
+                Text {
+                    text: model.name
+                    color: "white"
+                    font.pixelSize: 14
+                    elide: Text.ElideRight
+                }
+            }
+
+            background: Rectangle {
+                color: parent.down ? "#4a4a4e" : (parent.hovered ? "#2a2a2e" : (parent.ListView.isCurrentItem ? "#383838" : "transparent"))
+                radius: 4
+            }
         }
     }
 
-    SplitView {
-        id: splitView
-        anchors.fill: parent
+    MediaControls {
+        id: controlBar
+        player: mediaScreen.player
+        audioOutput: mediaScreen.audioOutput
+        videoOutput: mediaScreen.videoOutput
+        width: parent.width
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: mediaScreen.controlsAreVisible ? 0 : -height // No gap
+        opacity: mediaScreen.controlsAreVisible ? 1 : 0
 
-        handle: Rectangle {
-            id: handleSeparator
-            width: 1
-            color: "#3a3a3e"
-            implicitWidth: 1
-        }
-
-        MediaScreen {
-            id: mediaScreen
-            path: ""
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.minimumWidth: 400
-        }
-
-        Pane {
-            id: playlistPane
-            Layout.fillHeight: true
-            Layout.minimumWidth: 180
-            Layout.preferredWidth: 280
-            Layout.maximumWidth: 500
-            background: Rectangle {
-                color: "#1e1e1e"
+        Behavior on anchors.bottomMargin {
+            NumberAnimation {
+                duration: 300
+                easing.type: Easing.OutCubic
             }
-
-            ListView {
-                id: playListView
-                anchors.fill: parent
-                clip: true
-
-                model: playList
-                delegate: ItemDelegate {
-                    width: parent.width
-                    height: 48
-                    padding: 8
-
-                    contentItem: Row {
-                        spacing: 12
-                        anchors.verticalCenter: parent.verticalCenter
-
-                        Text {
-                            text: model.icon
-                            font.family: materialSymbolsOutlined.name
-                            font.pixelSize: 24
-                            color: "white"
-                        }
-                        Text {
-                            text: model.name
-                            color: "white"
-                            font.pixelSize: 14
-                            elide: Text.ElideRight
-                        }
-                    }
-
-                    background: Rectangle {
-                        color: parent.down ? "#4a4a4e" : (parent.hovered ? "#2a2a2e" : "transparent")
-                        radius: 4
-                    }
-                }
+        }
+        Behavior on opacity {
+            NumberAnimation {
+                duration: 300
             }
         }
     }
