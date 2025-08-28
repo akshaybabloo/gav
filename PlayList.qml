@@ -1,19 +1,69 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 
 Item {
 
     required property ListModel playList
     property alias playListView: playListView
 
+    ColumnLayout {
+        anchors.centerIn: parent
+
+        spacing: 5
+        visible: playList.count === 0
+        Text {
+            text: "\uf523"
+            font.family: materialSymbolsOutlined.name
+            font.pixelSize: 24
+            color: "white"
+            Layout.alignment: Qt.AlignHCenter
+        }
+        Text {
+            text: "Add video or audio play"
+            font.pixelSize: 24
+            color: "white"
+            Layout.alignment: Qt.AlignHCenter
+        }
+    }
+
     ListView {
         id: playListView
+        visible: playList.count > 0
         anchors.fill: parent
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        visible: true // Hidden if video
 
         model: playList
+
+        header: Rectangle {
+            width: parent.width
+            height: 30
+            color: "#80000000"
+
+            RowLayout {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.margins: 10
+
+                Item {
+                    Layout.fillWidth: true
+                }
+                Button {
+                    id: stopButton
+                    text: "\ue12d"
+                    font.family: materialSymbolsOutlined.name
+                    scale: 1.5
+                    onClicked: {
+                        playList.clear()
+                    }
+                    Material.roundedScale: Material.NotRounded
+                    Layout.preferredWidth: 25
+                    Layout.preferredHeight: 30
+                }
+            }
+        }
 
         ScrollBar.vertical: ScrollBar {
         }
@@ -27,7 +77,7 @@ Item {
         }
 
         delegate: ItemDelegate {
-            width: parent.width
+            width: parent?.width
             height: 40
             padding: 8
 
