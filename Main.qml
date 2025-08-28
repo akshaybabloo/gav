@@ -41,8 +41,19 @@ ApplicationWindow {
 
     // --- Loader for WINDOWED mode ---
     menuBar: Loader {
+        id: windowedMenuBarLoader
         active: mainWindow.visibility !== Window.FullScreen
-        sourceComponent: menuBarComponent
+        sourceComponent: active ? menuBarComponent : null
+
+        // Make the Loader span the window width
+        anchors.left: parent.left
+        anchors.right: parent.right
+
+        // Let the loaded MenuBar fill the Loader
+        onLoaded: if (item) item.anchors.fill = windowedMenuBarLoader
+
+        // Collapse space when inactive
+        height: active && item ? item.implicitHeight : 0
     }
 
     // --- Loader for FULLSCREEN mode ---
