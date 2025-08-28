@@ -65,6 +65,7 @@ ApplicationWindow {
         sourceComponent: menuBarComponent
     }
 
+    // About dialog
     Dialog {
         id: aboutDialog
         x: (parent.width - width) / 2
@@ -78,6 +79,7 @@ ApplicationWindow {
         }
     }
 
+    // If an error occurs with the video/audio
     Dialog {
         id: unsupportedFileDialog
         x: (parent.width - width) / 2
@@ -91,6 +93,7 @@ ApplicationWindow {
         }
     }
 
+    // TODO: Maybe use backend to verify
     function getMediaInfo(fileUrl) {
         var path = fileUrl.toString()
         // On Windows, fileUrl can start with 'file:///'
@@ -169,7 +172,6 @@ ApplicationWindow {
     MediaScreen {
         id: mediaScreen
         anchors.fill: parent
-        visible: false
         path: ""
     }
 
@@ -178,6 +180,7 @@ ApplicationWindow {
         anchors.fill: parent
         clip: true
         boundsBehavior: Flickable.StopAtBounds
+        visible: true // Hidden if video
 
         model: playList
 
@@ -198,6 +201,11 @@ ApplicationWindow {
 
             onDoubleClicked: {
                 mediaScreen.player.play()
+            }
+
+            onClicked: {
+                mediaScreen.path = model.path
+                mainWindow.title = "GAV - " + model.name
             }
 
             contentItem: Row {
@@ -225,7 +233,7 @@ ApplicationWindow {
         }
     }
 
-    MediaControls {
+    footer: MediaControls {
         id: controlBar
         player: mediaScreen.player
         audioOutput: mediaScreen.audioOutput

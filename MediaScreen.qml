@@ -88,28 +88,5 @@ Item {
             }
         }
     }
-
-    // MediaControls {
-    //     id: controlBar
-    //     player: mediaPlayer
-    //     audioOutput: audioOutput
-    //     videoOutput: videoOutput
-    //     width: parent.width // Ensure full width
-    //     anchors.bottom: parent.bottom
-    //     anchors.bottomMargin: controlsAreVisible ? 0 : -height // No gap
-    //     opacity: controlsAreVisible ? 1 : 0
-
-    //     Behavior on anchors.bottomMargin {
-    //         NumberAnimation {
-    //             duration: 300
-    //             easing.type: Easing.OutCubic
-    //         }
-    //     }
-    //     Behavior on opacity {
-    //         NumberAnimation {
-    //             duration: 300
-    //         }
-    //     }
-    // }
 }
 
