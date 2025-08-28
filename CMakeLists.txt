@@ -20,8 +20,8 @@ if ($ENV{CLION_IDE})
     if (QT_DIRS_COUNT GREATER 0)
         message(STATUS "Found ${QT_DIRS_COUNT} Qt directories starting with ${QT_VERSION}")
         list(GET QT_DIRS 0 QT_DIR)
-        set(CMAKE_PREFIX_PATH ${QT_DIR}/gcc_64)
         message(STATUS "Using Qt directory: ${QT_DIR}")
+        list(APPEND CMAKE_PREFIX_PATH ${QT_DIR} ${QT_DIR}/gcc_64)
         set(Qt6Quick_DIR ${QT_DIR}/gcc_64/lib/cmake/Qt6Quick)
         set(Qt6_DIR ${QT_DIR}/gcc_64/lib/cmake/Qt6)
     else()
@@ -31,7 +31,7 @@ endif ()
 
 find_package(Qt6 REQUIRED COMPONENTS Quick)
 
-qt_standard_project_setup(REQUIRES 6.8)
+qt_standard_project_setup(REQUIRES 6.9)
 
 qt_add_executable(appgav
     main.cpp
@@ -49,11 +49,10 @@ qt_add_qml_module(appgav
     VERSION 1.0
     QML_FILES
         Main.qml
-        QML_FILES
-            MediaComponent.qml
-            Debug.qml
-            MediaControlsComponent.qml
-            PlayListComponent.qml
+        MediaComponent.qml
+        Debug.qml
+        MediaControlsComponent.qml
+        PlayListComponent.qml
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
