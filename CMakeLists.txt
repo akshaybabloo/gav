@@ -42,6 +42,10 @@ qt_add_resources(appgav "assets"
     FILES
         qtquickcontrols2.conf
         assets/fonts/MaterialSymbolsOutlined.ttf
+        assets/images/logo.png
+        assets/images/logo-bw.png
+        assets/images/icon.png
+        assets/images/icon-bw.png
 )
 
 qt_add_qml_module(appgav
