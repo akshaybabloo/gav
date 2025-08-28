@@ -53,6 +53,7 @@ qt_add_qml_module(appgav
             MediaScreen.qml
             Debug.qml
             MediaControls.qml
+            PlayList.qml
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.

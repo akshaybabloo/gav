@@ -136,7 +136,7 @@ ApplicationWindow {
                         if (!firstFileSet) {
                             mediaScreen.path = mediaInfo.path
                             mainWindow.title = "GAV - " + mediaInfo.name
-                            playListView.currentIndex = playList.count - 1
+                            playlistComponent.playListView.currentIndex = playList.count - 1
                             firstFileSet = true
                         }
                     } else {
@@ -158,15 +158,11 @@ ApplicationWindow {
                 playList.append(mediaInfo)
                 mediaScreen.path = mediaInfo.path
                 mainWindow.title = "GAV - " + mediaInfo.name
-                playListView.currentIndex = playList.count - 1
+                playlistComponent.playListView.currentIndex = playList.count - 1
             } else {
                 unsupportedFileDialog.open()
             }
         }
-    }
-
-    ListModel {
-        id: playList
     }
 
     MediaScreen {
@@ -175,73 +171,25 @@ ApplicationWindow {
         path: ""
     }
 
-    ListView {
-        id: playListView
+    ListModel {
+        id: playList
+    }
+
+    PlayList {
+        id: playlistComponent
         anchors.fill: parent
-        clip: true
-        boundsBehavior: Flickable.StopAtBounds
-        visible: true // Hidden if video
 
-        model: playList
-
-        ScrollBar.vertical: ScrollBar {}
-
-        onCurrentIndexChanged: {
-            if (currentIndex !== -1) {
-                var item = playList.get(currentIndex)
-                mediaScreen.path = item.path
-                mainWindow.title = "GAV - " + item.name
-            }
-        }
-
-        delegate: ItemDelegate {
-            width: parent.width
-            height: 40
-            padding: 8
-
-            onDoubleClicked: {
-                mediaScreen.player.play()
-            }
-
-            onClicked: {
-                mediaScreen.path = model.path
-                mainWindow.title = "GAV - " + model.name
-            }
-
-            contentItem: Row {
-                spacing: 12
-                anchors.verticalCenter: parent.verticalCenter
-
-                Text {
-                    text: model.icon
-                    font.family: materialSymbolsOutlined.name
-                    font.pixelSize: 24
-                    color: "white"
-                }
-                Text {
-                    text: model.name
-                    color: "white"
-                    font.pixelSize: 14
-                    elide: Text.ElideRight
-                }
-            }
-
-            background: Rectangle {
-                color: parent.down ? "#4a4a4e" : (parent.hovered ? "#2a2a2e" : (parent.ListView.isCurrentItem ? "#383838" : "transparent"))
-                radius: 4
-            }
-        }
+        playList: playList
     }
 
     footer: MediaControls {
         id: controlBar
-        player: mediaScreen.player
-        audioOutput: mediaScreen.audioOutput
-        videoOutput: mediaScreen.videoOutput
         width: parent.width
         anchors.bottom: parent.bottom
         anchors.bottomMargin: mediaScreen.controlsAreVisible ? 0 : -height // No gap
         opacity: mediaScreen.controlsAreVisible ? 1 : 0
+
+        mediaScreen: mediaScreen
 
         Behavior on anchors.bottomMargin {
             NumberAnimation {

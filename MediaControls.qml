@@ -16,9 +16,11 @@ Item {
         hoverEnabled: true
     }
 
-    required property MediaPlayer player
-    required property AudioOutput audioOutput
-    required property VideoOutput videoOutput
+    required property MediaScreen mediaScreen
+
+    property MediaPlayer player: mediaScreen.player
+    property AudioOutput audioOutput: mediaScreen.audioOutput
+    property VideoOutput videoOutput: mediaScreen.videoOutput
 
     function formatTime(ms) {
         var seconds = Math.floor(ms / 1000)
@@ -47,6 +49,7 @@ Item {
 
             spacing: 5
 
+            // Seek row
             RowLayout {
                 spacing: 15
                 Text {
@@ -62,10 +65,11 @@ Item {
                     from: 0
                     to: player.duration
                     value: player.position
-                    Layout.fillWidth: true
+                    enabled: mediaScreen.mediaLoaded
 
                     onMoved: player.position = value
 
+                    Layout.fillWidth: true
                     Layout.preferredHeight: 10
 
                     // Timer to update the slider position
@@ -84,14 +88,13 @@ Item {
             }
 
             RowLayout {
-                // Layout.fillHeight: false
-
+                // Play/pause buttons
                 RowLayout {
                     spacing: 15
 
                     Button {
                         id: playPauseButton
-                        enabled: player.source !== ""
+                        enabled: mediaScreen.mediaLoaded
                         text: player.playbackState
                             === MediaPlayer.PlayingState ? "\ue034" : "\ue037"
                         font.family: materialSymbolsOutlined.name
@@ -116,6 +119,7 @@ Item {
                         scale: 1.5
                         onClicked: {
                             player.stop()
+                            seekSlider.value = 0
                         }
                         Material.roundedScale: Material.NotRounded
                         Layout.preferredWidth: 25
@@ -127,6 +131,7 @@ Item {
                     Layout.fillWidth: true
                 }
 
+                // Volume seek and mute
                 RowLayout {
                     spacing: 5
                     Layout.alignment: Qt.AlignRight

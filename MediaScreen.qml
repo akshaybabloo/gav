@@ -10,6 +10,7 @@ Item {
     property alias audioOutput: audioOutput
     property alias videoOutput: videoOutput
     property bool controlsAreVisible: true
+    property bool mediaLoaded: false
 
     AudioOutput {
         id: audioOutput
@@ -40,7 +41,8 @@ Item {
 
         onMediaStatusChanged: {
             if (mediaPlayer.mediaStatus === MediaPlayer.LoadedMedia) {
-                videoOutput.visible = mediaPlayer.videoTracks.length > 0;
+                mediaLoaded = true
+                videoOutput.visible = mediaPlayer.videoTracks.length > 0
                 console.log("Media loaded")
                 if (mediaPlayer.videoTracks.length > 0) {
                     console.log("This media contains video.")
@@ -48,8 +50,10 @@ Item {
                 if (mediaPlayer.audioTracks.length > 0) {
                     console.log("This media contains audio.")
                 }
-            } else if (mediaPlayer.mediaStatus === MediaPlayer.NoMedia || mediaPlayer.mediaStatus === MediaPlayer.InvalidMedia) {
-                videoOutput.visible = false;
+            } else if (mediaPlayer.mediaStatus === MediaPlayer.NoMedia
+                || mediaPlayer.mediaStatus === MediaPlayer.InvalidMedia) {
+                videoOutput.visible = false
+                mediaLoaded = false
             }
         }
     }
@@ -89,4 +93,3 @@ Item {
         }
     }
 }
-
