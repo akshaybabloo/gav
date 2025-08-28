@@ -4,7 +4,6 @@ import QtMultimedia
 import QtQuick.Layouts
 import QtQuick.Controls.Material
 
-
 Item {
     height: 60
     width: parent.width
@@ -17,16 +16,18 @@ Item {
         hoverEnabled: true
     }
 
-    required property MediaPlayer player
-    required property AudioOutput audioOutput
-    required property VideoOutput videoOutput
+    required property var player
+    required property var audioOutput
+    required property var videoOutput
+    required property bool mediaLoaded
 
     function formatTime(ms) {
-        var seconds = Math.floor(ms / 1000);
-        var minutes = Math.floor(seconds / 60);
-        var hours = Math.floor(minutes / 60);
-        seconds = seconds % 60;
-        return Qt.formatTime(new Date(0, 0, hours, 0, minutes, seconds), "hh:mm:ss");
+        var seconds = Math.floor(ms / 1000)
+        var minutes = Math.floor(seconds / 60)
+        var hours = Math.floor(minutes / 60)
+        seconds = seconds % 60
+        return Qt.formatTime(new Date(0, 0, hours, 0, minutes, seconds),
+            "hh:mm:ss")
     }
 
     Rectangle {
@@ -36,111 +37,154 @@ Item {
         color: "#80000000"
         anchors.horizontalCenter: parent.horizontalCenter
 
-        RowLayout {
+        ColumnLayout {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            anchors.margins: 10
-            spacing: 15
+            anchors.margins: {
+                left: 10
+                right: 10
+            }
 
+            spacing: 5
+
+            // Seek row
             RowLayout {
-                spacing: 20
-
-                Button {
-                    id: playPauseButton
-                    enabled: player.source !== ""
-                    text: player.playbackState === MediaPlayer.PlayingState ? "\ue034" : "\ue037"
-                    font.family: materialSymbolsOutlined.name
-                    scale: 1.5
-                    onClicked: {
-                        if (player.playbackState === MediaPlayer.PlayingState) {
-                            player.pause()
-                        } else {
-                            player.play()
-                        }
-                    }
-                    Material.roundedScale: Material.NotRounded
-                    Layout.preferredWidth: 30
-                }
-
-                Button {
-                    id: stopButton
-                    text: "\ue047"
-                    enabled: player.playbackState !== MediaPlayer.StoppedState
-                    font.family: materialSymbolsOutlined.name
-                    scale: 1.5
-                    onClicked: {
-                        player.stop()
-                    }
-                    Material.roundedScale: Material.NotRounded
-                    Layout.preferredWidth: 30
-                }
-            }
-
-            Text {
-                id: timeLabel
-                text: formatTime(player.position) + " / " + formatTime(player.duration)
-                color: "white"
-                verticalAlignment: Text.AlignVCenter
-            }
-
-            Slider {
-                id: seekSlider
-                from: 0
-                to: player.duration
-                value: player.position
-                Layout.fillWidth: true
-
-                onMoved: player.position = value
-
-                // Timer to update the slider position
-                Timer {
-                    interval: 500
-                    running: player.playbackState === MediaPlayer.PlayingState
-                    repeat: true
-                    onTriggered: {
-                        if (!seekSlider.pressed) { // Do not update while user is seeking
-                            seekSlider.value = player.position
-                        }
-                    }
-                }
-            }
-
-            RowLayout {
-                spacing: 5
-                Layout.alignment: Qt.AlignRight
-
-                ToolButton {
-                    text: "\ue04d"
-                    scale: 1.5
-                    font.family: materialSymbolsOutlined.name
-                    onClicked: {
-                        audioOutput.muted = !audioOutput.muted
-                        text = audioOutput.muted ? "\ue04e" : "\ue04d"
-                        volumeSlider.enabled = !audioOutput.muted
-                    }
-                    Layout.preferredWidth: 15
+                spacing: 15
+                Text {
+                    id: timeLabel
+                    text: formatTime(player.position) + " / " + formatTime(
+                        player.duration)
+                    color: "white"
+                    verticalAlignment: Text.AlignVCenter
                 }
 
                 Slider {
-                    id: volumeSlider
+                    id: seekSlider
                     from: 0
-                    to: 1.0
-                    value: audioOutput.volume
-                    onValueChanged: audioOutput.volume = value
-                    Layout.preferredWidth: 100
+                    to: player.duration
+                    value: player.position
+                    enabled: mediaLoaded
+
+                    onMoved: player.position = value
+
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 10
+
+                    // Timer to update the slider position
+                    Timer {
+                        interval: 500
+                        running: player.playbackState === MediaPlayer.PlayingState
+                        repeat: true
+                        onTriggered: {
+                            if (!seekSlider.pressed) {
+                                // Do not update while user is seeking
+                                seekSlider.value = player.position
+                            }
+                        }
+                    }
+                }
+            }
+
+            RowLayout {
+                // Play/pause buttons
+                RowLayout {
+                    spacing: 15
+
+                    Button {
+                        id: playPauseButton
+                        enabled: mediaLoaded
+                        text: player.playbackState
+                            === MediaPlayer.PlayingState ? "\ue034" : "\ue037"
+                        font.family: materialSymbolsOutlined.name
+                        scale: 1.5
+                        onClicked: {
+                            if (player.playbackState === MediaPlayer.PlayingState) {
+                                player.pause()
+                            } else {
+                                player.play()
+                            }
+                        }
+                        Material.roundedScale: Material.NotRounded
+                        Layout.preferredWidth: 25
+                        Layout.preferredHeight: 30
+                    }
+
+                    Button {
+                        id: stopButton
+                        text: "\ue047"
+                        enabled: player.playbackState !== MediaPlayer.StoppedState
+                        font.family: materialSymbolsOutlined.name
+                        scale: 1.5
+                        onClicked: {
+                            player.stop()
+                            seekSlider.value = 0
+                        }
+                        Material.roundedScale: Material.NotRounded
+                        Layout.preferredWidth: 25
+                        Layout.preferredHeight: 30
+                    }
+
+                    Button {
+                        id: playListButton
+                        text: "\ue3c7"
+                        enabled: true
+                        font.family: materialSymbolsOutlined.name
+                        scale: 1.5
+                        onClicked: {
+                            playlistComponent.visible = !playlistComponent.visible
+                        }
+                        Material.roundedScale: Material.NotRounded
+                        Layout.preferredWidth: 25
+                        Layout.preferredHeight: 30
+                    }
                 }
 
-                Button {
-                    text: mainWindow.visibility === Window.FullScreen ? "\ue5d1" : "\ue5d0"
-                    scale: 1.5
-                    font.family: materialSymbolsOutlined.name
-                    onClicked: {
-                        mainWindow.visibility = mainWindow.visibility === Window.FullScreen ? Window.Windowed : Window.FullScreen
+                Item {
+                    Layout.fillWidth: true
+                }
+
+                // Volume seek and mute
+                RowLayout {
+                    spacing: 5
+                    Layout.alignment: Qt.AlignRight
+
+                    ToolButton {
+                        text: "\ue04d"
+                        scale: 1.5
+                        font.family: materialSymbolsOutlined.name
+                        onClicked: {
+                            audioOutput.muted = !audioOutput.muted
+                            text = audioOutput.muted ? "\ue04e" : "\ue04d"
+                            volumeSlider.enabled = !audioOutput.muted
+                        }
+                        Layout.preferredWidth: 15
+                        Layout.preferredHeight: 25
                     }
-                    Layout.preferredWidth: 25
-                    Material.roundedScale: Material.NotRounded
-                    Material.background: "transparent"
+
+                    Slider {
+                        id: volumeSlider
+                        from: 0
+                        to: 1.0
+                        value: audioOutput.volume
+                        onValueChanged: audioOutput.volume = value
+                        Layout.preferredWidth: 100
+                        Layout.preferredHeight: 10
+                    }
+
+                    Button {
+                        text: mainWindow.visibility === Window.FullScreen ? "\ue5d1" : "\ue5d0"
+                        scale: 1.5
+                        font.family: materialSymbolsOutlined.name
+                        onClicked: {
+                            mainWindow.visibility = mainWindow.visibility
+                                === Window.FullScreen ? Window.Windowed : Window.FullScreen
+                        }
+                        Layout.preferredWidth: 25
+                        Layout.preferredHeight: 30
+                        Material.roundedScale: Material.NotRounded
+                        Material.background: "transparent"
+                    }
                 }
             }
         }

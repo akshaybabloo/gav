@@ -6,6 +6,7 @@ import QtQuick.Layouts
 
 ApplicationWindow {
     id: mainWindow
+    property bool mediaControlsContainsMouse: false
     width: 1024
     height: 768
     visible: true
@@ -23,8 +24,7 @@ ApplicationWindow {
                     text: qsTr("Open")
                     onTriggered: fileDialog.open()
                 }
-                MenuSeparator {
-                }
+                MenuSeparator {}
                 Action {
                     text: qsTr("Exit")
                     onTriggered: Qt.quit()
@@ -42,8 +42,20 @@ ApplicationWindow {
 
     // --- Loader for WINDOWED mode ---
     menuBar: Loader {
+        id: windowedMenuBarLoader
         active: mainWindow.visibility !== Window.FullScreen
-        sourceComponent: menuBarComponent
+        sourceComponent: active ? menuBarComponent : null
+
+        // Make the Loader span the window width
+        anchors.left: parent.left
+        anchors.right: parent.right
+
+        // Let the loaded MenuBar fill the Loader
+        onLoaded: if (item)
+                      item.anchors.fill = windowedMenuBarLoader
+
+        // Collapse space when inactive
+        height: active && item ? item.implicitHeight : 0
     }
 
     // --- Loader for FULLSCREEN mode ---
@@ -66,6 +78,7 @@ ApplicationWindow {
         sourceComponent: menuBarComponent
     }
 
+    // About dialog
     Dialog {
         id: aboutDialog
         x: (parent.width - width) / 2
@@ -79,6 +92,7 @@ ApplicationWindow {
         }
     }
 
+    // If an error occurs with the video/audio
     Dialog {
         id: unsupportedFileDialog
         x: (parent.width - width) / 2
@@ -92,110 +106,138 @@ ApplicationWindow {
         }
     }
 
+    // TODO: Maybe use backend to verify
+    function getMediaInfo(fileUrl) {
+        var path = fileUrl.toString()
+        // On Windows, fileUrl can start with 'file:///'
+        if (path.startsWith('file:///')) {
+            path = path.substring(8)
+        }
+        var name = path.substring(path.lastIndexOf('/') + 1)
+        var extension = name.substring(name.lastIndexOf('.') + 1).toLowerCase()
+        var videoExtensions = ["mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"]
+        var audioExtensions = ["mp3", "wav", "ogg", "flac", "aac", "wma"]
+
+        if (videoExtensions.indexOf(extension) !== -1) {
+            return {
+                "name": name,
+                "path": fileUrl,
+                "type": "video",
+                "icon": "\ueb87"
+            }
+        } else if (audioExtensions.indexOf(extension) !== -1) {
+            return {
+                "name": name,
+                "path": fileUrl,
+                "type": "audio",
+                "icon": "\ue405"
+            }
+        } else {
+            return null
+        }
+    }
+
     DropArea {
-        anchors.fill: parent // Or define specific size/position
+        anchors.fill: parent
         onDropped: function (drop) {
             if (drop.urls && drop.urls.length > 0) {
-                console.log("Dropped files:", drop.urls);
-                mediaScreen.path = drop.urls[0];
-                mainWindow.title = "GAV - " + drop.urls[0].toString().split('/').pop();
-            } else if (drop.text) {
-                console.log("Dropped text:", drop.text);
+                var firstFileSet = false
+                for (var i = 0; i < drop.urls.length; i++) {
+                    var mediaInfo = getMediaInfo(drop.urls[i])
+                    if (mediaInfo) {
+                        playList.append(mediaInfo)
+                        if (!firstFileSet) {
+                            mediaScreen.path = mediaInfo.path
+                            mainWindow.title = "GAV - " + mediaInfo.name
+                            playlistComponent.playListView.currentIndex = playList.count - 1
+                            firstFileSet = true
+                        }
+                    } else {
+                        unsupportedFileDialog.open()
+                    }
+                }
             }
         }
     }
 
     FileDialog {
         id: fileDialog
-        currentFolder: StandardPaths.standardLocations(StandardPaths.VideosLocation)[0]
-        nameFilters: ["All files (*)"]
+        currentFolder: StandardPaths.standardLocations(
+                           StandardPaths.VideosLocation)[0]
+        nameFilters: ["Video Files (*.mp4 *.avi *.mkv *.mov *.wmv)", "Audio Files (*.mp3 *.wav *.ogg)", "All files (*)"]
         onAccepted: {
-            mediaScreen.path = selectedFile;
-            mainWindow.title = "GAV - " + selectedFile.toString().split('/').pop();
+            var mediaInfo = getMediaInfo(selectedFile)
+            if (mediaInfo) {
+                playList.append(mediaInfo)
+                mediaScreen.path = mediaInfo.path
+                mainWindow.title = "GAV - " + mediaInfo.name
+                playlistComponent.playListView.currentIndex = playList.count - 1
+            } else {
+                unsupportedFileDialog.open()
+            }
         }
+    }
+
+    MediaScreen {
+        id: mediaScreen
+        anchors.fill: parent
+        path: ""
     }
 
     ListModel {
         id: playList
-        ListElement {
-            name: "Some name"
-            path: "path://something"
-            type: "audio"
-            icon: "\ue405"
-        }
-        ListElement {
-            name: "Some name"
-            path: "path://something"
-            type: "video"
-            icon: "\ueb87"
+    }
+
+    PlayListComponent {
+        id: playlistComponent
+        anchors.fill: parent
+        visible: !mediaScreen.isVideoAndPlaying
+        playList: playList
+    }
+
+    Component {
+        id: mediaControlsComponent
+        MediaControls {
+            id: controlBar
+            onContainsMouseChanged: mainWindow.mediaControlsContainsMouse = containsMouse
+            implicitHeight: 60
+            player: mediaScreen.mediaPlayer
+            audioOutput: mediaScreen.audioOutput
+            videoOutput: mediaScreen.videoOutput
+            mediaLoaded: mediaScreen.mediaLoaded
         }
     }
 
-    SplitView {
-        id: splitView
-        anchors.fill: parent
+    footer: Loader {
+        id: mediaControlsComponentLoader
+        active: mainWindow.visibility !== Window.FullScreen
+        sourceComponent: active ? mediaControlsComponent : null
 
-        handle: Rectangle {
-            id: handleSeparator
-            width: 1
-            color: "#3a3a3e"
-            implicitWidth: 1
-        }
+        // The footer property handles positioning and width
 
-        MediaScreen {
-            id: mediaScreen
-            path: ""
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.minimumWidth: 400
-        }
+        // Let the loaded MediaControls fill the Loader
+        onLoaded: if (item)
+                      item.anchors.fill = mediaControlsComponentLoader
 
-        Pane {
-            id: playlistPane
-            Layout.fillHeight: true
-            Layout.minimumWidth: 180
-            Layout.preferredWidth: 280
-            Layout.maximumWidth: 500
-            background: Rectangle {
-                color: "#1e1e1e"
-            }
+        // Collapse space when inactive
+        height: active && item ? item.implicitHeight : 0
+    }
 
-            ListView {
-                id: playListView
-                anchors.fill: parent
-                clip: true
+    // --- Loader for FULLSCREEN mode ---
+    Loader {
+        id: fullscreenMediaControlsComponentLoader
+        active: mainWindow.visibility === Window.FullScreen
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        z: 100
+        opacity: controlsVisibleAlias ? 1 : 0
+        enabled: opacity > 0
+        Behavior on opacity { NumberAnimation { duration: 300 } }
 
-                model: playList
-                delegate: ItemDelegate {
-                    width: parent.width
-                    height: 48
-                    padding: 8
-
-                    contentItem: Row {
-                        spacing: 12
-                        anchors.verticalCenter: parent.verticalCenter
-
-                        Text {
-                            text: model.icon
-                            font.family: materialSymbolsOutlined.name
-                            font.pixelSize: 24
-                            color: "white"
-                        }
-                        Text {
-                            text: model.name
-                            color: "white"
-                            font.pixelSize: 14
-                            elide: Text.ElideRight
-                        }
-                    }
-
-                    background: Rectangle {
-                        color: parent.down ? "#4a4a4e" : (parent.hovered ? "#2a2a2e" : "transparent")
-                        radius: 4
-                    }
-                }
-            }
-        }
+        sourceComponent: mediaControlsComponent
+        onLoaded: if (item) item.anchors.fill = fullscreenMediaControlsComponentLoader
+        height: item ? item.implicitHeight : 0
     }
 
     FontLoader {
