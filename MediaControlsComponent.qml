@@ -8,6 +8,7 @@ Item {
     height: 60
     width: parent.width
 
+    property real previousVolume: 0.5
     property bool containsMouse: controlMouseArea.containsMouse
 
     MouseArea {
@@ -28,6 +29,18 @@ Item {
         seconds = seconds % 60
         return Qt.formatTime(new Date(0, 0, hours, 0, minutes, seconds),
             "hh:mm:ss")
+    }
+
+    function updateVolumeIcon() {
+        if (audioOutput.muted || audioOutput.volume === 0) {
+            volumeButton.text = "\ue04e"
+        } else if (audioOutput.volume < 0.5) {
+            volumeButton.text = "\ue04d"
+        } else if (audioOutput.volume < 1.0) {
+            volumeButton.text = "\ue050"
+        } else { // volume is 1.0
+            volumeButton.text = "\ue98e"
+        }
     }
 
     Rectangle {
@@ -123,6 +136,7 @@ Item {
                         Material.roundedScale: Material.NotRounded
                         Layout.preferredWidth: 25
                         Layout.preferredHeight: 30
+                        font.weight: Font.Light
                     }
 
                     Button {
@@ -137,6 +151,7 @@ Item {
                         Material.roundedScale: Material.NotRounded
                         Layout.preferredWidth: 25
                         Layout.preferredHeight: 30
+                        font.weight: Font.Light
                     }
                 }
 
@@ -150,16 +165,23 @@ Item {
                     Layout.alignment: Qt.AlignRight
 
                     ToolButton {
+                        id: volumeButton
                         text: "\ue04d"
                         scale: 1.5
                         font.family: materialSymbolsOutlined.name
                         onClicked: {
                             audioOutput.muted = !audioOutput.muted
-                            text = audioOutput.muted ? "\ue04e" : "\ue04d"
-                            volumeSlider.enabled = !audioOutput.muted
+                            if (audioOutput.muted) {
+                                previousVolume = audioOutput.volume
+                                audioOutput.volume = 0
+                            } else {
+                                audioOutput.volume = previousVolume
+                            }
+                            updateVolumeIcon()
                         }
                         Layout.preferredWidth: 15
                         Layout.preferredHeight: 25
+                        font.weight: Font.Light
                     }
 
                     Slider {
@@ -167,9 +189,17 @@ Item {
                         from: 0
                         to: 1.0
                         value: audioOutput.volume
-                        onValueChanged: audioOutput.volume = value
+                        onValueChanged: {
+                            audioOutput.volume = value
+                            if (value > 0) {
+                                audioOutput.muted = false
+                            }
+                            updateVolumeIcon()
+                        }
+
                         Layout.preferredWidth: 100
                         Layout.preferredHeight: 10
+
                     }
 
                     Button {

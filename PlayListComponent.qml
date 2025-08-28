@@ -14,9 +14,10 @@ Item {
         Text {
             text: "\uf523"
             font.family: materialSymbolsOutlined.name
-            font.pixelSize: 24
+            font.pixelSize: 80
             color: "white"
             Layout.alignment: Qt.AlignHCenter
+            font.weight: Font.ExtraLight
         }
         Text {
             text: "Add video or audio to play"
@@ -53,6 +54,7 @@ Item {
                     id: stopButton
                     text: "\ue12d"
                     font.family: materialSymbolsOutlined.name
+                    font.weight: Font.Light
                     scale: 1.5
                     onClicked: {
                         playList.clear()
