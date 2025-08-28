@@ -7,7 +7,7 @@ Item {
 
     required property string path
 
-    property alias player: mediaPlayer
+    property alias mediaPlayer: mediaPlayer
     property alias audioOutput: audioOutput
     property alias videoOutput: videoOutput
 
@@ -26,7 +26,7 @@ Item {
     MediaPlayer {
         id: mediaPlayer
         source: path
-        videoOutput: mediaPlayer.videoAvailable ? videoOutput : null
+        videoOutput: videoOutput
         audioOutput: audioOutput
 
         onPlaybackStateChanged: {
@@ -101,7 +101,7 @@ Item {
         interval: 3000
         repeat: false
         onTriggered: {
-            if (!controlBar.containsMouse) {
+            if (!mainWindow.mediaControlsContainsMouse) {
                 controlsAreVisible = false
                 mouseArea.lastPos = Qt.point(-1, -1) // Reset position detector
             }

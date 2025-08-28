@@ -16,11 +16,10 @@ Item {
         hoverEnabled: true
     }
 
-    required property MediaScreen mediaScreen
-
-    property MediaPlayer player: mediaScreen.player
-    property AudioOutput audioOutput: mediaScreen.audioOutput
-    property VideoOutput videoOutput: mediaScreen.videoOutput
+    required property var player
+    required property var audioOutput
+    required property var videoOutput
+    required property bool mediaLoaded
 
     function formatTime(ms) {
         var seconds = Math.floor(ms / 1000)
@@ -65,7 +64,7 @@ Item {
                     from: 0
                     to: player.duration
                     value: player.position
-                    enabled: mediaScreen.mediaLoaded
+                    enabled: mediaLoaded
 
                     onMoved: player.position = value
 
@@ -94,7 +93,7 @@ Item {
 
                     Button {
                         id: playPauseButton
-                        enabled: mediaScreen.mediaLoaded
+                        enabled: mediaLoaded
                         text: player.playbackState
                             === MediaPlayer.PlayingState ? "\ue034" : "\ue037"
                         font.family: materialSymbolsOutlined.name

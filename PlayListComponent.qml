@@ -3,7 +3,6 @@ import QtQuick.Controls
 import QtQuick.Layouts
 
 Item {
-
     required property ListModel playList
     property alias playListView: playListView
 
@@ -82,7 +81,7 @@ Item {
             padding: 8
 
             onDoubleClicked: {
-                mediaScreen.player.play()
+                mediaScreen.mediaPlayer.play()
             }
 
             onClicked: {

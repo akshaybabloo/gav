@@ -6,6 +6,7 @@ import QtQuick.Layouts
 
 ApplicationWindow {
     id: mainWindow
+    property bool mediaControlsContainsMouse: false
     width: 1024
     height: 768
     visible: true
@@ -50,7 +51,8 @@ ApplicationWindow {
         anchors.right: parent.right
 
         // Let the loaded MenuBar fill the Loader
-        onLoaded: if (item) item.anchors.fill = windowedMenuBarLoader
+        onLoaded: if (item)
+                      item.anchors.fill = windowedMenuBarLoader
 
         // Collapse space when inactive
         height: active && item ? item.implicitHeight : 0
@@ -193,26 +195,49 @@ ApplicationWindow {
         playList: playList
     }
 
-    footer: MediaControls {
-        id: controlBar
-        width: parent.width
+    Component {
+        id: mediaControlsComponent
+        MediaControls {
+            id: controlBar
+            onContainsMouseChanged: mainWindow.mediaControlsContainsMouse = containsMouse
+            implicitHeight: 60
+            player: mediaScreen.mediaPlayer
+            audioOutput: mediaScreen.audioOutput
+            videoOutput: mediaScreen.videoOutput
+            mediaLoaded: mediaScreen.mediaLoaded
+        }
+    }
+
+    footer: Loader {
+        id: mediaControlsComponentLoader
+        active: mainWindow.visibility !== Window.FullScreen
+        sourceComponent: active ? mediaControlsComponent : null
+
+        // The footer property handles positioning and width
+
+        // Let the loaded MediaControls fill the Loader
+        onLoaded: if (item)
+                      item.anchors.fill = mediaControlsComponentLoader
+
+        // Collapse space when inactive
+        height: active && item ? item.implicitHeight : 0
+    }
+
+    // --- Loader for FULLSCREEN mode ---
+    Loader {
+        id: fullscreenMediaControlsComponentLoader
+        active: mainWindow.visibility === Window.FullScreen
+        anchors.left: parent.left
+        anchors.right: parent.right
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: mediaScreen.controlsAreVisible ? 0 : -height // No gap
-        opacity: mediaScreen.controlsAreVisible ? 1 : 0
+        z: 100
+        opacity: controlsVisibleAlias ? 1 : 0
+        enabled: opacity > 0
+        Behavior on opacity { NumberAnimation { duration: 300 } }
 
-        mediaScreen: mediaScreen
-
-        Behavior on anchors.bottomMargin {
-            NumberAnimation {
-                duration: 300
-                easing.type: Easing.OutCubic
-            }
-        }
-        Behavior on opacity {
-            NumberAnimation {
-                duration: 300
-            }
-        }
+        sourceComponent: mediaControlsComponent
+        onLoaded: if (item) item.anchors.fill = fullscreenMediaControlsComponentLoader
+        height: item ? item.implicitHeight : 0
     }
 
     FontLoader {
