@@ -140,11 +140,11 @@ ApplicationWindow {
 
         modal: true
         standardButtons: Dialog.Ok
-        title: qsTr("GAV")
         x: (parent.width - width) / 2
         y: (parent.height - height) / 2
 
         ColumnLayout {
+            spacing: 5
             Image {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.preferredHeight: 200
@@ -154,6 +154,12 @@ ApplicationWindow {
                 source: "qrc:/assets/images/logo-bw.png"
             }
             Text {
+                Layout.alignment: Qt.AlignHCenter
+                color: "white"
+                text: "v" + Qt.application.version
+            }
+            Text {
+                Layout.alignment: Qt.AlignHCenter
                 color: "white"
                 text: "GAV - A simple media player built with Qt and FFmpeg"
             }

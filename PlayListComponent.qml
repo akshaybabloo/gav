@@ -20,7 +20,7 @@ Item {
             font.weight: Font.ExtraLight
         }
         Text {
-            text: "Add video or audio to play"
+            text: "Add video or audio files to play"
             font.pixelSize: 24
             color: "white"
             Layout.alignment: Qt.AlignHCenter

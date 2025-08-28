@@ -5,6 +5,12 @@ int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
 
+#ifdef APP_VERSION
+    QCoreApplication::setApplicationVersion(QString(APP_VERSION));
+#else
+    QCoreApplication::setApplicationVersion(QString("dev"));
+#endif
+
     QQmlApplicationEngine engine;
     QObject::connect(
         &engine,

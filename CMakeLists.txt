@@ -37,6 +37,8 @@ qt_add_executable(appgav
     main.cpp
 )
 
+target_compile_definitions(appgav PRIVATE APP_VERSION="${PROJECT_VERSION}")
+
 qt_add_resources(appgav "assets"
     PREFIX "/"
     FILES
