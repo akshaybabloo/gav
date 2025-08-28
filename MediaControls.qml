@@ -125,6 +125,20 @@ Item {
                         Layout.preferredWidth: 25
                         Layout.preferredHeight: 30
                     }
+
+                    Button {
+                        id: playListButton
+                        text: "\ue3c7"
+                        enabled: true
+                        font.family: materialSymbolsOutlined.name
+                        scale: 1.5
+                        onClicked: {
+                            playlistComponent.visible = !playlistComponent.visible
+                        }
+                        Material.roundedScale: Material.NotRounded
+                        Layout.preferredWidth: 25
+                        Layout.preferredHeight: 30
+                    }
                 }
 
                 Item {

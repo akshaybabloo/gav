@@ -20,7 +20,7 @@ Item {
             Layout.alignment: Qt.AlignHCenter
         }
         Text {
-            text: "Add video or audio play"
+            text: "Add video or audio to play"
             font.pixelSize: 24
             color: "white"
             Layout.alignment: Qt.AlignHCenter
