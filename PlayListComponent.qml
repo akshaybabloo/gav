@@ -70,7 +70,7 @@ Item {
         onCurrentIndexChanged: {
             if (currentIndex !== -1) {
                 var item = playList.get(currentIndex)
-                mediaScreen.path = item.path
+                mediaComponent.path = item.path
                 mainWindow.title = "GAV - " + item.name
             }
         }
@@ -81,7 +81,7 @@ Item {
             padding: 8
 
             onDoubleClicked: {
-                mediaScreen.mediaPlayer.play()
+                mediaComponent.mediaPlayer.play()
             }
 
             onClicked: {

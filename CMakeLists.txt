@@ -50,9 +50,9 @@ qt_add_qml_module(appgav
     QML_FILES
         Main.qml
         QML_FILES
-            MediaScreen.qml
+            MediaComponent.qml
             Debug.qml
-            MediaControls.qml
+            MediaControlsComponent.qml
             PlayListComponent.qml
 )
 

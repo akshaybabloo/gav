@@ -12,7 +12,7 @@ ApplicationWindow {
     visible: true
     title: qsTr("GAV")
 
-    property bool controlsVisibleAlias: mediaScreen.controlsAreVisible
+    property bool controlsVisibleAlias: mediaComponent.controlsAreVisible
 
     // --- Reusable MenuBar definition ---
     Component {
@@ -147,7 +147,7 @@ ApplicationWindow {
                     if (mediaInfo) {
                         playList.append(mediaInfo)
                         if (!firstFileSet) {
-                            mediaScreen.path = mediaInfo.path
+                            mediaComponent.path = mediaInfo.path
                             mainWindow.title = "GAV - " + mediaInfo.name
                             playlistComponent.playListView.currentIndex = playList.count - 1
                             firstFileSet = true
@@ -169,7 +169,7 @@ ApplicationWindow {
             var mediaInfo = getMediaInfo(selectedFile)
             if (mediaInfo) {
                 playList.append(mediaInfo)
-                mediaScreen.path = mediaInfo.path
+                mediaComponent.path = mediaInfo.path
                 mainWindow.title = "GAV - " + mediaInfo.name
                 playlistComponent.playListView.currentIndex = playList.count - 1
             } else {
@@ -178,8 +178,8 @@ ApplicationWindow {
         }
     }
 
-    MediaScreen {
-        id: mediaScreen
+    MediaComponent {
+        id: mediaComponent
         anchors.fill: parent
         path: ""
     }
@@ -191,20 +191,20 @@ ApplicationWindow {
     PlayListComponent {
         id: playlistComponent
         anchors.fill: parent
-        visible: !mediaScreen.isVideoAndPlaying
+        visible: !mediaComponent.isVideoAndPlaying
         playList: playList
     }
 
     Component {
         id: mediaControlsComponent
-        MediaControls {
+        MediaControlsComponent {
             id: controlBar
             onContainsMouseChanged: mainWindow.mediaControlsContainsMouse = containsMouse
             implicitHeight: 60
-            player: mediaScreen.mediaPlayer
-            audioOutput: mediaScreen.audioOutput
-            videoOutput: mediaScreen.videoOutput
-            mediaLoaded: mediaScreen.mediaLoaded
+            player: mediaComponent.mediaPlayer
+            audioOutput: mediaComponent.audioOutput
+            videoOutput: mediaComponent.videoOutput
+            mediaLoaded: mediaComponent.mediaLoaded
         }
     }
 
