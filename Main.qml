@@ -186,10 +186,10 @@ ApplicationWindow {
         id: playList
     }
 
-    PlayList {
+    PlayListComponent {
         id: playlistComponent
         anchors.fill: parent
-
+        visible: !mediaScreen.isVideoAndPlaying
         playList: playList
     }
 
