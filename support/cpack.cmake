@@ -1,0 +1,55 @@
+qt_generate_deploy_qml_app_script(
+    TARGET appgav
+    OUTPUT_SCRIPT deploy_script
+)
+
+message("deploy script name: ${deploy_script}")
+message("qt_deploy_support: ${QT_DEPLOY_SUPPORT}")
+install(SCRIPT ${deploy_script})
+
+# Enable support for packing using CPack and IFW
+if (UNIX)
+    set(CPACK_GENERATOR "IFW;TGZ;DEB")
+    set(CPACK_IFW_ROOT "$ENV{HOME}/Qt/Tools/QtInstallerFramework/4.10")
+elseif (WIN32)
+    set(CPACK_GENERATOR "IFW;ZIP")
+    set(CPACK_IFW_ROOT "C:/Qt/Tools/QtInstallerFramework/4.10")
+endif ()
+
+# CPack settings
+set(CPACK_PRE_BUILD_SCRIPTS ${QT_DEPLOY_SUPPORT})
+set(CPACK_PACKAGE_NAME "GAV")
+set(CPACK_PACKAGE_VENDOR "Akshay Raj Gollahalli")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "GAV - A simple audio and video player")
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+set(CPACK_PACKAGE_VERSION_MAJOR "${PROJECT_VERSION_MAJOR}")
+set(CPACK_PACKAGE_VERSION_MINOR "${PROJECT_VERSION_MINOR}")
+set(CPACK_PACKAGE_VERSION_PATCH "${PROJECT_VERSION_PATCH}")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "GAV")
+set(CPACK_PACKAGE_CONTACT "Akshay Raj Gollahalli <akshay@gollahalli.com>")
+SET(CPACK_OUTPUT_FILE_PREFIX packages)
+set(CPACK_VERBATIM_VARIABLES YES)
+set(CPACK_COMPONENTS_GROUPING IGNORE)
+
+# IFW settings
+set(CPACK_IFW_VERBOSE ON)
+set(CPACK_IFW_PACKAGE_TITLE ${CPACK_PACKAGE_NAME})
+set(CPACK_IFW_PACKAGE_PUBLISHER ${CPACK_PACKAGE_VENDOR})
+set(CPACK_IFW_PRODUCT_URL "https://www.gollahalli.com")
+
+## Installer script
+set(CPACK_IFW_PACKAGE_CONTROL_SCRIPT ${CMAKE_CURRENT_LIST_DIR}/installerscript.qs)
+
+## create a more memorable name for the maintenance tool (used for uninstalling the package)
+set(CPACK_IFW_PACKAGE_MAINTENANCE_TOOL_NAME ${PROJECT_NAME}_MaintenanceTool)
+set(CPACK_IFW_PACKAGE_MAINTENANCE_TOOL_INI_FILE ${CPACK_IFW_PACKAGE_MAINTENANCE_TOOL_NAME}.ini)
+set(CPACK_IFW_PACKAGE_WIZARD_STYLE "Modern")
+set(CPACK_IFW_PACKAGE_WIZARD_DEFAULT_HEIGHT 400)
+
+## set the installer icon and logo
+set(CPACK_IFW_PACKAGE_ICON ${CMAKE_SOURCE_DIR}/assets/images/logo.ico)
+set(CPACK_IFW_PACKAGE_WINDOW_ICON ${CMAKE_SOURCE_DIR}/assets/images/icon-50x50.png)
+set(CPACK_IFW_PACKAGE_LOGO ${CMAKE_SOURCE_DIR}/assets/images/icon-50x50.png)
+
+include(CPack)
+include(CPackIFW)

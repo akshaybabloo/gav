@@ -6,4 +6,4 @@
   <img alt="GAV" src="assets/images/logo.png" width="30%">
 </picture>
 
-GAV is a very simple audio and video player, backed by FFmpeg and Qt6.
+GAV is a simple audio and video player, backed by FFmpeg and Qt6.

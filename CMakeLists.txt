@@ -29,7 +29,7 @@ if ($ENV{CLION_IDE})
     endif()
 endif ()
 
-find_package(Qt6 REQUIRED COMPONENTS Quick)
+find_package(Qt6 REQUIRED COMPONENTS Quick Multimedia)
 
 qt_standard_project_setup(REQUIRES 6.9)
 
@@ -73,12 +73,15 @@ set_target_properties(appgav PROPERTIES
 )
 
 target_link_libraries(appgav
-    PRIVATE Qt6::Quick
+    PRIVATE Qt6::Quick Qt6::Multimedia
 )
 
+include(InstallRequiredSystemLibraries)
 include(GNUInstallDirs)
 install(TARGETS appgav
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+include(support/cpack.cmake)
