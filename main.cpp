@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
         &app,
         []() { QCoreApplication::exit(-1); },
         Qt::QueuedConnection);
-    engine.loadFromModule("gav", "Main");
+    engine.loadFromModule("gavqml", "Main");
 
     return app.exec();
 }

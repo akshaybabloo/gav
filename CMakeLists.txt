@@ -51,7 +51,7 @@ qt_add_resources(appgav "assets"
 )
 
 qt_add_qml_module(appgav
-    URI gav
+    URI gavqml
     VERSION 1.0
     QML_FILES
         Main.qml
@@ -71,6 +71,8 @@ set_target_properties(appgav PROPERTIES
     MACOSX_BUNDLE TRUE
     WIN32_EXECUTABLE TRUE
 )
+
+set_target_properties(appgav PROPERTIES OUTPUT_NAME "gav")
 
 target_link_libraries(appgav
     PRIVATE Qt6::Quick Qt6::Multimedia
