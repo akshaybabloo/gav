@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Name=GAV
+GenericName=Media Player
+Comment=A simple audio and video player
+Exec=gav %F
+Icon=gav
+Terminal=false
+Type=Application
+Categories=AudioVideo;Player;

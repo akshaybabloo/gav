@@ -94,4 +94,13 @@ install(TARGETS appgav
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
+if(UNIX)
+    install(FILES assets/images/icon.png
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps
+            RENAME gav.png)
+
+    install(FILES support/gav.desktop
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+endif()
+
 include(support/cpack.cmake)
