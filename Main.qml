@@ -22,8 +22,8 @@ ApplicationWindow {
         }
         var name = path.substring(path.lastIndexOf('/') + 1)
         var extension = name.substring(name.lastIndexOf('.') + 1).toLowerCase()
-        var videoExtensions = ["mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"]
-        var audioExtensions = ["mp3", "wav", "ogg", "flac", "aac", "wma"]
+        var videoExtensions = ["mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "m4v"]
+        var audioExtensions = ["mp3", "wav", "ogg", "flac", "aac", "wma", "m4a"]
 
         if (videoExtensions.indexOf(extension) !== -1) {
             return {
@@ -229,7 +229,7 @@ ApplicationWindow {
         id: fileDialog
         currentFolder: StandardPaths.standardLocations(
                            StandardPaths.DownloadLocation)[0]
-        nameFilters: ["Video Files (*.mp4 *.avi *.mkv *.mov *.wmv)", "Audio Files (*.mp3 *.wav *.ogg)", "All files (*)"]
+        nameFilters: ["Video Files (*.mp4 *.avi *.mkv *.mov *.wmv *.flv *.webm *.m4v)", "Audio Files (*.mp3 *.wav *.ogg *.flac *.aac *.wma *m4a)", "All files (*)"]
 
         onAccepted: {
             var mediaInfo = getMediaInfo(selectedFile)
