@@ -99,3 +99,7 @@ appgav_autogen/
 appgav
 appgav_qmltyperegistrations.cpp
 .cache/
+CPackConfig.cmake
+CPackSourceConfig.cmake
+gavqml/
+gav

@@ -7,20 +7,23 @@ import QtQuick.Layouts
 ApplicationWindow {
     id: mainWindow
 
+    property url source
+    property bool shouldAutoPlay: false
+
     property bool controlsVisibleAlias: mediaComponent.controlsAreVisible
     property bool mediaControlsContainsMouse: false
 
     // TODO: Maybe use backend to verify
     function getMediaInfo(fileUrl) {
-        var path = fileUrl.toString();
+        var path = fileUrl.toString()
         // On Windows, fileUrl can start with 'file:///'
         if (path.startsWith('file:///')) {
-            path = path.substring(8);
+            path = path.substring(8)
         }
-        var name = path.substring(path.lastIndexOf('/') + 1);
-        var extension = name.substring(name.lastIndexOf('.') + 1).toLowerCase();
-        var videoExtensions = ["mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"];
-        var audioExtensions = ["mp3", "wav", "ogg", "flac", "aac", "wma"];
+        var name = path.substring(path.lastIndexOf('/') + 1)
+        var extension = name.substring(name.lastIndexOf('.') + 1).toLowerCase()
+        var videoExtensions = ["mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"]
+        var audioExtensions = ["mp3", "wav", "ogg", "flac", "aac", "wma"]
 
         if (videoExtensions.indexOf(extension) !== -1) {
             return {
@@ -28,16 +31,16 @@ ApplicationWindow {
                 "path": fileUrl,
                 "type": "video",
                 "icon": "\ueb87"
-            };
+            }
         } else if (audioExtensions.indexOf(extension) !== -1) {
             return {
                 "name": name,
                 "path": fileUrl,
                 "type": "audio",
                 "icon": "\ue405"
-            };
+            }
         } else {
-            return null;
+            return null
         }
     }
 
@@ -45,6 +48,25 @@ ApplicationWindow {
     title: qsTr("GAV")
     visible: true
     width: 1024
+
+    onSourceChanged: {
+        const s = "" + source
+        if (!s) {
+            console.log("No source provided")
+            return
+        }
+
+        const mediaInfo = getMediaInfo(source)
+        if (mediaInfo) {
+            playList.append(mediaInfo)
+            mediaComponent.path = mediaInfo.path
+            mainWindow.title = "GAV - " + mediaInfo.name
+            playlistComponent.playListView.currentIndex = playList.count - 1
+            shouldAutoPlay = true
+        } else {
+            unsupportedFileDialog.open()
+        }
+    }
 
     footer: Loader {
         id: mediaControlsComponentLoader
@@ -59,7 +81,7 @@ ApplicationWindow {
 
         // Let the loaded MediaControls fill the Loader
         onLoaded: if (item)
-            item.anchors.fill = mediaControlsComponentLoader
+                      item.anchors.fill = mediaControlsComponentLoader
     }
 
     // --- Loader for WINDOWED mode ---
@@ -78,7 +100,7 @@ ApplicationWindow {
 
         // Let the loaded MenuBar fill the Loader
         onLoaded: if (item)
-            item.anchors.fill = windowedMenuBarLoader
+                      item.anchors.fill = windowedMenuBarLoader
     }
 
     // --- Reusable MenuBar definition ---
@@ -94,8 +116,7 @@ ApplicationWindow {
 
                     onTriggered: fileDialog.open()
                 }
-                MenuSeparator {
-                }
+                MenuSeparator {}
                 Action {
                     text: qsTr("Exit")
 
@@ -186,19 +207,19 @@ ApplicationWindow {
 
         onDropped: function (drop) {
             if (drop.urls && drop.urls.length > 0) {
-                var firstFileSet = false;
+                var firstFileSet = false
                 for (var i = 0; i < drop.urls.length; i++) {
-                    var mediaInfo = getMediaInfo(drop.urls[i]);
+                    var mediaInfo = getMediaInfo(drop.urls[i])
                     if (mediaInfo) {
-                        playList.append(mediaInfo);
+                        playList.append(mediaInfo)
                         if (!firstFileSet) {
-                            mediaComponent.path = mediaInfo.path;
-                            mainWindow.title = "GAV - " + mediaInfo.name;
-                            playlistComponent.playListView.currentIndex = playList.count - 1;
-                            firstFileSet = true;
+                            mediaComponent.path = mediaInfo.path
+                            mainWindow.title = "GAV - " + mediaInfo.name
+                            playlistComponent.playListView.currentIndex = playList.count - 1
+                            firstFileSet = true
                         }
                     } else {
-                        unsupportedFileDialog.open();
+                        unsupportedFileDialog.open()
                     }
                 }
             }
@@ -206,19 +227,19 @@ ApplicationWindow {
     }
     FileDialog {
         id: fileDialog
-
-        currentFolder: StandardPaths.standardLocations(StandardPaths.DownloadLocation)[0]
+        currentFolder: StandardPaths.standardLocations(
+                           StandardPaths.DownloadLocation)[0]
         nameFilters: ["Video Files (*.mp4 *.avi *.mkv *.mov *.wmv)", "Audio Files (*.mp3 *.wav *.ogg)", "All files (*)"]
 
         onAccepted: {
-            var mediaInfo = getMediaInfo(selectedFile);
+            var mediaInfo = getMediaInfo(selectedFile)
             if (mediaInfo) {
-                playList.append(mediaInfo);
-                mediaComponent.path = mediaInfo.path;
-                mainWindow.title = "GAV - " + mediaInfo.name;
-                playlistComponent.playListView.currentIndex = playList.count - 1;
+                playList.append(mediaInfo)
+                mediaComponent.path = mediaInfo.path
+                mainWindow.title = "GAV - " + mediaInfo.name
+                playlistComponent.playListView.currentIndex = playList.count - 1
             } else {
-                unsupportedFileDialog.open();
+                unsupportedFileDialog.open()
             }
         }
     }
@@ -227,10 +248,16 @@ ApplicationWindow {
 
         anchors.fill: parent
         path: ""
+
+        onMediaLoadedChanged: {
+            if (mediaLoaded && shouldAutoPlay) {
+                mediaPlayer.play()
+                shouldAutoPlay = false
+            }
+        }
     }
     ListModel {
         id: playList
-
     }
     PlayListComponent {
         id: playlistComponent
@@ -276,7 +303,7 @@ ApplicationWindow {
         }
 
         onLoaded: if (item)
-            item.anchors.fill = fullscreenMediaControlsComponentLoader
+                      item.anchors.fill = fullscreenMediaControlsComponentLoader
     }
     FontLoader {
         id: materialSymbolsOutlined

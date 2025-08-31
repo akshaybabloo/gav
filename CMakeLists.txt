@@ -22,14 +22,22 @@ if ($ENV{CLION_IDE})
         list(GET QT_DIRS 0 QT_DIR)
         message(STATUS "Using Qt directory: ${QT_DIR}")
         list(APPEND CMAKE_PREFIX_PATH ${QT_DIR} ${QT_DIR}/gcc_64)
-        set(Qt6Quick_DIR ${QT_DIR}/gcc_64/lib/cmake/Qt6Quick)
-        set(Qt6_DIR ${QT_DIR}/gcc_64/lib/cmake/Qt6)
+        # List all dirs in QT_DIRS/gcc_64/lib/cmake
+        file(GLOB QT_CMAKE_DIRS "${QT_DIR}/gcc_64/lib/cmake/*")
+        message(STATUS "CMake directories in ${QT_DIR}/gcc_64/lib/cmake:")
+        foreach(dir ${QT_CMAKE_DIRS})
+            message(STATUS "  - ${dir}")
+            # Get the last part of the path
+            get_filename_component(dir_name ${dir} NAME)
+            message(STATUS "    - Directory name: ${dir_name}")
+            set(${dir_name}_DIR ${dir})
+        endforeach()
     else()
         message(FATAL_ERROR "No Qt directory starting with ${QT_VERSION} found in /home/akshay/Qt/")
     endif()
 endif ()
 
-find_package(Qt6 REQUIRED COMPONENTS Quick Multimedia)
+find_package(Qt6 REQUIRED COMPONENTS Core Quick Multimedia Widgets)
 
 qt_standard_project_setup(REQUIRES 6.9)
 
@@ -75,7 +83,7 @@ set_target_properties(appgav PROPERTIES
 set_target_properties(appgav PROPERTIES OUTPUT_NAME "gav")
 
 target_link_libraries(appgav
-    PRIVATE Qt6::Quick Qt6::Multimedia
+    PRIVATE Qt6::Core Qt6::Quick Qt6::Multimedia Qt6::Widgets
 )
 
 include(InstallRequiredSystemLibraries)
