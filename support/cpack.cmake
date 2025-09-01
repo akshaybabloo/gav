@@ -7,9 +7,11 @@ message("deploy script name: ${deploy_script}")
 message("qt_deploy_support: ${QT_DEPLOY_SUPPORT}")
 install(SCRIPT ${deploy_script})
 
+include(CPackIFW)
+
 # Enable support for packing using CPack and IFW
 if (UNIX)
-    set(CPACK_GENERATOR "IFW;TGZ;DEB")
+    set(CPACK_GENERATOR "TGZ;DEB")
     set(CPACK_IFW_ROOT "$ENV{HOME}/Qt/Tools/QtInstallerFramework/4.10")
 elseif (WIN32)
     set(CPACK_GENERATOR "IFW;ZIP")
@@ -52,4 +54,3 @@ set(CPACK_IFW_PACKAGE_WINDOW_ICON ${CMAKE_SOURCE_DIR}/assets/images/icon-50x50.p
 set(CPACK_IFW_PACKAGE_LOGO ${CMAKE_SOURCE_DIR}/assets/images/icon-50x50.png)
 
 include(CPack)
-include(CPackIFW)

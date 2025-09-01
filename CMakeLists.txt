@@ -50,6 +50,7 @@ target_compile_definitions(appgav PRIVATE APP_VERSION="${PROJECT_VERSION}")
 qt_add_resources(appgav "assets"
     PREFIX "/"
     FILES
+        support/installerscript.qs
         qtquickcontrols2.conf
         assets/fonts/MaterialSymbolsOutlined.ttf
         assets/images/logo.png
@@ -88,6 +89,7 @@ target_link_libraries(appgav
 
 include(InstallRequiredSystemLibraries)
 include(GNUInstallDirs)
+
 install(TARGETS appgav
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -95,12 +97,16 @@ install(TARGETS appgav
 )
 
 if(UNIX)
+    # For DEB package
     install(FILES assets/images/icon.png
             DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps
             RENAME gav.png)
-
     install(FILES support/gav.desktop
             DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+
+#     # For IFW installer
+#     install(FILES assets/images/icon.png DESTINATION .)
+#     install(FILES support/gav.desktop DESTINATION .)
 endif()
 
 include(support/cpack.cmake)
