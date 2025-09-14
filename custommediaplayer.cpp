@@ -10,8 +10,7 @@ CustomMediaPlayer::CustomMediaPlayer() {
           &CustomMediaPlayer::playbackStateChanged);
   connect(m_mediaPlayer, &QMediaPlayer::mediaStatusChanged, this,
           &CustomMediaPlayer::mediaStatusChanged);
-  connect(m_mediaPlayer, &QMediaPlayer::mediaStatusChanged, this,
-          &CustomMediaPlayer::updateHasVideo);
+  
 
   connect(m_mediaPlayer, &QMediaPlayer::durationChanged, this,
           &CustomMediaPlayer::durationChanged);
@@ -116,14 +115,11 @@ void CustomMediaPlayer::onStatusChanged(QMediaPlayer::MediaStatus status) {
     emit mediaLoadedChanged();
   }
 
-  QQuickItem *vo = qobject_cast<QQuickItem *>(m_mediaPlayer->videoOutput());
-  if (vo) {
-    if (status == QMediaPlayer::LoadedMedia) {
-      vo->setVisible(m_hasVideo);
-    } else if (status == QMediaPlayer::NoMedia ||
-               status == QMediaPlayer::InvalidMedia) {
-      vo->setVisible(false);
-    }
+  if (status == QMediaPlayer::LoadedMedia) {
+    emit videoVisibilityChanged(m_hasVideo);
+  } else if (status == QMediaPlayer::NoMedia ||
+             status == QMediaPlayer::InvalidMedia) {
+    emit videoVisibilityChanged(false);
   }
 
   if (status == QMediaPlayer::LoadedMedia && m_playWhenLoaded) {

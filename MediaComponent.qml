@@ -25,6 +25,10 @@ Item {
         videoOutput: videoOutput
         audioOutput: audioOutput
 
+        onVideoVisibilityChanged: function(visible) {
+            videoOutput.visible = visible
+        }
+
         onPlaybackStateChanged: function(state) {
             if (state === MediaPlayer.PlayingState) {
                 isPlaying = true

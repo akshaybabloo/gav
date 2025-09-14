@@ -59,6 +59,7 @@ signals:
   void durationChanged();
   void positionChanged();
   void mediaLoadedChanged();
+  void videoVisibilityChanged(bool visible);
 
 private slots:
   void onMediaPlayerError(QMediaPlayer::Error error, const QString &errorString);
