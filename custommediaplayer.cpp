@@ -17,6 +17,8 @@ CustomMediaPlayer::CustomMediaPlayer() {
           &CustomMediaPlayer::durationChanged);
   connect(m_mediaPlayer, &QMediaPlayer::positionChanged, this,
           &CustomMediaPlayer::positionChanged);
+  connect(m_mediaPlayer, &QMediaPlayer::mediaStatusChanged, this,
+          &CustomMediaPlayer::onStatusChanged);
 
   connect(m_mediaPlayer,
           QOverload<QMediaPlayer::Error, const QString &>::of(
@@ -70,9 +72,23 @@ void CustomMediaPlayer::setPosition(qint64 position) {
   m_mediaPlayer->setPosition(position);
 }
 
-void CustomMediaPlayer::play() { m_mediaPlayer->play(); }
-void CustomMediaPlayer::pause() { m_mediaPlayer->pause(); }
-void CustomMediaPlayer::stop() { m_mediaPlayer->stop(); }
+bool CustomMediaPlayer::mediaLoaded() const { return m_mediaLoaded; }
+
+void CustomMediaPlayer::play() {
+  if (m_mediaPlayer->mediaStatus() < QMediaPlayer::LoadedMedia) {
+    m_playWhenLoaded = true;
+  } else {
+    m_mediaPlayer->play();
+  }
+}
+void CustomMediaPlayer::pause() {
+  m_playWhenLoaded = false;
+  m_mediaPlayer->pause();
+}
+void CustomMediaPlayer::stop() {
+  m_playWhenLoaded = false;
+  m_mediaPlayer->stop();
+}
 
 void CustomMediaPlayer::onMediaPlayerError(QMediaPlayer::Error error,
                                            const QString &errorString) {
@@ -87,6 +103,32 @@ void CustomMediaPlayer::updateHasVideo() {
   if (m_hasVideo != hasVideo) {
     m_hasVideo = hasVideo;
     emit hasVideoChanged();
+  }
+}
+
+void CustomMediaPlayer::onStatusChanged(QMediaPlayer::MediaStatus status) {
+  updateHasVideo(); // Ensure m_hasVideo is current
+
+  bool loaded = (status >= QMediaPlayer::LoadedMedia &&
+                 status != QMediaPlayer::InvalidMedia);
+  if (m_mediaLoaded != loaded) {
+    m_mediaLoaded = loaded;
+    emit mediaLoadedChanged();
+  }
+
+  QQuickItem *vo = qobject_cast<QQuickItem *>(m_mediaPlayer->videoOutput());
+  if (vo) {
+    if (status == QMediaPlayer::LoadedMedia) {
+      vo->setVisible(m_hasVideo);
+    } else if (status == QMediaPlayer::NoMedia ||
+               status == QMediaPlayer::InvalidMedia) {
+      vo->setVisible(false);
+    }
+  }
+
+  if (status == QMediaPlayer::LoadedMedia && m_playWhenLoaded) {
+    m_mediaPlayer->play();
+    m_playWhenLoaded = false;
   }
 }
 

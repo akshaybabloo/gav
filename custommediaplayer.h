@@ -18,6 +18,7 @@ class CustomMediaPlayer : public QQuickItem {
   Q_PROPERTY(bool hasVideo READ hasVideo NOTIFY hasVideoChanged)
   Q_PROPERTY(qint64 duration READ duration NOTIFY durationChanged)
   Q_PROPERTY(qint64 position READ position WRITE setPosition NOTIFY positionChanged)
+  Q_PROPERTY(bool mediaLoaded READ mediaLoaded NOTIFY mediaLoadedChanged)
 
 public:
   CustomMediaPlayer();
@@ -45,24 +46,30 @@ public:
   qint64 position() const;
   void setPosition(qint64 position);
 
+  bool mediaLoaded() const;
+
 signals:
   void sourceChanged();
   void videoOutputChanged();
   void audioOutputChanged();
-  void playbackStateChanged();
+  void playbackStateChanged(QMediaPlayer::PlaybackState state);
   void mediaStatusChanged();
   void hasVideoChanged();
   void errorOccurred(QString errorString);
   void durationChanged();
   void positionChanged();
+  void mediaLoadedChanged();
 
 private slots:
   void onMediaPlayerError(QMediaPlayer::Error error, const QString &errorString);
   void updateHasVideo();
+  void onStatusChanged(QMediaPlayer::MediaStatus status);
 
 private:
   QMediaPlayer *m_mediaPlayer;
   bool m_hasVideo = false;
+  bool m_playWhenLoaded = false;
+  bool m_mediaLoaded = false;
 };
 
 #endif // CUSTOMMEDIAPLAYER_H

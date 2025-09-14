@@ -13,7 +13,7 @@ Item {
     property alias videoOutput: videoOutput
 
     property bool controlsAreVisible: true
-    property bool mediaLoaded: false
+    property bool mediaLoaded: customMediaPlayer.mediaLoaded
     property bool isVideoAndPlaying: isVideo && isPlaying
 
     property bool isVideo: customMediaPlayer.hasVideo
@@ -25,11 +25,11 @@ Item {
         videoOutput: videoOutput
         audioOutput: audioOutput
 
-        onPlaybackStateChanged: {
-            if (playbackState === MediaPlayer.PlayingState) {
+        onPlaybackStateChanged: function(state) {
+            if (state === MediaPlayer.PlayingState) {
                 isPlaying = true
                 hideControlsTimer.start()
-            } else if (playbackState === MediaPlayer.PausedState) {
+            } else if (state === MediaPlayer.PausedState) {
                 isPlaying = true // We still want to show the video when paused
             } else {
                 controlsAreVisible = true
@@ -43,17 +43,7 @@ Item {
             unsupportedFileDialog.open()
         }
 
-        onMediaStatusChanged: {
-            if (mediaStatus === MediaPlayer.LoadedMedia) {
-                mediaLoaded = true
-                videoOutput.visible = customMediaPlayer.hasVideo
-                console.log("Media loaded")
-            } else if (mediaStatus === MediaPlayer.NoMedia
-                       || mediaStatus === MediaPlayer.InvalidMedia) {
-                videoOutput.visible = false
-                mediaLoaded = false
-            }
-        }
+        
     }
 
     AudioOutput {

@@ -76,7 +76,6 @@ Item {
                     id: seekSlider
                     from: 0
                     to: player.duration
-                    value: player.position
                     enabled: mediaLoaded
 
                     onMoved: player.position = value
