@@ -1,5 +1,6 @@
 import QtQuick
 import QtMultimedia
+import gavqml
 
 Item {
     height: parent.height
@@ -7,7 +8,7 @@ Item {
 
     required property string path
 
-    property alias mediaPlayer: mediaPlayer
+    property alias mediaPlayer: customMediaPlayer
     property alias audioOutput: audioOutput
     property alias videoOutput: videoOutput
 
@@ -15,16 +16,11 @@ Item {
     property bool mediaLoaded: false
     property bool isVideoAndPlaying: isVideo && isPlaying
 
-    property bool isVideo: false
+    property bool isVideo: customMediaPlayer.hasVideo
     property bool isPlaying: false
 
-    AudioOutput {
-        id: audioOutput
-        volume: 0.5
-    }
-
-    MediaPlayer {
-        id: mediaPlayer
+    CustomMediaPlayer {
+        id: customMediaPlayer
         source: path
         videoOutput: videoOutput
         audioOutput: audioOutput
@@ -42,35 +38,27 @@ Item {
             }
         }
 
-        onErrorOccurred: function (error, errorString) {
-            if (error !== MediaPlayer.NoError) {
-                console.log(error, errorString)
-                unsupportedFileDialog.open()
-            }
+        onErrorOccurred: function (errorString) {
+            console.log("MediaPlayer error:", errorString)
+            unsupportedFileDialog.open()
         }
 
         onMediaStatusChanged: {
-            if (mediaPlayer.mediaStatus === MediaPlayer.LoadedMedia) {
+            if (mediaStatus === MediaPlayer.LoadedMedia) {
                 mediaLoaded = true
-                videoOutput.visible = mediaPlayer.videoTracks.length > 0
+                videoOutput.visible = customMediaPlayer.hasVideo
                 console.log("Media loaded")
-                if (mediaPlayer.videoTracks.length > 0) {
-                    isVideo = true
-                }
-                if (mediaPlayer.audioTracks.length === 0
-                        && mediaPlayer.videoTracks.length > 0) {
-                    isVideo = true
-                }
-                if (mediaPlayer.videoTracks.length === 0) {
-                    isVideo = false
-                }
-            } else if (mediaPlayer.mediaStatus === MediaPlayer.NoMedia
-                       || mediaPlayer.mediaStatus === MediaPlayer.InvalidMedia) {
+            } else if (mediaStatus === MediaPlayer.NoMedia
+                       || mediaStatus === MediaPlayer.InvalidMedia) {
                 videoOutput.visible = false
                 mediaLoaded = false
-                isVideo = false
             }
         }
+    }
+
+    AudioOutput {
+        id: audioOutput
+        volume: 0.5
     }
 
     VideoOutput {
@@ -88,7 +76,7 @@ Item {
         onPositionChanged: {
             if (mouseX !== lastPos.x || mouseY !== lastPos.y) {
                 controlsAreVisible = true
-                if (mediaPlayer.playbackState === MediaPlayer.PlayingState) {
+                if (customMediaPlayer.playbackState === MediaPlayer.PlayingState) {
                     hideControlsTimer.restart()
                 }
                 lastPos = Qt.point(mouseX, mouseY)
