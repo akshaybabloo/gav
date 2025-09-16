@@ -147,6 +147,19 @@ Item {
                         onClicked: {
                             if (player.playbackState === MediaPlayer.PlayingState) {
                                 player.pause()
+
+                                // Reset fast forward
+                                if (isFastForwarding) {
+                                    player.playbackRate = 1.0
+                                    isFastForwarding = false
+                                    fastForwardRate = 1.0
+                                }
+                                // Reset fast rewind
+                                if (isFastRewinding) {
+                                    rewindSeekTimer.stop()
+                                    isFastRewinding = false
+                                    rewindMultiplier = 1
+                                }
                             } else {
                                 player.play()
                             }
@@ -167,7 +180,7 @@ Item {
 
                     Button {
                         id: fastRewindButton
-                        text: "\ue020"
+                        text: isFastRewinding ? "\ue020" + "<sub>\ue059</sub>" : "\ue020"
                         font.family: materialSymbolsOutlined.name
                         enabled: player.playbackState !== MediaPlayer.StoppedState
                         scale: 1.5
@@ -176,6 +189,15 @@ Item {
                         Layout.preferredHeight: 30
                         font.weight: Font.Light
                         hoverEnabled: true
+
+                        contentItem: Text {
+                            text: parent.text
+                            font: parent.font
+                            color: parent.enabled ? "white" : "#a0a0a0"
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            textFormat: Text.RichText
+                        }
 
                         ToolTip.text: qsTr("Fast rewind")
                         ToolTip.delay: 1000
@@ -199,12 +221,14 @@ Item {
                         }
                         onDoubleClicked: {
                             rewSingleClickTimer.stop()
-                            isFastRewinding = true
-                            if (rewindMultiplier === 1) rewindMultiplier = 10
-                            else if (rewindMultiplier === 10) rewindMultiplier = 20
-                            else if (rewindMultiplier === 20) rewindMultiplier = 30
-                            else rewindMultiplier = 10
-                            rewindSeekTimer.start()
+                            isFastRewinding = !isFastRewinding
+                            if (isFastRewinding) {
+                                rewindMultiplier = 10
+                                rewindSeekTimer.start()
+                            } else {
+                                rewindMultiplier = 1
+                                rewindSeekTimer.stop()
+                            }
                         }
                         onPressAndHold: rewindHoldTimer.start()
                         onReleased: rewindHoldTimer.stop()
@@ -219,6 +243,19 @@ Item {
                         onClicked: {
                             player.stop()
                             seekSlider.value = 0
+
+                            // Reset fast forward
+                            if (isFastForwarding) {
+                                player.playbackRate = 1.0
+                                isFastForwarding = false
+                                fastForwardRate = 1.0
+                            }
+                            // Reset fast rewind
+                            if (isFastRewinding) {
+                                rewindSeekTimer.stop()
+                                isFastRewinding = false
+                                rewindMultiplier = 1
+                            }
                         }
                         Material.roundedScale: Material.NotRounded
                         Layout.preferredWidth: 25
@@ -234,7 +271,7 @@ Item {
 
                     Button {
                         id: fastForwardButton
-                        text: "\ue01f"
+                        text: isFastForwarding ? "\ue01f" + "<sub>\ue056</sub>" : "\ue01f"
                         font.family: materialSymbolsOutlined.name
                         enabled: player.playbackState !== MediaPlayer.StoppedState
                         scale: 1.5
@@ -244,6 +281,15 @@ Item {
                         font.weight: Font.Light
 
                         hoverEnabled: true
+
+                        contentItem: Text {
+                            text: parent.text
+                            font: parent.font
+                            color: parent.enabled ? "white" : "#a0a0a0"
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            textFormat: Text.RichText
+                        }
 
                         ToolTip.text: qsTr("Fast forward")
                         ToolTip.delay: 1000
@@ -267,12 +313,14 @@ Item {
                         }
                         onDoubleClicked: {
                             ffwSingleClickTimer.stop()
-                            isFastForwarding = true
-                            if (fastForwardRate === 1.0) fastForwardRate = 10.0
-                            else if (fastForwardRate === 10.0) fastForwardRate = 20.0
-                            else if (fastForwardRate === 20.0) fastForwardRate = 30.0
-                            else fastForwardRate = 10.0
-                            player.playbackRate = fastForwardRate
+                            isFastForwarding = !isFastForwarding
+                            if (isFastForwarding) {
+                                fastForwardRate = 10.0
+                                player.playbackRate = fastForwardRate
+                            } else {
+                                fastForwardRate = 1.0
+                                player.playbackRate = 1.0
+                            }
                         }
                         onPressAndHold: forwardHoldTimer.start()
                         onReleased: forwardHoldTimer.stop()
