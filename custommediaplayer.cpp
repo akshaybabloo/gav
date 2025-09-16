@@ -10,6 +10,7 @@ CustomMediaPlayer::CustomMediaPlayer() {
           &CustomMediaPlayer::playbackStateChanged);
   connect(m_mediaPlayer, &QMediaPlayer::mediaStatusChanged, this,
           &CustomMediaPlayer::mediaStatusChanged);
+  connect(m_mediaPlayer, &QMediaPlayer::playbackRateChanged, this, &CustomMediaPlayer::playbackRateChanged);
   
 
   connect(m_mediaPlayer, &QMediaPlayer::durationChanged, this,
@@ -126,5 +127,16 @@ void CustomMediaPlayer::onStatusChanged(QMediaPlayer::MediaStatus status) {
     m_mediaPlayer->play();
     m_playWhenLoaded = false;
   }
+}
+
+qreal CustomMediaPlayer::playbackRate() const {
+    return m_mediaPlayer->playbackRate();
+}
+
+void CustomMediaPlayer::setPlaybackRate(qreal rate) {
+    if (m_mediaPlayer->playbackRate() == rate)
+        return;
+    m_mediaPlayer->setPlaybackRate(rate);
+    emit playbackRateChanged();
 }
 
