@@ -19,6 +19,7 @@ class CustomMediaPlayer : public QQuickItem {
   Q_PROPERTY(qint64 duration READ duration NOTIFY durationChanged)
   Q_PROPERTY(qint64 position READ position WRITE setPosition NOTIFY positionChanged)
   Q_PROPERTY(bool mediaLoaded READ mediaLoaded NOTIFY mediaLoadedChanged)
+  Q_PROPERTY(qreal playbackRate READ playbackRate WRITE setPlaybackRate NOTIFY playbackRateChanged)
 
 public:
   CustomMediaPlayer();
@@ -29,6 +30,9 @@ public:
 
   QUrl source() const;
   void setSource(const QUrl &source);
+
+  qreal playbackRate() const;
+  void setPlaybackRate(qreal rate);
 
   QObject *videoOutput() const;
   void setVideoOutput(QObject *videoOutput);
@@ -59,6 +63,7 @@ signals:
   void durationChanged();
   void positionChanged();
   void mediaLoadedChanged();
+  void playbackRateChanged();
   void videoVisibilityChanged(bool visible);
 
 private slots:

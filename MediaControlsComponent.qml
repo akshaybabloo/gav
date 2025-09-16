@@ -8,6 +8,39 @@ Item {
     height: 60
     width: parent.width
 
+    property bool isFastForwarding: false
+    property real fastForwardRate: 1.0
+    property bool isFastRewinding: false
+    property int rewindMultiplier: 1
+
+    Timer {
+        id: forwardHoldTimer
+        interval: 200
+        repeat: true
+        onTriggered: player.position += 1000
+    }
+    Timer {
+        id: rewindHoldTimer
+        interval: 200
+        repeat: true
+        onTriggered: player.position -= 1000
+    }
+    Timer {
+        id: rewindSeekTimer
+        interval: 100
+        repeat: true
+        onTriggered: {
+            var nextPos = player.position - (100 * rewindMultiplier)
+            if (nextPos < 0) {
+                player.position = 0
+                isFastRewinding = false
+                rewindSeekTimer.stop()
+            } else {
+                player.position = nextPos
+            }
+        }
+    }
+
     property real previousVolume: 0.5
     property bool containsMouse: controlMouseArea.containsMouse
 
@@ -149,22 +182,32 @@ Item {
                         ToolTip.timeout: 5000
                         ToolTip.visible: hovered
 
+                        Timer {
+                            id: rewSingleClickTimer
+                            interval: 250
+                            onTriggered: player.position -= 1000
+                        }
+
                         onClicked: {
-                            // TODO: One second forward
-
+                            if (isFastRewinding) {
+                                rewindSeekTimer.stop()
+                                isFastRewinding = false
+                                rewindMultiplier = 1
+                            } else {
+                                rewSingleClickTimer.start()
+                            }
                         }
-
-                        onPressAndHold: {
-                            // TODO: One second forward
-                        }
-
-                        onReleased: {
-                            // TODO: Stop going forward on release
-                        }
-
                         onDoubleClicked: {
-                            // TODO: Continue going forward 10x, 20x and 30x and single click to cancel. If end is reached cancel and play
+                            rewSingleClickTimer.stop()
+                            isFastRewinding = true
+                            if (rewindMultiplier === 1) rewindMultiplier = 10
+                            else if (rewindMultiplier === 10) rewindMultiplier = 20
+                            else if (rewindMultiplier === 20) rewindMultiplier = 30
+                            else rewindMultiplier = 10
+                            rewindSeekTimer.start()
                         }
+                        onPressAndHold: rewindHoldTimer.start()
+                        onReleased: rewindHoldTimer.stop()
                     }
 
                     Button {
@@ -207,22 +250,32 @@ Item {
                         ToolTip.timeout: 5000
                         ToolTip.visible: hovered
 
+                        Timer {
+                            id: ffwSingleClickTimer
+                            interval: 250
+                            onTriggered: player.position += 1000
+                        }
+
                         onClicked: {
-                            // TODO: One second rewind
-
+                            if (isFastForwarding) {
+                                player.playbackRate = 1.0
+                                isFastForwarding = false
+                                fastForwardRate = 1.0
+                            } else {
+                                ffwSingleClickTimer.start()
+                            }
                         }
-
-                        onPressAndHold: {
-                            // TODO: One second rewind
-                        }
-
-                        onReleased: {
-                            // TODO: Stop going rewind on release
-                        }
-
                         onDoubleClicked: {
-                            // TODO: Continue going rewind 10x, 20x and 30x and single click to cancel. If end is reached cancel and play
+                            ffwSingleClickTimer.stop()
+                            isFastForwarding = true
+                            if (fastForwardRate === 1.0) fastForwardRate = 10.0
+                            else if (fastForwardRate === 10.0) fastForwardRate = 20.0
+                            else if (fastForwardRate === 20.0) fastForwardRate = 30.0
+                            else fastForwardRate = 10.0
+                            player.playbackRate = fastForwardRate
                         }
+                        onPressAndHold: forwardHoldTimer.start()
+                        onReleased: forwardHoldTimer.stop()
                     }
 
                     Button {
