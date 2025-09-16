@@ -28,7 +28,7 @@ Item {
         var hours = Math.floor(minutes / 60)
         seconds = seconds % 60
         return Qt.formatTime(new Date(0, 0, hours, 0, minutes, seconds),
-            "hh:mm:ss")
+                             "hh:mm:ss")
     }
 
     function updateVolumeIcon() {
@@ -38,7 +38,8 @@ Item {
             volumeButton.text = "\ue04d"
         } else if (audioOutput.volume < 1.0) {
             volumeButton.text = "\ue050"
-        } else { // volume is 1.0
+        } else {
+            // volume is 1.0
             volumeButton.text = "\ue98e"
         }
     }
@@ -67,7 +68,7 @@ Item {
                 Text {
                     id: timeLabel
                     text: formatTime(player.position) + " / " + formatTime(
-                        player.duration)
+                              player.duration)
                     color: "white"
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -107,7 +108,7 @@ Item {
                         id: playPauseButton
                         enabled: mediaLoaded
                         text: player.playbackState
-                            === MediaPlayer.PlayingState ? "\ue034" : "\ue037"
+                              === MediaPlayer.PlayingState ? "\ue034" : "\ue037"
                         font.family: materialSymbolsOutlined.name
                         scale: 1.5
                         onClicked: {
@@ -120,6 +121,50 @@ Item {
                         Material.roundedScale: Material.NotRounded
                         Layout.preferredWidth: 25
                         Layout.preferredHeight: 30
+
+                        hoverEnabled: true
+
+                        ToolTip.text: player.playbackState
+                                      === MediaPlayer.PlayingState ? qsTr("Pause") : qsTr(
+                                                                         "Play")
+                        ToolTip.delay: 1000
+                        ToolTip.timeout: 5000
+                        ToolTip.visible: hovered
+                    }
+
+                    Button {
+                        id: fastRewindButton
+                        text: "\ue020"
+                        font.family: materialSymbolsOutlined.name
+                        enabled: player.playbackState !== MediaPlayer.StoppedState
+                        scale: 1.5
+                        Material.roundedScale: Material.NotRounded
+                        Layout.preferredWidth: 25
+                        Layout.preferredHeight: 30
+                        font.weight: Font.Light
+                        hoverEnabled: true
+
+                        ToolTip.text: qsTr("Fast rewind")
+                        ToolTip.delay: 1000
+                        ToolTip.timeout: 5000
+                        ToolTip.visible: hovered
+
+                        onClicked: {
+                            // TODO: One second forward
+
+                        }
+
+                        onPressAndHold: {
+                            // TODO: One second forward
+                        }
+
+                        onReleased: {
+                            // TODO: Stop going forward on release
+                        }
+
+                        onDoubleClicked: {
+                            // TODO: Continue going forward 10x, 20x and 30x and single click to cancel. If end is reached cancel and play
+                        }
                     }
 
                     Button {
@@ -136,6 +181,48 @@ Item {
                         Layout.preferredWidth: 25
                         Layout.preferredHeight: 30
                         font.weight: Font.Light
+                        hoverEnabled: true
+
+                        ToolTip.text: qsTr("Stop")
+                        ToolTip.delay: 1000
+                        ToolTip.timeout: 5000
+                        ToolTip.visible: hovered
+                    }
+
+                    Button {
+                        id: fastForwardButton
+                        text: "\ue01f"
+                        font.family: materialSymbolsOutlined.name
+                        enabled: player.playbackState !== MediaPlayer.StoppedState
+                        scale: 1.5
+                        Material.roundedScale: Material.NotRounded
+                        Layout.preferredWidth: 25
+                        Layout.preferredHeight: 30
+                        font.weight: Font.Light
+
+                        hoverEnabled: true
+
+                        ToolTip.text: qsTr("Fast forward")
+                        ToolTip.delay: 1000
+                        ToolTip.timeout: 5000
+                        ToolTip.visible: hovered
+
+                        onClicked: {
+                            // TODO: One second rewind
+
+                        }
+
+                        onPressAndHold: {
+                            // TODO: One second rewind
+                        }
+
+                        onReleased: {
+                            // TODO: Stop going rewind on release
+                        }
+
+                        onDoubleClicked: {
+                            // TODO: Continue going rewind 10x, 20x and 30x and single click to cancel. If end is reached cancel and play
+                        }
                     }
 
                     Button {
@@ -151,6 +238,14 @@ Item {
                         Layout.preferredWidth: 25
                         Layout.preferredHeight: 30
                         font.weight: Font.Light
+                        hoverEnabled: true
+
+                        ToolTip {
+                            text: qsTr("Toggle playlist")
+                            delay: 1000
+                            timeout: 5000
+                            visible: playListButton.hovered
+                        }
                     }
                 }
 
@@ -181,6 +276,13 @@ Item {
                         Layout.preferredWidth: 15
                         Layout.preferredHeight: 25
                         font.weight: Font.Light
+
+                        hoverEnabled: true
+
+                        ToolTip.text: qsTr("Volume")
+                        ToolTip.delay: 1000
+                        ToolTip.timeout: 5000
+                        ToolTip.visible: hovered
                     }
 
                     Slider {
@@ -198,7 +300,6 @@ Item {
 
                         Layout.preferredWidth: 100
                         Layout.preferredHeight: 10
-
                     }
 
                     Button {
@@ -207,12 +308,19 @@ Item {
                         font.family: materialSymbolsOutlined.name
                         onClicked: {
                             mainWindow.visibility = mainWindow.visibility
-                                === Window.FullScreen ? Window.Windowed : Window.FullScreen
+                                    === Window.FullScreen ? Window.Windowed : Window.FullScreen
                         }
                         Layout.preferredWidth: 25
                         Layout.preferredHeight: 30
                         Material.roundedScale: Material.NotRounded
                         Material.background: "transparent"
+
+                        hoverEnabled: true
+
+                        ToolTip.text: qsTr("Toggle fullscreen")
+                        ToolTip.delay: 1000
+                        ToolTip.timeout: 5000
+                        ToolTip.visible: hovered
                     }
                 }
             }
