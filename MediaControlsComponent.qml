@@ -211,6 +211,13 @@ Item {
                         }
 
                         onClicked: {
+                            // Stop fast forwarding if active
+                            if (isFastForwarding) {
+                                player.playbackRate = 1.0
+                                isFastForwarding = false
+                                fastForwardRate = 1.0
+                            }
+
                             if (isFastRewinding) {
                                 rewindSeekTimer.stop()
                                 isFastRewinding = false
@@ -220,6 +227,13 @@ Item {
                             }
                         }
                         onDoubleClicked: {
+                            // Stop fast forwarding if active
+                            if (isFastForwarding) {
+                                player.playbackRate = 1.0
+                                isFastForwarding = false
+                                fastForwardRate = 1.0
+                            }
+
                             rewSingleClickTimer.stop()
                             isFastRewinding = !isFastRewinding
                             if (isFastRewinding) {
@@ -303,6 +317,13 @@ Item {
                         }
 
                         onClicked: {
+                            // Stop fast rewinding if active
+                            if (isFastRewinding) {
+                                rewindSeekTimer.stop()
+                                isFastRewinding = false
+                                rewindMultiplier = 1
+                            }
+
                             if (isFastForwarding) {
                                 player.playbackRate = 1.0
                                 isFastForwarding = false
@@ -312,6 +333,13 @@ Item {
                             }
                         }
                         onDoubleClicked: {
+                            // Stop fast rewinding if active
+                            if (isFastRewinding) {
+                                rewindSeekTimer.stop()
+                                isFastRewinding = false
+                                rewindMultiplier = 1
+                            }
+
                             ffwSingleClickTimer.stop()
                             isFastForwarding = !isFastForwarding
                             if (isFastForwarding) {
@@ -373,6 +401,59 @@ Item {
 
                         ToolTip {
                             text: qsTr("Capture a frame")
+                            delay: 1000
+                            timeout: 5000
+                            visible: captureButton.hovered
+                        }
+                    }
+
+                    Rectangle {
+                        color: "#a0a0a0"
+                        Layout.preferredHeight: parent.height
+                        visible: true
+                        Layout.preferredWidth: 2
+                    }
+
+                    Button {
+                        id: backTrackButton
+                        text: "\ue045"
+                        enabled: player.hasVideo
+                        font.family: materialSymbolsOutlined.name
+                        scale: 1.5
+                        onClicked: {
+                            player.captureFrame()
+                        }
+                        Material.roundedScale: Material.NotRounded
+                        Layout.preferredWidth: 25
+                        Layout.preferredHeight: 30
+                        font.weight: Font.Light
+                        hoverEnabled: true
+
+                        ToolTip {
+                            text: qsTr("Skip back")
+                            delay: 1000
+                            timeout: 5000
+                            visible: captureButton.hovered
+                        }
+                    }
+
+                    Button {
+                        id: nextTrackButton
+                        text: "\ue044"
+                        enabled: player.hasVideo
+                        font.family: materialSymbolsOutlined.name
+                        scale: 1.5
+                        onClicked: {
+                            player.captureFrame()
+                        }
+                        Material.roundedScale: Material.NotRounded
+                        Layout.preferredWidth: 25
+                        Layout.preferredHeight: 30
+                        font.weight: Font.Light
+                        hoverEnabled: true
+
+                        ToolTip {
+                            text: qsTr("Skip next")
                             delay: 1000
                             timeout: 5000
                             visible: captureButton.hovered
