@@ -74,6 +74,7 @@ Item {
                 var item = playList.get(currentIndex)
                 mediaComponent.path = item.path
                 mainWindow.title = "GAV - " + item.name
+                mediaComponent.mediaPlayer.play()
             }
         }
 

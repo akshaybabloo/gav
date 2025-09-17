@@ -5,6 +5,29 @@ import QtQuick.Layouts
 import QtQuick.Controls.Material
 
 Item {
+    signal nextTrack()
+    signal previousTrack()
+
+    function stopFastForwarding() {
+        if (isFastForwarding) {
+            player.playbackRate = 1.0
+            isFastForwarding = false
+            fastForwardRate = 1.0
+            return true
+        }
+        return false
+    }
+
+    function stopFastRewinding() {
+        if (isFastRewinding) {
+            rewindSeekTimer.stop()
+            isFastRewinding = false
+            rewindMultiplier = 1
+            return true
+        }
+        return false
+    }
+
     height: 60
     width: parent.width
 
@@ -54,6 +77,8 @@ Item {
     required property var audioOutput
     required property var videoOutput
     required property bool mediaLoaded
+    required property int playlistCount
+    required property int playlistCurrentIndex
 
     function formatTime(ms) {
         var seconds = Math.floor(ms / 1000)
@@ -147,19 +172,8 @@ Item {
                         onClicked: {
                             if (player.playbackState === MediaPlayer.PlayingState) {
                                 player.pause()
-
-                                // Reset fast forward
-                                if (isFastForwarding) {
-                                    player.playbackRate = 1.0
-                                    isFastForwarding = false
-                                    fastForwardRate = 1.0
-                                }
-                                // Reset fast rewind
-                                if (isFastRewinding) {
-                                    rewindSeekTimer.stop()
-                                    isFastRewinding = false
-                                    rewindMultiplier = 1
-                                }
+                                stopFastForwarding()
+                                stopFastRewinding()
                             } else {
                                 player.play()
                             }
@@ -211,15 +225,13 @@ Item {
                         }
 
                         onClicked: {
-                            if (isFastRewinding) {
-                                rewindSeekTimer.stop()
-                                isFastRewinding = false
-                                rewindMultiplier = 1
-                            } else {
+                            stopFastForwarding()
+                            if (!stopFastRewinding()) {
                                 rewSingleClickTimer.start()
                             }
                         }
                         onDoubleClicked: {
+                            stopFastForwarding()
                             rewSingleClickTimer.stop()
                             isFastRewinding = !isFastRewinding
                             if (isFastRewinding) {
@@ -243,19 +255,8 @@ Item {
                         onClicked: {
                             player.stop()
                             seekSlider.value = 0
-
-                            // Reset fast forward
-                            if (isFastForwarding) {
-                                player.playbackRate = 1.0
-                                isFastForwarding = false
-                                fastForwardRate = 1.0
-                            }
-                            // Reset fast rewind
-                            if (isFastRewinding) {
-                                rewindSeekTimer.stop()
-                                isFastRewinding = false
-                                rewindMultiplier = 1
-                            }
+                            stopFastForwarding()
+                            stopFastRewinding()
                         }
                         Material.roundedScale: Material.NotRounded
                         Layout.preferredWidth: 25
@@ -303,15 +304,13 @@ Item {
                         }
 
                         onClicked: {
-                            if (isFastForwarding) {
-                                player.playbackRate = 1.0
-                                isFastForwarding = false
-                                fastForwardRate = 1.0
-                            } else {
+                            stopFastRewinding()
+                            if (!stopFastForwarding()) {
                                 ffwSingleClickTimer.start()
                             }
                         }
                         onDoubleClicked: {
+                            stopFastRewinding()
                             ffwSingleClickTimer.stop()
                             isFastForwarding = !isFastForwarding
                             if (isFastForwarding) {
@@ -376,6 +375,55 @@ Item {
                             delay: 1000
                             timeout: 5000
                             visible: captureButton.hovered
+                        }
+                    }
+
+                    Rectangle {
+                        color: "#a0a0a0"
+                        Layout.preferredHeight: parent.height
+                        visible: true
+                        Layout.preferredWidth: 2
+                    }
+
+                    Button {
+                        id: backTrackButton
+                        text: "\ue045"
+                        enabled: playlistCurrentIndex > 0
+                        font.family: materialSymbolsOutlined.name
+                        scale: 1.5
+                        onClicked: previousTrack()
+                        Material.roundedScale: Material.NotRounded
+                        Layout.preferredWidth: 25
+                        Layout.preferredHeight: 30
+                        font.weight: Font.Light
+                        hoverEnabled: true
+
+                        ToolTip {
+                            text: qsTr("Skip back")
+                            delay: 1000
+                            timeout: 5000
+                            visible: backTrackButton.hovered
+                        }
+                    }
+
+                    Button {
+                        id: nextTrackButton
+                        text: "\ue044"
+                        enabled: playlistCurrentIndex < playlistCount - 1
+                        font.family: materialSymbolsOutlined.name
+                        scale: 1.5
+                        onClicked: nextTrack()
+                        Material.roundedScale: Material.NotRounded
+                        Layout.preferredWidth: 25
+                        Layout.preferredHeight: 30
+                        font.weight: Font.Light
+                        hoverEnabled: true
+
+                        ToolTip {
+                            text: qsTr("Skip next")
+                            delay: 1000
+                            timeout: 5000
+                            visible: nextTrackButton.hovered
                         }
                     }
                 }
