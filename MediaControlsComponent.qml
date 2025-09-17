@@ -8,6 +8,26 @@ Item {
     signal nextTrack()
     signal previousTrack()
 
+    function stopFastForwarding() {
+        if (isFastForwarding) {
+            player.playbackRate = 1.0
+            isFastForwarding = false
+            fastForwardRate = 1.0
+            return true
+        }
+        return false
+    }
+
+    function stopFastRewinding() {
+        if (isFastRewinding) {
+            rewindSeekTimer.stop()
+            isFastRewinding = false
+            rewindMultiplier = 1
+            return true
+        }
+        return false
+    }
+
     height: 60
     width: parent.width
 
@@ -152,19 +172,8 @@ Item {
                         onClicked: {
                             if (player.playbackState === MediaPlayer.PlayingState) {
                                 player.pause()
-
-                                // Reset fast forward
-                                if (isFastForwarding) {
-                                    player.playbackRate = 1.0
-                                    isFastForwarding = false
-                                    fastForwardRate = 1.0
-                                }
-                                // Reset fast rewind
-                                if (isFastRewinding) {
-                                    rewindSeekTimer.stop()
-                                    isFastRewinding = false
-                                    rewindMultiplier = 1
-                                }
+                                stopFastForwarding()
+                                stopFastRewinding()
                             } else {
                                 player.play()
                             }
@@ -216,29 +225,13 @@ Item {
                         }
 
                         onClicked: {
-                            // Stop fast forwarding if active
-                            if (isFastForwarding) {
-                                player.playbackRate = 1.0
-                                isFastForwarding = false
-                                fastForwardRate = 1.0
-                            }
-
-                            if (isFastRewinding) {
-                                rewindSeekTimer.stop()
-                                isFastRewinding = false
-                                rewindMultiplier = 1
-                            } else {
+                            stopFastForwarding()
+                            if (!stopFastRewinding()) {
                                 rewSingleClickTimer.start()
                             }
                         }
                         onDoubleClicked: {
-                            // Stop fast forwarding if active
-                            if (isFastForwarding) {
-                                player.playbackRate = 1.0
-                                isFastForwarding = false
-                                fastForwardRate = 1.0
-                            }
-
+                            stopFastForwarding()
                             rewSingleClickTimer.stop()
                             isFastRewinding = !isFastRewinding
                             if (isFastRewinding) {
@@ -262,19 +255,8 @@ Item {
                         onClicked: {
                             player.stop()
                             seekSlider.value = 0
-
-                            // Reset fast forward
-                            if (isFastForwarding) {
-                                player.playbackRate = 1.0
-                                isFastForwarding = false
-                                fastForwardRate = 1.0
-                            }
-                            // Reset fast rewind
-                            if (isFastRewinding) {
-                                rewindSeekTimer.stop()
-                                isFastRewinding = false
-                                rewindMultiplier = 1
-                            }
+                            stopFastForwarding()
+                            stopFastRewinding()
                         }
                         Material.roundedScale: Material.NotRounded
                         Layout.preferredWidth: 25
@@ -322,29 +304,13 @@ Item {
                         }
 
                         onClicked: {
-                            // Stop fast rewinding if active
-                            if (isFastRewinding) {
-                                rewindSeekTimer.stop()
-                                isFastRewinding = false
-                                rewindMultiplier = 1
-                            }
-
-                            if (isFastForwarding) {
-                                player.playbackRate = 1.0
-                                isFastForwarding = false
-                                fastForwardRate = 1.0
-                            } else {
+                            stopFastRewinding()
+                            if (!stopFastForwarding()) {
                                 ffwSingleClickTimer.start()
                             }
                         }
                         onDoubleClicked: {
-                            // Stop fast rewinding if active
-                            if (isFastRewinding) {
-                                rewindSeekTimer.stop()
-                                isFastRewinding = false
-                                rewindMultiplier = 1
-                            }
-
+                            stopFastRewinding()
                             ffwSingleClickTimer.stop()
                             isFastForwarding = !isFastForwarding
                             if (isFastForwarding) {
@@ -436,7 +402,7 @@ Item {
                             text: qsTr("Skip back")
                             delay: 1000
                             timeout: 5000
-                            visible: captureButton.hovered
+                            visible: backTrackButton.hovered
                         }
                     }
 
@@ -457,7 +423,7 @@ Item {
                             text: qsTr("Skip next")
                             delay: 1000
                             timeout: 5000
-                            visible: captureButton.hovered
+                            visible: nextTrackButton.hovered
                         }
                     }
                 }
