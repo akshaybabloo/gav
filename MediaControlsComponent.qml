@@ -5,6 +5,9 @@ import QtQuick.Layouts
 import QtQuick.Controls.Material
 
 Item {
+    signal nextTrack()
+    signal previousTrack()
+
     height: 60
     width: parent.width
 
@@ -54,6 +57,8 @@ Item {
     required property var audioOutput
     required property var videoOutput
     required property bool mediaLoaded
+    required property int playlistCount
+    required property int playlistCurrentIndex
 
     function formatTime(ms) {
         var seconds = Math.floor(ms / 1000)
@@ -417,12 +422,10 @@ Item {
                     Button {
                         id: backTrackButton
                         text: "\ue045"
-                        enabled: player.hasVideo
+                        enabled: playlistCurrentIndex > 0
                         font.family: materialSymbolsOutlined.name
                         scale: 1.5
-                        onClicked: {
-                            player.captureFrame()
-                        }
+                        onClicked: previousTrack()
                         Material.roundedScale: Material.NotRounded
                         Layout.preferredWidth: 25
                         Layout.preferredHeight: 30
@@ -440,12 +443,10 @@ Item {
                     Button {
                         id: nextTrackButton
                         text: "\ue044"
-                        enabled: player.hasVideo
+                        enabled: playlistCurrentIndex < playlistCount - 1
                         font.family: materialSymbolsOutlined.name
                         scale: 1.5
-                        onClicked: {
-                            player.captureFrame()
-                        }
+                        onClicked: nextTrack()
                         Material.roundedScale: Material.NotRounded
                         Layout.preferredWidth: 25
                         Layout.preferredHeight: 30

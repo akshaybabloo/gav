@@ -293,7 +293,11 @@ ApplicationWindow {
             mediaLoaded: mediaComponent.mediaLoaded
             player: mediaComponent.mediaPlayer
             videoOutput: mediaComponent.videoOutput
+            playlistCount: playList.count
+            playlistCurrentIndex: playlistComponent.playListView.currentIndex
 
+            onNextTrack: playlistComponent.playListView.currentIndex++
+            onPreviousTrack: playlistComponent.playListView.currentIndex--
             onContainsMouseChanged: mainWindow.mediaControlsContainsMouse = containsMouse
         }
     }
