@@ -1,4 +1,4 @@
-name: C/C++ CI
+name: Build and Package
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-    QT_VERSION: "6.9.2"
+  QT_VERSION: "6.9.2"
 
 jobs:
   build:
@@ -21,25 +21,37 @@ jobs:
         with:
           version: "${{ env.QT_VERSION }}"
           target: "desktop"
-          cache: 'true'
-          cache-key-prefix: 'install-qt-action'
-          install-deps: 'true'
-          dir: '${{ github.workspace }}'
-          host: 'linux'
-          arch: 'linux_gcc_64'
-          modules: 'qt3d.debug_information qt3d qt5compat.debug_information qt5compat qtcharts.debug_information qtcharts qtconnectivity.debug_information qtconnectivity qtdatavis3d.debug_information qtdatavis3d qtgraphs.debug_information qtgraphs qtgrpc.debug_information qtgrpc qthttpserver.debug_information qthttpserver qtimageformats.debug_information qtimageformats qtlanguageserver qtlocation.debug_information qtlocation qtlottie.debug_information qtlottie qtmultimedia.debug_information qtmultimedia qtnetworkauth.debug_information qtnetworkauth qtpositioning.debug_information qtpositioning qtquick3d.debug_information qtquick3d qtquick3dphysics.debug_information qtquick3dphysics qtquickeffectmaker.debug_information qtquickeffectmaker qtquicktimeline.debug_information qtquicktimeline qtremoteobjects.debug_information qtremoteobjects qtscxml.debug_information qtscxml qtsensors.debug_information qtsensors qtserialbus.debug_information qtserialbus qtserialport.debug_information qtserialport qtshadertools.debug_information qtshadertools qtspeech.debug_information qtspeech qtvirtualkeyboard.debug_information qtvirtualkeyboard qtwaylandcompositor qtwebchannel.debug_information qtwebchannel qtwebsockets.debug_information qtwebsockets qtwebview.debug_information qtwebview debug_info'
-          tools: 'tools_ninja'
+          cache: "true"
+          cache-key-prefix: "install-qt-action"
+          install-deps: "true"
+          dir: "${{ github.workspace }}"
+          host: "linux"
+          arch: "linux_gcc_64"
+          modules: "qt3d.debug_information qt3d qt5compat.debug_information qt5compat qtcharts.debug_information qtcharts qtconnectivity.debug_information qtconnectivity qtdatavis3d.debug_information qtdatavis3d qtgraphs.debug_information qtgraphs qtgrpc.debug_information qtgrpc qthttpserver.debug_information qthttpserver qtimageformats.debug_information qtimageformats qtlanguageserver qtlocation.debug_information qtlocation qtlottie.debug_information qtlottie qtmultimedia.debug_information qtmultimedia qtnetworkauth.debug_information qtnetworkauth qtpositioning.debug_information qtpositioning qtquick3d.debug_information qtquick3d qtquick3dphysics.debug_information qtquick3dphysics qtquickeffectmaker.debug_information qtquickeffectmaker qtquicktimeline.debug_information qtquicktimeline qtremoteobjects.debug_information qtremoteobjects qtscxml.debug_information qtscxml qtsensors.debug_information qtsensors qtserialbus.debug_information qtserialbus qtserialport.debug_information qtserialport qtshadertools.debug_information qtshadertools qtspeech.debug_information qtspeech qtvirtualkeyboard.debug_information qtvirtualkeyboard qtwaylandcompositor qtwebchannel.debug_information qtwebchannel qtwebsockets.debug_information qtwebsockets qtwebview.debug_information qtwebview debug_info"
+          tools: "tools_ninja"
 
       - name: Install FFmpeg
         run: sudo apt-get install -y ffmpeg libavcodec-dev libavformat-dev ninja-build
+
       - name: Debug
         run: |
-          ls -lah ${{ github.workspace }}/Qt/
+          cmake --version
+          ninja --version
+          ffmpeg -version
       - name: Configure CMake
         run: cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/Qt/${{env.QT_VERSION}}/gcc_64/lib/cmake/Qt6/qt.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -GNinja
+
       - name: Build
         run: |
-            cd build
-            ninja
-            ninja package
-    
+          cd build
+          ninja
+
+      - name: Package
+        run: |
+          cd build
+          ninja package
+      - name: Upload all build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: build/packages/*
