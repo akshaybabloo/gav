@@ -27,6 +27,7 @@ public:
   Q_INVOKABLE void play();
   Q_INVOKABLE void pause();
   Q_INVOKABLE void stop();
+  Q_INVOKABLE void captureFrame();
 
   QUrl source() const;
   void setSource(const QUrl &source);
@@ -65,6 +66,7 @@ signals:
   void mediaLoadedChanged();
   void playbackRateChanged();
   void videoVisibilityChanged(bool visible);
+  void frameCaptured(bool success, const QString &path);
 
 private slots:
   void onMediaPlayerError(QMediaPlayer::Error error, const QString &errorString);

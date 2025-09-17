@@ -155,6 +155,22 @@ ApplicationWindow {
         }
     }
 
+    CustomSnackbar {
+        id: captureSnackbar
+    }
+
+    Connections {
+        target: mediaComponent.mediaPlayer
+        function onFrameCaptured(success, path) {
+            if (success) {
+                captureSnackbar.message = "Frame captured: " + path
+            } else {
+                captureSnackbar.message = "Error: " + path
+            }
+            captureSnackbar.show()
+        }
+    }
+
     // About dialog
     Dialog {
         id: aboutDialog

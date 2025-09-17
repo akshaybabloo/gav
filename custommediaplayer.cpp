@@ -1,4 +1,10 @@
 #include "custommediaplayer.h"
+#include <QVideoSink>
+#include <QVideoFrame>
+#include <QImage>
+#include <QStandardPaths>
+#include <QDateTime>
+#include <QDir>
 
 CustomMediaPlayer::CustomMediaPlayer() {
   m_mediaPlayer = new QMediaPlayer(this);
@@ -138,5 +144,54 @@ void CustomMediaPlayer::setPlaybackRate(qreal rate) {
         return;
     m_mediaPlayer->setPlaybackRate(rate);
     emit playbackRateChanged();
+}
+
+void CustomMediaPlayer::captureFrame() {
+    QVideoSink *sink = m_mediaPlayer->videoSink();
+    if (!sink) {
+        emit frameCaptured(false, "No video sink available.");
+        return;
+    }
+
+    QVideoFrame frame = sink->videoFrame();
+    if (!frame.isValid()) {
+        emit frameCaptured(false, "Invalid video frame.");
+        return;
+    }
+
+    QImage image = frame.toImage();
+    if (image.isNull()) {
+        emit frameCaptured(false, "Failed to convert frame to image.");
+        return;
+    }
+
+    QString videoName = m_mediaPlayer->source().fileName();
+    videoName = videoName.left(videoName.lastIndexOf('.'));
+
+    qint64 pos = m_mediaPlayer->position();
+    QString timeOfFrame = QDateTime::fromMSecsSinceEpoch(pos).toUTC().toString("hh-mm-ss-zzz");
+
+    QString systemTime = QDateTime::currentDateTime().toString("yyyy-MM-dd_hh-mm-ss");
+
+    QString filename = QString("%1_%2_%3.jpeg").arg(videoName, timeOfFrame, systemTime);
+
+    QString picturesPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+    if (picturesPath.isEmpty()) {
+        emit frameCaptured(false, "Could not determine pictures location.");
+        return;
+    }
+
+    QDir dir(picturesPath);
+    if (!dir.exists()) {
+        dir.mkpath(".");
+    }
+
+    QString fullPath = dir.filePath(filename);
+
+    if (image.save(fullPath, "JPEG")) {
+        emit frameCaptured(true, fullPath);
+    } else {
+        emit frameCaptured(false, "Failed to save image.");
+    }
 }
 

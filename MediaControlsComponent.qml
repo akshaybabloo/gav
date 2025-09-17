@@ -348,6 +348,36 @@ Item {
                             visible: playListButton.hovered
                         }
                     }
+
+                    Rectangle {
+                        color: "#a0a0a0"
+                        Layout.preferredHeight: parent.height
+                        visible: true
+                        Layout.preferredWidth: 2
+                    }
+
+                    Button {
+                        id: captureButton
+                        text: "\ue412"
+                        enabled: player.hasVideo
+                        font.family: materialSymbolsOutlined.name
+                        scale: 1.5
+                        onClicked: {
+                            player.captureFrame()
+                        }
+                        Material.roundedScale: Material.NotRounded
+                        Layout.preferredWidth: 25
+                        Layout.preferredHeight: 30
+                        font.weight: Font.Light
+                        hoverEnabled: true
+
+                        ToolTip {
+                            text: qsTr("Capture a frame")
+                            delay: 1000
+                            timeout: 5000
+                            visible: captureButton.hovered
+                        }
+                    }
                 }
 
                 Item {
