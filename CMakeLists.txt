@@ -87,7 +87,7 @@ set_target_properties(appgav PROPERTIES
 set_target_properties(appgav PROPERTIES OUTPUT_NAME "gav")
 
 target_link_libraries(appgav
-    PRIVATE Qt6::Core Qt6::Quick Qt6::Multimedia Qt6::Widgets
+    PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Qml Qt6::Multimedia Qt6::Widgets
 )
 
 include(InstallRequiredSystemLibraries)

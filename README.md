@@ -7,3 +7,14 @@
 </picture>
 
 GAV is a simple audio and video player, backed by FFmpeg and Qt6.
+
+## Usage
+
+From command line:
+
+```bash
+gav <file>
+```
+
+Or open a file from the menu.
+
