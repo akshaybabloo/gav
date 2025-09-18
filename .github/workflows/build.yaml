@@ -12,12 +12,32 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: ubuntu-latest
+            host: linux
+            arch: linux_gcc_64
+            artifact: linux-build
+            qt_dir: gcc_64
+            modules: "qt3d.debug_information qt3d qt5compat.debug_information qt5compat qtcharts.debug_information qtcharts qtconnectivity.debug_information qtconnectivity qtdatavis3d.debug_information qtdatavis3d qtgraphs.debug_information qtgraphs qtgrpc.debug_information qtgrpc qthttpserver.debug_information qthttpserver qtimageformats.debug_information qtimageformats qtlanguageserver qtlocation.debug_information qtlocation qtlottie.debug_information qtlottie qtmultimedia.debug_information qtmultimedia qtnetworkauth.debug_information qtnetworkauth qtpositioning.debug_information qtpositioning qtquick3d.debug_information qtquick3d qtquick3dphysics.debug_information qtquick3dphysics qtquickeffectmaker.debug_information qtquickeffectmaker qtquicktimeline.debug_information qtquicktimeline qtremoteobjects.debug_information qtremoteobjects qtscxml.debug_information qtscxml qtsensors.debug_information qtsensors qtserialbus.debug_information qtserialbus qtserialport.debug_information qtserialport qtshadertools.debug_information qtshadertools qtspeech.debug_information qtspeech qtvirtualkeyboard.debug_information qtvirtualkeyboard qtwaylandcompositor qtwebchannel.debug_information qtwebchannel qtwebsockets.debug_information qtwebsockets qtwebview.debug_information qtwebview debug_info"
+          - os: windows-latest
+            host: windows
+            arch: win64_msvc2022_64
+            artifact: windows-build
+            qt_dir: msvc2022_64
+            modules: "qt3d.debug_information qt3d qt5compat.debug_information qt5compat qtactiveqt.debug_information qtactiveqt qtcharts.debug_information qtcharts qtconnectivity.debug_information qtconnectivity qtdatavis3d.debug_information qtdatavis3d qtgraphs.debug_information qtgraphs qtgrpc.debug_information qtgrpc qthttpserver.debug_information qthttpserver qtimageformats.debug_information qtimageformats qtlanguageserver qtlocation.debug_information qtlocation qtlottie.debug_information qtlottie qtmultimedia.debug_information qtmultimedia qtnetworkauth.debug_information qtnetworkauth qtpositioning.debug_information qtpositioning qtquick3d.debug_information qtquick3d qtquick3dphysics.debug_information qtquick3dphysics qtquickeffectmaker.debug_information qtquickeffectmaker qtquicktimeline.debug_information qtquicktimeline qtremoteobjects.debug_information qtremoteobjects qtscxml.debug_information qtscxml qtsensors.debug_information qtsensors qtserialbus.debug_information qtserialbus qtserialport.debug_information qtserialport qtshadertools.debug_information qtshadertools qtspeech.debug_information qtspeech qtvirtualkeyboard.debug_information qtvirtualkeyboard qtwebchannel.debug_information qtwebchannel qtwebsockets.debug_information qtwebsockets qtwebview.debug_information qtwebview debug_info"
 
     steps:
       - uses: actions/checkout@v4
         with:
           lfs: true
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -28,10 +48,10 @@ jobs:
           cache-key-prefix: "install-qt-action"
           install-deps: "true"
           dir: "${{ github.workspace }}"
-          host: "linux"
-          arch: "linux_gcc_64"
-          modules: "qt3d.debug_information qt3d qt5compat.debug_information qt5compat qtcharts.debug_information qtcharts qtconnectivity.debug_information qtconnectivity qtdatavis3d.debug_information qtdatavis3d qtgraphs.debug_information qtgraphs qtgrpc.debug_information qtgrpc qthttpserver.debug_information qthttpserver qtimageformats.debug_information qtimageformats qtlanguageserver qtlocation.debug_information qtlocation qtlottie.debug_information qtlottie qtmultimedia.debug_information qtmultimedia qtnetworkauth.debug_information qtnetworkauth qtpositioning.debug_information qtpositioning qtquick3d.debug_information qtquick3d qtquick3dphysics.debug_information qtquick3dphysics qtquickeffectmaker.debug_information qtquickeffectmaker qtquicktimeline.debug_information qtquicktimeline qtremoteobjects.debug_information qtremoteobjects qtscxml.debug_information qtscxml qtsensors.debug_information qtsensors qtserialbus.debug_information qtserialbus qtserialport.debug_information qtserialport qtshadertools.debug_information qtshadertools qtspeech.debug_information qtspeech qtvirtualkeyboard.debug_information qtvirtualkeyboard qtwaylandcompositor qtwebchannel.debug_information qtwebchannel qtwebsockets.debug_information qtwebsockets qtwebview.debug_information qtwebview debug_info"
-          tools: "tools_ninja"
+          host: "${{ matrix.host }}"
+          arch: "${{ matrix.arch }}"
+          modules: "${{ matrix.modules }}"
+          tools: "tools_ifw"
 
       - name: Install CMake 4+
         uses: jwlawson/actions-setup-cmake@v2
@@ -39,7 +59,11 @@ jobs:
           cmake-version: "4.1.x"
 
       - name: Install FFmpeg
+        if: startsWith(matrix.os, 'ubuntu-')
         run: sudo apt-get install -y ffmpeg libavcodec-dev libavformat-dev ninja-build
+      - name: Install FFmpeg
+        if: startsWith(matrix.os, 'windows-')
+        run: choco install ffmpeg
 
       - name: Debug
         run: |
@@ -48,7 +72,7 @@ jobs:
           ffmpeg -version
 
       - name: Configure CMake
-        run: cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/Qt/${{env.QT_VERSION}}/gcc_64/lib/cmake/Qt6/qt.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -GNinja
+        run: cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/Qt/${{env.QT_VERSION}}/${{matrix.qt_dir}}/lib/cmake/Qt6/qt.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -GNinja
 
       - name: Build
         run: |
@@ -63,5 +87,5 @@ jobs:
       - name: Upload all build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: linux-build
+          name: ${{ matrix.artifact }}
           path: build/packages/*
