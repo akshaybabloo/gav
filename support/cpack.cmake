@@ -10,8 +10,11 @@ install(SCRIPT ${deploy_script})
 include(CPackIFW)
 
 # Enable support for packing using CPack and IFW
-if (UNIX)
+if(UNIX AND NOT APPLE) # Linux
     set(CPACK_GENERATOR "TGZ;DEB;RPM")
+    set(CPACK_IFW_ROOT "$ENV{HOME}/Qt/Tools/QtInstallerFramework/4.10")
+elseif(APPLE) # macOS
+    set(CPACK_GENERATOR "IFW;DMG")
     set(CPACK_IFW_ROOT "$ENV{HOME}/Qt/Tools/QtInstallerFramework/4.10")
 elseif (WIN32)
     set(CPACK_GENERATOR "IFW;ZIP")
@@ -59,6 +62,12 @@ set(CPACK_DEBIAN_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CMA
 
 # RPM settings
 set(CPACK_RPM_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}.rpm")
+
+# DMG settings
+if(APPLE)
+    set(CPACK_DMG_SLA_DIR "/Applications")
+endif()
+set(CPACK_DMG_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}.dmg")
 
 # TGZ settings
 set(CPACK_ARCHIVE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}")
