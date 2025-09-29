@@ -71,12 +71,12 @@ jobs:
 
       - name: Install FFmpeg
         if: startsWith(matrix.os, 'ubuntu-')
-        run: sudo apt-get install -y ffmpeg libavcodec-dev libavformat-dev ninja-build
+        run: sudo apt-get install -y ffmpeg libavcodec-dev libavformat-dev ninja-build rpm
       - name: Install FFmpeg
         if: startsWith(matrix.os, 'windows-')
         run: choco install ffmpeg
 
-      - name: Debug
+      - name: Dump Versions
         run: |
           cmake --version
           ninja --version
