@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(gav VERSION 0.2.0 LANGUAGES CXX)
+# Allow version override from command line
+if(NOT DEFINED GAV_VERSION)
+    set(GAV_VERSION "0.0.0-dev")
+endif()
+
+project(gav VERSION ${GAV_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
