@@ -7,6 +7,10 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
+permissions:
+  contents: write
+  packages: write
+
 env:
   QT_VERSION: "6.9.2"
 
@@ -92,3 +96,49 @@ jobs:
         with:
           name: ${{ matrix.artifact }}
           path: build/packages/*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'
+    steps:
+      - name: Download Linux build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-build
+          path: ./linux-packages
+      
+      - name: Download Windows build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-build
+          path: ./windows-packages
+
+      - name: Download Mac build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mac-build
+          path: ./mac-packages
+
+      - name: List downloaded files
+        run: |
+          echo "Linux packages:"
+          ls -la ./linux-packages/
+          echo "Windows packages:"
+          ls -la ./windows-packages/
+          echo "Mac packages:"
+          ls -la ./mac-packages/
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Release v${{ github.run_number }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            ./linux-packages/*
+            ./windows-packages/*
+            ./mac-packages/*
