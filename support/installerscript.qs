@@ -30,10 +30,7 @@ Controller.prototype.LicenseAgreementPageCallback = function() {
 
 // Clean up old installation before installing
 Controller.prototype.TargetDirectoryPageCallback = function() {
-    var page = gui.currentPageWidget();
-    if (page == null) return;
-    
-    var targetDir = page.targetDirectory();
+    var targetDir = installer.value("TargetDir");
     console.log("GAV: Target directory:", targetDir);
     
     // Check if old installation exists
