@@ -14,7 +14,7 @@ include(CPackIFW)
 
 # Enable support for packing using CPack and IFW
 if(UNIX AND NOT APPLE) # Linux
-    set(CPACK_GENERATOR "TGZ;DEB;RPM")
+    set(CPACK_GENERATOR "IFW;TGZ;DEB;RPM")
     set(CPACK_IFW_ROOT "$ENV{HOME}/Qt/Tools/QtInstallerFramework/4.10")
 elseif(APPLE) # macOS
     set(CPACK_GENERATOR "TGZ;IFW;DragNDrop")
@@ -45,8 +45,22 @@ set(CPACK_IFW_PACKAGE_TITLE ${CPACK_PACKAGE_NAME})
 set(CPACK_IFW_PACKAGE_PUBLISHER ${CPACK_PACKAGE_VENDOR})
 set(CPACK_IFW_PRODUCT_URL "https://www.gollahalli.com")
 
+## License file (for non-IFW generators like DEB/RPM)
+set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/LICENSE)
+
 ## Installer script
 set(CPACK_IFW_PACKAGE_CONTROL_SCRIPT ${CMAKE_CURRENT_LIST_DIR}/installerscript.qs)
+
+## Component configuration with license
+cpack_add_component(gav_component
+    DISPLAY_NAME "GAV Application"
+    DESCRIPTION "GAV - A simple audio and video player"
+    REQUIRED
+)
+cpack_ifw_configure_component(gav_component
+    LICENSES "MIT License" ${CMAKE_SOURCE_DIR}/LICENSE
+    SCRIPT ${CMAKE_CURRENT_LIST_DIR}/installerscript.qs
+)
 
 ## create a more memorable name for the maintenance tool (used for uninstalling the package)
 set(CPACK_IFW_PACKAGE_MAINTENANCE_TOOL_NAME ${PROJECT_NAME}_MaintenanceTool)
