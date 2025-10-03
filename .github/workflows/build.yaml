@@ -3,7 +3,7 @@ name: Build and Package
 on:
   push:
     branches: ["main"]
-    tags: ["v*.*.*"]
+    tags: ["v*", "*.*.*"]
   pull_request:
     branches: ["main"]
   workflow_dispatch:
@@ -116,7 +116,7 @@ jobs:
   pre-release:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.ref_type == 'tag' && contains(github.ref_name, '-')
     steps:
       - name: Download Linux build artifact
         uses: actions/download-artifact@v4
@@ -148,8 +148,8 @@ jobs:
       - name: Create Pre-Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: dev-${{ github.run_number }}
-          name: Development Build ${{ github.run_number }}
+          tag_name: ${{ github.ref_name }}
+          name: Pre-Release ${{ github.ref_name }}
           draft: false
           prerelease: true
           generate_release_notes: true
@@ -161,7 +161,7 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref_type == 'tag'
+    if: github.ref_type == 'tag' && !contains(github.ref_name, '-')
     steps:
       - name: Download Linux build artifact
         uses: actions/download-artifact@v4
