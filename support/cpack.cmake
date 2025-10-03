@@ -14,7 +14,7 @@ include(CPackIFW)
 
 # Enable support for packing using CPack and IFW
 if(UNIX AND NOT APPLE) # Linux
-    set(CPACK_GENERATOR "TGZ;DEB;RPM")
+    set(CPACK_GENERATOR "IFW;TGZ;DEB;RPM")
     set(CPACK_IFW_ROOT "$ENV{HOME}/Qt/Tools/QtInstallerFramework/4.10")
 elseif(APPLE) # macOS
     set(CPACK_GENERATOR "TGZ;IFW;DragNDrop")
@@ -44,6 +44,9 @@ set(CPACK_IFW_VERBOSE ON)
 set(CPACK_IFW_PACKAGE_TITLE ${CPACK_PACKAGE_NAME})
 set(CPACK_IFW_PACKAGE_PUBLISHER ${CPACK_PACKAGE_VENDOR})
 set(CPACK_IFW_PRODUCT_URL "https://www.gollahalli.com")
+
+## License file
+set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/LICENSE)
 
 ## Installer script
 set(CPACK_IFW_PACKAGE_CONTROL_SCRIPT ${CMAKE_CURRENT_LIST_DIR}/installerscript.qs)

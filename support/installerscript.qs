@@ -1,144 +1,202 @@
-// support/installerscript.qs  — CONTROLLER script
+// support/installerscript.qs — CONTROLLER script for GAV installer
 function Controller() {
     // Stable identity across versions
     installer.setValue("ProductUUID", "com.gollahalli.gav");
-
-    // We plan to remove the dir ourselves; let non-empty dirs pass
-    installer.setValue("AllowNonEmptyTargetDirectory", true);
-
-    // Auto-answer the usual overwrite prompt if it appears
+    
+    // Allow installation over existing directory
+    installer.setValue("AllowNonEmptyTargetDirectory", "true");
     installer.setMessageBoxAutomaticAnswer("OverwriteTargetDirectory", QMessageBox.Yes);
-
-    console.log("gav: Controller loaded");
+    
+    console.log("GAV: Controller initialized");
 }
 
-// ---------- helpers ----------
-function lastSegment(p) {
-    var s = String(p).replace(/\\+/g, "/");
-    if (s.endsWith("/")) s = s.slice(0, -1);
-    return s.substring(s.lastIndexOf("/") + 1);
-}
+// ---------- Page Callbacks ----------
 
-// Only allow deleting dirs that clearly look like the GAV install dir
-function isSafeInstallDir(dir) {
-    if (!dir) return false;
-    var seg = lastSegment(dir).toLowerCase();
-    if (seg !== "gav") return false;               // guard: must end with /GAV or \GAV
-    if (dir === "/" || /^[A-Za-z]:[\\\/]?$/.test(dir)) return false; // never root
-    return true;
-}
-
-function rmrf(dir, os, elevateIfNeeded) {
-    if (!isSafeInstallDir(dir)) {
-        console.log("gav: REFUSING to delete non-GAV dir:", dir);
-        return;
-    }
-    if (os === "x11" || os === "mac") {
-        // Elevate if we’re in a system location (e.g. /opt, /usr)
-        var needsRoot = dir.indexOf("/opt/") === 0 || dir.indexOf("/usr/") === 0 || dir === "/opt/GAV" || dir === "/usr/GAV";
-        if (elevateIfNeeded && needsRoot && !installer.hasAdminRights())
-            installer.gainAdminRights();
-        var quoted = dir.replace(/'/g, "'\\''");
-        var rc = installer.execute("bash", ["-c", "rm -rf -- '" + quoted + "'"]);
-        console.log("gav: rm -rf rc =", rc);
-    } else if (os === "win") {
-        var win = dir.replace(/\//g, "\\");
-        var rcw = installer.execute("cmd", ["/c", "rmdir", "/s", "/q", win]);
-        console.log("gav: rmdir rc =", rcw);
+// Add License Agreement page
+Controller.prototype.IntroductionPageCallback = function() {
+    var widget = gui.currentPageWidget();
+    if (widget != null) {
+        widget.MessageLabel.setText("Welcome to the GAV installer");
     }
 }
 
-// If an existing IFW install is there, try a proper purge first; then rm -rf as fallback.
-function purgeOrDelete(dir, os) {
-    if (!dir) return;
-    var mt = dir + "/maintenancetool" + (os === "win" ? ".exe" : "");
-    if (installer.fileExists(mt)) {
-        var rc = installer.execute(mt, ["purge", "-c"]); // older IFW: ["remove","-c"]
-        console.log("gav: maintenancetool purge rc =", rc);
+// Show license acceptance page
+Controller.prototype.LicenseAgreementPageCallback = function() {
+    var page = gui.currentPageWidget();
+    if (page != null) {
+        console.log("GAV: License page shown");
     }
-    rmrf(dir, os, /*elevateIfNeeded=*/true);
 }
 
-// ---------- page hooks ----------
-Controller.prototype.TargetDirectoryPageCallback = function () {
-    var page = gui.currentPageWidget();  // TargetDirectoryPage
-    var os   = installer.value("os");
-    var dir  = page && page.targetDir ? page.targetDir() : installer.value("TargetDir");
+// Clean up old installation before installing
+Controller.prototype.TargetDirectoryPageCallback = function() {
+    var page = gui.currentPageWidget();
+    if (page == null) return;
+    
+    var targetDir = page.targetDirectory();
+    console.log("GAV: Target directory:", targetDir);
+    
+    // Check if old installation exists
+    cleanupOldInstallation(targetDir);
+}
 
-    console.log("gav: TargetDirectoryPage dir =", dir);
-    purgeOrDelete(dir, os);
+// Final cleanup check before installation
+Controller.prototype.ReadyForInstallationPageCallback = function() {
+    var targetDir = installer.value("TargetDir");
+    console.log("GAV: Ready for installation to:", targetDir);
+    cleanupOldInstallation(targetDir);
+}
 
-    // Re-apply so the page re-validates after cleanup
-    if (page && page.setTargetDir) page.setTargetDir(dir);
-};
-
-Controller.prototype.ReadyForInstallationPageCallback = function () {
-    var dir = installer.value("TargetDir");
-    var os  = installer.value("os");
-    console.log("gav: ReadyForInstallation, ensuring dir is clean:", dir);
-    purgeOrDelete(dir, os);
-};
-
-Controller.prototype.installationFinished = function () {
-    var dir = installer.value("TargetDir");
-    var os  = installer.value("os");
-    var isAdmin = installer.hasAdminRights();
-    var target  = dir + "/bin/gav";
-
-    if (os === "win") {
-        var bin = installer.toNativeSeparators(dir + "/bin");
-        var exe = "@TargetDir@/bin/gav.exe";
-        var ico = "@TargetDir@/logo.ico";
-
-        // PATH (user) with undo
-        var addPS = "$b='"+bin+"';$p=[Environment]::GetEnvironmentVariable('Path','User');" +
-                    "if(-not($p.Split(';') -contains $b)){[Environment]::SetEnvironmentVariable('Path',$p+';'+$b,'User')}";
-        var rmPS  = "$b='"+bin+"';$p=[Environment]::GetEnvironmentVariable('Path','User');" +
-                    "$n=($p.Split(';')|?{$_-ne$b})-join(';');[Environment]::SetEnvironmentVariable('Path',$n,'User')";
-        installer.performOperation("Execute", ["powershell.exe","-ExecutionPolicy","Bypass","-Command", addPS]);
-        // no automatic undo stack in controller; uninstall will still remove files
-
-        // Start menu shortcut
-        installer.performOperation("CreateShortcut", [exe, "@StartMenuDir@/GAV.lnk",
-            "description=GAV - A simple audio and video player",
-            "iconPath="+ico, "iconId=0"]);
-        return;
-    }
-
-    if (os === "x11") {
-        var userBinDir = installer.value("HomeDir") + "/.local/bin";
-        var sysBinDir  = "/usr/local/bin";
-        var link       = (isAdmin ? sysBinDir : userBinDir) + "/gav";
-
-        // system-wide symlink via ln -sfn when elevated; else per-user CreateLink
-        if (isAdmin) {
-            installer.performOperation("Execute", ["bash","-c","mkdir -p '"+sysBinDir.replace(/'/g,"'\\''")+"'"]);
-            var t = target.replace(/'/g,"'\\''"), l = link.replace(/'/g,"'\\''");
-            installer.performOperation("Execute", ["bash","-c","ln -sfn '"+t+"' '"+l+"'"]);
+// Post-installation setup
+Controller.prototype.FinishedPageCallback = function() {
+    var targetDir = installer.value("TargetDir");
+    var os = systemInfo.productType;
+    
+    console.log("GAV: Installation finished");
+    console.log("GAV: Target directory:", targetDir);
+    console.log("GAV: OS:", os);
+    
+    try {
+        if (os === "windows") {
+            setupWindows(targetDir);
+        } else if (os === "osx") {
+            setupMacOS(targetDir);
         } else {
-            installer.performOperation("Mkdir", [userBinDir]);
-            installer.performOperation("Delete", [link, "UNDOOPERATION", ""]);
-            installer.performOperation("CreateLink", [link, target]);
+            setupLinux(targetDir);
         }
-
-        // Desktop entry + icon
-        var appsDir  = isAdmin ? "/usr/share/applications"
-                               : installer.value("HomeDir") + "/.local/share/applications";
-        var iconsDir = isAdmin ? "/usr/share/icons/hicolor/256x256/apps"
-                               : installer.value("HomeDir") + "/.local/share/icons/hicolor/256x256/apps";
-        installer.performOperation("Mkdir", [appsDir]);
-        installer.performOperation("Mkdir", [iconsDir]);
-        installer.performOperation("Copy", [dir + "/share/icons/hicolor/256x256/apps/icon.png",   iconsDir + "/gav.png"]);
-        installer.performOperation("Copy", [dir + "/share/applications/gav.desktop", appsDir  + "/gav.desktop"]);
-        installer.performOperation("Execute", ["update-desktop-database", appsDir, "ignoreExitCode=true"]);
-        return;
+    } catch (e) {
+        console.log("GAV: Setup error:", e);
     }
+}
 
-    if (os === "mac") {
-        var linkDir = installer.value("HomeDir") + "/.local/bin";
-        var linkMac = linkDir + "/gav";
-        installer.performOperation("Mkdir", [linkDir]);
-        installer.performOperation("Delete", [linkMac, "UNDOOPERATION", ""]);
-        installer.performOperation("CreateLink", [linkMac, target]);
+// ---------- Helper Functions ----------
+
+function cleanupOldInstallation(targetDir) {
+    if (!targetDir || targetDir === "") return;
+    
+    // Check if maintenance tool exists
+    var os = systemInfo.productType;
+    var maintenanceTool = targetDir + "/gav_MaintenanceTool" + (os === "windows" ? ".exe" : "");
+    
+    if (installer.fileExists(maintenanceTool)) {
+        console.log("GAV: Found existing installation, attempting cleanup");
+        try {
+            // Try to run uninstaller silently
+            installer.execute(maintenanceTool, ["--uninstall"]);
+        } catch (e) {
+            console.log("GAV: Cleanup warning:", e);
+        }
     }
-};
+}
+
+function setupWindows(targetDir) {
+    console.log("GAV: Setting up Windows environment");
+    
+    var binDir = targetDir + "\\bin";
+    var exePath = binDir + "\\gav.exe";
+    var iconPath = targetDir + "\\logo.ico";
+    
+    // Create Start Menu shortcut
+    var startMenuDir = installer.value("StartMenuDir");
+    if (startMenuDir && startMenuDir !== "") {
+        try {
+            var shortcutPath = startMenuDir + "\\GAV.lnk";
+            component.addOperation("CreateShortcut",
+                exePath,
+                shortcutPath,
+                "workingDirectory=" + binDir,
+                "iconPath=" + iconPath,
+                "iconId=0",
+                "description=GAV - Audio and Video Player");
+            console.log("GAV: Created Start Menu shortcut");
+        } catch (e) {
+            console.log("GAV: Start Menu shortcut error:", e);
+        }
+    }
+    
+    // Add to PATH (optional - user can do this manually if preferred)
+    try {
+        component.addOperation("EnvironmentVariable",
+            "PATH",
+            binDir,
+            true,  // prepend
+            "HKCU"); // user environment
+        console.log("GAV: Added to PATH");
+    } catch (e) {
+        console.log("GAV: PATH setup error:", e);
+    }
+}
+
+function setupMacOS(targetDir) {
+    console.log("GAV: Setting up macOS environment");
+    
+    var homeDir = installer.value("HomeDir");
+    var binDir = homeDir + "/.local/bin";
+    var gavBinary = targetDir + "/bin/gav";
+    var symlinkPath = binDir + "/gav";
+    
+    try {
+        // Create .local/bin if it doesn't exist
+        component.addOperation("Mkdir", binDir);
+        
+        // Create symlink
+        component.addOperation("CreateLink", symlinkPath, gavBinary);
+        
+        console.log("GAV: Created symlink:", symlinkPath, "->", gavBinary);
+    } catch (e) {
+        console.log("GAV: macOS setup error:", e);
+    }
+}
+
+function setupLinux(targetDir) {
+    console.log("GAV: Setting up Linux environment");
+    
+    var homeDir = installer.value("HomeDir");
+    var hasAdminRights = installer.gainAdminRights();
+    
+    var gavBinary = targetDir + "/bin/gav";
+    var desktopFile = targetDir + "/share/applications/gav.desktop";
+    var iconFile = targetDir + "/share/icons/hicolor/256x256/apps/gav.png";
+    
+    // Setup binary symlink
+    try {
+        if (hasAdminRights) {
+            // System-wide installation
+            component.addOperation("Mkdir", "/usr/local/bin");
+            component.addOperation("CreateLink", "/usr/local/bin/gav", gavBinary);
+            console.log("GAV: Created system-wide symlink");
+        } else {
+            // User installation
+            var userBinDir = homeDir + "/.local/bin";
+            component.addOperation("Mkdir", userBinDir);
+            component.addOperation("CreateLink", userBinDir + "/gav", gavBinary);
+            console.log("GAV: Created user symlink");
+        }
+    } catch (e) {
+        console.log("GAV: Binary symlink error:", e);
+    }
+    
+    // Setup desktop entry and icon
+    try {
+        var appsDir = hasAdminRights ? "/usr/share/applications" : homeDir + "/.local/share/applications";
+        var iconsDir = hasAdminRights ? "/usr/share/icons/hicolor/256x256/apps" : homeDir + "/.local/share/icons/hicolor/256x256/apps";
+        
+        component.addOperation("Mkdir", appsDir);
+        component.addOperation("Mkdir", iconsDir);
+        
+        if (installer.fileExists(desktopFile)) {
+            component.addOperation("Copy", desktopFile, appsDir + "/gav.desktop");
+            console.log("GAV: Installed desktop file");
+        }
+        
+        if (installer.fileExists(iconFile)) {
+            component.addOperation("Copy", iconFile, iconsDir + "/gav.png");
+            console.log("GAV: Installed icon");
+        }
+        
+        // Update desktop database
+        component.addElevatedOperation("Execute", "update-desktop-database", appsDir);
+    } catch (e) {
+        console.log("GAV: Desktop integration error:", e);
+    }
+}
