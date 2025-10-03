@@ -85,13 +85,14 @@ jobs:
             # Extract version from tag (remove 'v' prefix if present)
             VERSION=${GITHUB_REF#refs/tags/}
             VERSION=${VERSION#v}
-            echo "Using tag version: $VERSION"
+            echo "Using version: $VERSION"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
           else
             # Fallback for non-tag builds (development builds)
             VERSION=0.0.${{ github.run_number }}
             echo "Using fallback version: $VERSION"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
         shell: bash
 
       - name: Configure CMake
