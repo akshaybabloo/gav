@@ -5,7 +5,16 @@ if(NOT DEFINED GAV_VERSION)
     set(GAV_VERSION "0.0.0-dev")
 endif()
 
-project(gav VERSION ${GAV_VERSION} LANGUAGES CXX)
+# Extract numeric version for CMake project()
+string(REGEX MATCH "^([0-9]+\\.[0-9]+\\.[0-9]+)" GAV_NUMERIC_VERSION "${GAV_VERSION}")
+if(NOT GAV_NUMERIC_VERSION)
+    set(GAV_NUMERIC_VERSION "0.0.0")
+endif()
+
+# Set the full version string for use in the app
+set(GAV_FULL_VERSION "${GAV_VERSION}")
+
+project(gav VERSION ${GAV_NUMERIC_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -67,7 +76,7 @@ else()
     )
 endif()
 
-target_compile_definitions(appgav PRIVATE APP_VERSION="${PROJECT_VERSION}")
+target_compile_definitions(appgav PRIVATE APP_VERSION="${GAV_FULL_VERSION}")
 
 qt_add_resources(appgav "assets"
     PREFIX "/"
