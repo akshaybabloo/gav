@@ -13,7 +13,7 @@ permissions:
   packages: write
 
 env:
-  QT_VERSION: "6.9.2"
+  QT_VERSION: "6.9.3"
 
 jobs:
   build:
