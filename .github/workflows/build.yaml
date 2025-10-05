@@ -76,7 +76,7 @@ jobs:
           tools: "${{ matrix.tools }}"
 
       - name: Install CMake 4+
-        uses: jwlawson/actions-setup-cmake@v2
+        uses: akshaybabloo/actions-setup-cmake@v1
         with:
           cmake-version: "4.1.x"
 
@@ -84,6 +84,12 @@ jobs:
         run: |
           cmake --version
           ninja --version
+
+      - name: Missing Dependencies for IFW
+        if: matrix.tools == 'tools_ifw' && startsWith(matrix.os, 'ubuntu-')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libtiff-dev
 
       - name: Get version from Git tag
         id: version
@@ -120,6 +126,13 @@ jobs:
         with:
           name: ${{ matrix.artifact }}
           path: build/packages/*
+
+      - name: Upload CPack Error Log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpack-error-log
+          path: /home/runner/work/gav/gav/build/_CPack_Packages/Linux/IFW/IFWOutput.log
 
   pre-release:
     needs: build
