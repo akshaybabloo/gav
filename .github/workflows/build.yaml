@@ -62,18 +62,14 @@ jobs:
           arch: x64
 
       - name: Install Qt
-        uses: jurplel/install-qt-action@v4
+        uses: akshaybabloo/actions-setup-qt@v1
         with:
-          version: "${{ env.QT_VERSION }}"
-          target: "desktop"
-          cache: "true"
-          cache-key-prefix: "install-qt-action"
-          install-deps: "true"
-          dir: "${{ github.workspace }}"
-          host: "${{ matrix.host }}"
-          arch: "${{ matrix.arch }}"
-          modules: "${{ matrix.modules }}"
-          tools: "${{ matrix.tools }}"
+          username: ${{ secrets.QT_USERNAME }}
+          password: ${{ secrets.QT_PASSWORD }}
+          version: 'qt6.10.0-full-dev'
+          install-deps: 'true'
+          cache: 'true'
+          modules: "qt.tools.ifw.410"
 
       - name: Install CMake 4+
         uses: akshaybabloo/actions-setup-cmake@v1
