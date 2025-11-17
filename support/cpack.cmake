@@ -10,18 +10,13 @@ message("deploy script name: ${deploy_script}")
 message("qt_deploy_support: ${QT_DEPLOY_SUPPORT}")
 install(SCRIPT ${deploy_script})
 
-include(CPackIFW)
-
-# Enable support for packing using CPack and IFW
+# Enable support for packing using CPack
 if(UNIX AND NOT APPLE) # Linux
-    set(CPACK_GENERATOR "IFW;TGZ;DEB;RPM")
-    set(CPACK_IFW_ROOT "$ENV{HOME}/Qt/Tools/QtInstallerFramework/4.10")
+    set(CPACK_GENERATOR "TGZ;DEB;RPM")
 elseif(APPLE) # macOS
-    set(CPACK_GENERATOR "TGZ;IFW;DragNDrop")
-    set(CPACK_IFW_ROOT "$ENV{HOME}/Qt/Tools/QtInstallerFramework/4.10")
+    set(CPACK_GENERATOR "TGZ;DragNDrop")
 elseif (WIN32)
-    set(CPACK_GENERATOR "IFW;ZIP")
-    set(CPACK_IFW_ROOT "C:/Qt/Tools/QtInstallerFramework/4.10")
+    set(CPACK_GENERATOR "NSIS;ZIP")
 endif ()
 
 # CPack settings
@@ -39,39 +34,49 @@ SET(CPACK_OUTPUT_FILE_PREFIX packages)
 set(CPACK_VERBATIM_VARIABLES YES)
 set(CPACK_COMPONENTS_GROUPING IGNORE)
 
-# IFW settings
-set(CPACK_IFW_VERBOSE ON)
-set(CPACK_IFW_PACKAGE_TITLE ${CPACK_PACKAGE_NAME})
-set(CPACK_IFW_PACKAGE_PUBLISHER ${CPACK_PACKAGE_VENDOR})
-set(CPACK_IFW_PRODUCT_URL "https://www.gollahalli.com")
-
-## License file (for non-IFW generators like DEB/RPM)
+## License file
 set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/LICENSE)
 
-## Installer script
-set(CPACK_IFW_PACKAGE_CONTROL_SCRIPT ${CMAKE_CURRENT_LIST_DIR}/installerscript.qs)
-
-## Component configuration with license
-cpack_add_component(gav_component
-    DISPLAY_NAME "GAV Application"
-    DESCRIPTION "GAV - A simple audio and video player"
-    REQUIRED
-)
-cpack_ifw_configure_component(gav_component
-    LICENSES "MIT License" ${CMAKE_SOURCE_DIR}/LICENSE
-    SCRIPT ${CMAKE_CURRENT_LIST_DIR}/installerscript.qs
-)
-
-## create a more memorable name for the maintenance tool (used for uninstalling the package)
-set(CPACK_IFW_PACKAGE_MAINTENANCE_TOOL_NAME ${PROJECT_NAME}_MaintenanceTool)
-set(CPACK_IFW_PACKAGE_MAINTENANCE_TOOL_INI_FILE ${CPACK_IFW_PACKAGE_MAINTENANCE_TOOL_NAME}.ini)
-set(CPACK_IFW_PACKAGE_WIZARD_STYLE "Modern")
-set(CPACK_IFW_PACKAGE_WIZARD_DEFAULT_HEIGHT 400)
-
-## set the installer icon and logo
-set(CPACK_IFW_PACKAGE_ICON ${CMAKE_SOURCE_DIR}/assets/images/logo.ico)
-set(CPACK_IFW_PACKAGE_WINDOW_ICON ${CMAKE_SOURCE_DIR}/assets/images/icon-50x50.png)
-set(CPACK_IFW_PACKAGE_LOGO ${CMAKE_SOURCE_DIR}/assets/images/icon-50x50.png)
+# NSIS settings for Windows
+if(WIN32)
+    set(CPACK_NSIS_DISPLAY_NAME "GAV - Audio Video Player")
+    set(CPACK_NSIS_PACKAGE_NAME "GAV")
+    set(CPACK_NSIS_EXECUTABLES_DIRECTORY "bin")
+    set(CPACK_NSIS_MUI_EXECUTABLES "gav.exe;GAV - Audio Video Player")
+    
+    # Create proper shortcuts and register for Start Menu search
+    set(CPACK_NSIS_CREATE_ICONS_EXTRA "
+        CreateShortCut '$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\GAV.lnk' '$INSTDIR\\\\bin\\\\gav.exe' '' '$INSTDIR\\\\bin\\\\gav.exe' 0
+        CreateShortCut '$DESKTOP\\\\GAV.lnk' '$INSTDIR\\\\bin\\\\gav.exe' '' '$INSTDIR\\\\bin\\\\gav.exe' 0
+        WriteRegStr HKLM 'SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\App Paths\\\\gav.exe' '' '$INSTDIR\\\\bin\\\\gav.exe'
+        WriteRegStr HKLM 'SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\App Paths\\\\gav.exe' 'Path' '$INSTDIR\\\\bin'
+    ")
+    
+    set(CPACK_NSIS_DELETE_ICONS_EXTRA "
+        Delete '$SMPROGRAMS\\\\$MUI_TEMP\\\\GAV.lnk'
+        Delete '$DESKTOP\\\\GAV.lnk'
+        DeleteRegKey HKLM 'SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\App Paths\\\\gav.exe'
+    ")
+    set(CPACK_NSIS_MODIFY_PATH ON)
+    
+    # Branding - Convert paths to Windows format
+    file(TO_NATIVE_PATH "${CMAKE_SOURCE_DIR}/assets/images/logo.ico" LOGO_ICO_PATH)
+    file(TO_NATIVE_PATH "${CMAKE_SOURCE_DIR}/assets/images/logo.bmp" LOGO_BMP_PATH)
+    
+    set(CPACK_NSIS_MUI_ICON "${LOGO_ICO_PATH}")
+    set(CPACK_NSIS_MUI_UNIICON "${LOGO_ICO_PATH}")
+    set(CPACK_NSIS_MUI_HEADERIMAGE_BITMAP "${LOGO_BMP_PATH}")
+    
+    # License and website
+    set(CPACK_NSIS_MENU_LINKS "https://www.gollahalli.com" "GAV Website")
+    
+    # Standard installation settings
+    set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
+    set(CPACK_NSIS_MODIFY_PATH ON)
+    
+    # Set default installation directory (Program Files - will prompt for admin)
+    set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES64")
+endif()
 
 ## Installer settings
 # DEB settings

@@ -21,16 +21,12 @@ jobs:
         include:
           - os: ubuntu-latest
             artifact: 'qt6.10.0-full'
-            modules: 'qt.tools.ifw.410'
           - os: windows-latest
             artifact: 'qt6.10.0-msvc2022-full'
-            modules: 'qt.tools.ifw.410'
           - os: macos-latest
             artifact: 'qt6.10.0-full'
-            modules: 'qt.tools.ifw.410'
           - os: ubuntu-24.04-arm
             artifact: 'qt6.10.0-full'
-            modules: 'qt.tools.ifw.410'
     
     steps:
       - uses: actions/checkout@v4
@@ -41,6 +37,11 @@ jobs:
         if: startsWith(matrix.os, 'windows-')
         with:
           arch: x64
+      
+      - uses: repolevedavaj/install-nsis@v1.1.0
+        if: startsWith(matrix.os, 'windows-')
+        with:
+          nsis-version: '3.11'
 
       - name: Install Qt
         uses: akshaybabloo/actions-setup-qt@v1
@@ -50,23 +51,11 @@ jobs:
           version: ${{ matrix.artifact}}
           install-deps: 'true'
           cache: 'true'
-          modules: ${{ matrix.modules }}
 
       - name: Install CMake 4+
         uses: akshaybabloo/actions-setup-cmake@v1
         with:
           cmake-version: "4.1.x"
-
-      - name: Dump Versions
-        run: |
-          cmake --version
-          ninja --version
-
-      - name: Missing Dependencies for IFW
-        if: matrix.tools == 'tools_ifw' && startsWith(matrix.os, 'ubuntu-')
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libtiff-dev
 
       - name: Get version from Git tag
         id: version
@@ -104,12 +93,7 @@ jobs:
           name: ${{ matrix.artifact }}-${{ matrix.os }}
           path: build/packages/*
 
-      - name: Upload CPack Error Log
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: cpack-error-log
-          path: /home/runner/work/gav/gav/build/_CPack_Packages/Linux/IFW/IFWOutput.log
+
 
   pre-release:
     needs: build

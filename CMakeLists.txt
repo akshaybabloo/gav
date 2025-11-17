@@ -81,7 +81,6 @@ target_compile_definitions(appgav PRIVATE APP_VERSION="${GAV_FULL_VERSION}")
 qt_add_resources(appgav "assets"
     PREFIX "/"
     FILES
-        support/installerscript.qs
         qtquickcontrols2.conf
         assets/fonts/MaterialSymbolsOutlined.ttf
         assets/images/logo.png
@@ -91,6 +90,7 @@ qt_add_resources(appgav "assets"
         assets/images/logo.ico
         assets/images/icon.icns
         assets/resource.rc
+        assets/images/logo.bmp
 )
 
 qt_add_qml_module(appgav
