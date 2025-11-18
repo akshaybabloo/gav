@@ -81,7 +81,6 @@ target_compile_definitions(appgav PRIVATE APP_VERSION="${GAV_FULL_VERSION}")
 qt_add_resources(appgav "assets"
     PREFIX "/"
     FILES
-        support/installerscript.qs
         qtquickcontrols2.conf
         assets/fonts/MaterialSymbolsOutlined.ttf
         assets/images/logo.png
@@ -91,6 +90,7 @@ qt_add_resources(appgav "assets"
         assets/images/logo.ico
         assets/images/icon.icns
         assets/resource.rc
+        assets/images/logo.bmp
 )
 
 qt_add_qml_module(appgav
@@ -131,7 +131,7 @@ install(TARGETS appgav
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    COMPONENT gav_component
+    COMPONENT GAV
 )
 
 if(UNIX AND NOT APPLE)
@@ -139,14 +139,10 @@ if(UNIX AND NOT APPLE)
     install(FILES assets/images/icon.png
             DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps
             RENAME gav.png
-            COMPONENT gav_component)
+            COMPONENT GAV)
     install(FILES support/gav.desktop
             DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
-            COMPONENT gav_component)
-
-#     # For IFW installer
-#     install(FILES assets/images/icon.png DESTINATION . COMPONENT gav_component)
-#     install(FILES support/gav.desktop DESTINATION . COMPONENT gav_component)
+            COMPONENT GAV)
 endif()
 
 include(support/cpack.cmake)
