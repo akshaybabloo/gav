@@ -1,6 +1,7 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QCommandLineParser>
+#include <iostream>
 
 int main(int argc, char *argv[])
 {
@@ -19,17 +20,22 @@ int main(int argc, char *argv[])
     parser.setApplicationDescription("GAV is a simple audio and video player, backed by FFmpeg and Qt6");
     parser.addHelpOption();
     parser.addVersionOption();
-    parser.addPositionalArgument("source", QCoreApplication::translate("main", "Source file to play"));
+
+    QCommandLineOption sourceOption("source", "Source of the audio or video to play");
+    parser.addOption(sourceOption);
 
     parser.process(app);
 
-    const QStringList args = parser.positionalArguments();
+    QString sourceValue;
+    if (parser.isSet(sourceOption)) {
+        sourceValue = parser.value(sourceOption);
+    }
 
     QQmlApplicationEngine engine;
-    if (!args.isEmpty()) {
-        QUrl u = QUrl::fromUserInput(args.first());
-        if (!u.isEmpty() && u.isValid())
-            engine.setInitialProperties({{"source", u}});
+    if (!sourceValue.isEmpty()) {
+        QUrl sourceURL = QUrl::fromUserInput(sourceValue);
+        if (!sourceURL.isEmpty() && sourceURL.isValid())
+            engine.setInitialProperties({{"source", sourceURL}});
     }
 
     QObject::connect(
@@ -38,7 +44,9 @@ int main(int argc, char *argv[])
         &app,
         []() { QCoreApplication::exit(-1); },
         Qt::QueuedConnection);
-    engine.loadFromModule("gavqml", "Main");
+
+    if (!pa)
+    // engine.loadFromModule("gavqml", "Main");
 
     return app.exec();
 }
