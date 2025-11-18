@@ -131,7 +131,7 @@ install(TARGETS appgav
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    COMPONENT gav_component
+    COMPONENT GAV
 )
 
 if(UNIX AND NOT APPLE)
@@ -139,14 +139,10 @@ if(UNIX AND NOT APPLE)
     install(FILES assets/images/icon.png
             DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps
             RENAME gav.png
-            COMPONENT gav_component)
+            COMPONENT GAV)
     install(FILES support/gav.desktop
             DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
-            COMPONENT gav_component)
-
-#     # For IFW installer
-#     install(FILES assets/images/icon.png DESTINATION . COMPONENT gav_component)
-#     install(FILES support/gav.desktop DESTINATION . COMPONENT gav_component)
+            COMPONENT GAV)
 endif()
 
 include(support/cpack.cmake)
