@@ -3,8 +3,7 @@
 #include <QCommandLineParser>
 #include <iostream>
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
 
 #ifdef APP_VERSION
@@ -45,8 +44,9 @@ int main(int argc, char *argv[])
         []() { QCoreApplication::exit(-1); },
         Qt::QueuedConnection);
 
-    if (!pa)
-    // engine.loadFromModule("gavqml", "Main");
+    if (!parser.isSet("version") || !parser.isSet("help")) {
+        engine.loadFromModule("gavqml", "Main");
+    }
 
     return app.exec();
 }
