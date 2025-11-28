@@ -479,6 +479,17 @@ Item {
 
                         Layout.preferredWidth: 100
                         Layout.preferredHeight: 10
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onWheel: function (wheel) {
+                                if (wheel.angleDelta.y > 0 && videoOutput.visible) {
+                                    audioOutput.volume = Math.min(audioOutput.volume + 0.05, 1.0)
+                                } else if (wheel.angleDelta.y < 0 && videoOutput.visible) {
+                                    audioOutput.volume = Math.max(audioOutput.volume - 0.05, 0.0)
+                                }
+                            }
+                        }
                     }
 
                     Button {
