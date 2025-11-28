@@ -48,6 +48,7 @@ Item {
         }
     }
 
+    // Vertical volume display
     Column {
         id: volumeColumn
         anchors.right: parent.right
@@ -56,6 +57,7 @@ Item {
         spacing: 10
         visible: false
         z: 100
+        opacity: 0.7
 
         Text {
             id: volumeText
