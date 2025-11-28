@@ -20,14 +20,18 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            artifact: 'qt6.10.0-full'
+            artifact: 'qt6.10.1-essentials'
+            modules: 'qt.qt6.6101.addons.qt5compat qt.qt6.6101.addons.qtimageformats qt.qt6.6101.addons.qtmultimedia'
           - os: windows-latest
-            artifact: 'qt6.10.0-msvc2022-full'
+            artifact: 'qt6.10.1-msvc2022-essentials'
+            modules: 'qt.qt6.6101.addons.qt5compat qt.qt6.6101.addons.qtimageformats qt.qt6.6101.addons.qtmultimedia'
           - os: macos-latest
-            artifact: 'qt6.10.0-full'
+            artifact: 'qt6.10.1-essentials'
+            modules: 'qt.qt6.6101.addons.qt5compat qt.qt6.6101.addons.qtimageformats qt.qt6.6101.addons.qtmultimedia'
           - os: ubuntu-24.04-arm
-            artifact: 'qt6.10.0-full'
-    
+            artifact: 'qt6.10.1-essentials'
+            modules: 'qt.qt6.6101.addons.qt5compat qt.qt6.6101.addons.qtimageformats qt.qt6.6101.addons.qtmultimedia'
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,6 +53,7 @@ jobs:
           username: ${{ secrets.QT_USERNAME }}
           password: ${{ secrets.QT_PASSWORD }}
           version: ${{ matrix.artifact}}
+          modules: ${{ matrix.modules }}
           install-deps: 'true'
           cache: 'true'
 
