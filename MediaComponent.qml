@@ -55,18 +55,19 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         spacing: 10
         visible: false
+        z: 100
 
         Text {
             id: volumeText
             text: Math.round(audioOutput.volume * 100) + "%"
             color: "white"
-            font.pixelSize: 16
+            font.pixelSize: 25
             font.bold: true
         }
 
         Rectangle {
             id: volumeViz
-            width: 70
+            width: 50
             height: 250
             color: "#2a2a2a"
             border.color: "white"
