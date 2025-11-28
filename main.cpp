@@ -3,6 +3,10 @@
 #include <QCommandLineParser>
 #include <iostream>
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
+
 int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
 
@@ -44,9 +48,21 @@ int main(int argc, char *argv[]) {
         []() { QCoreApplication::exit(-1); },
         Qt::QueuedConnection);
 
-    if (!parser.isSet("version") || !parser.isSet("help")) {
-        engine.loadFromModule("gavqml", "Main");
+    engine.loadFromModule("gavqml", "Main");
+
+#ifdef Q_OS_WIN
+    // Free console only if launched without a parent console (GUI double-click)
+    // This prevents the console window from staying open when launched from Explorer
+    DWORD procIDs[2];
+    DWORD maxCount = 2;
+    DWORD result = GetConsoleProcessList((LPDWORD)procIDs, maxCount);
+    
+    // If result == 1, only this process is attached to console (launched from Explorer)
+    // If result > 1, there's a parent console (cmd/powershell) - keep it attached
+    if (result == 1) {
+        FreeConsole();
     }
+#endif
 
     return app.exec();
 }
