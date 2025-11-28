@@ -20,25 +20,28 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Check if in CLion
 if ($ENV{CLION_IDE})
-    set(QT_VERSION "6.9.*")
+    set(QT_VERSION "6.10.*")
     message(STATUS "CLion IDE detected. Setting Qt version to ${QT_VERSION}")
 
     if(WIN32)
         set(USER_HOME_DIR "C:")
+        set(COMPILER "msvc2022_64")
     else()
         set(USER_HOME_DIR $ENV{HOME})
+        set(COMPILER "gcc_64")
     endif()
 
     file(GLOB QT_DIRS "${USER_HOME_DIR}/Qt/${QT_VERSION}")
+    message(STATUS "Searching for Qt directories in ${USER_HOME_DIR}/Qt/ with pattern ${QT_VERSION}: ${QT_DIRS}")
     list(LENGTH QT_DIRS QT_DIRS_COUNT)
     if (QT_DIRS_COUNT GREATER 0)
         message(STATUS "Found ${QT_DIRS_COUNT} Qt directories starting with ${QT_VERSION}")
         list(GET QT_DIRS 0 QT_DIR)
         message(STATUS "Using Qt directory: ${QT_DIR}")
-        list(APPEND CMAKE_PREFIX_PATH ${QT_DIR} ${QT_DIR}/gcc_64)
-        # List all dirs in QT_DIRS/gcc_64/lib/cmake
-        file(GLOB QT_CMAKE_DIRS "${QT_DIR}/gcc_64/lib/cmake/*")
-        message(STATUS "CMake directories in ${QT_DIR}/gcc_64/lib/cmake:")
+        list(APPEND CMAKE_PREFIX_PATH ${QT_DIR} ${QT_DIR}/${COMPILER})
+        # List all dirs in QT_DIRS/${COMPILER}/lib/cmake
+        file(GLOB QT_CMAKE_DIRS "${QT_DIR}/${COMPILER}/lib/cmake/*")
+        message(STATUS "CMake directories in ${QT_DIR}/${COMPILER}/lib/cmake:")
         foreach(dir ${QT_CMAKE_DIRS})
             message(STATUS "  - ${dir}")
             # Get the last part of the path
@@ -115,7 +118,7 @@ set_target_properties(appgav PROPERTIES
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}
     MACOSX_BUNDLE TRUE
-    WIN32_EXECUTABLE TRUE
+    # WIN32_EXECUTABLE TRUE
 )
 
 set_target_properties(appgav PROPERTIES OUTPUT_NAME "gav")
