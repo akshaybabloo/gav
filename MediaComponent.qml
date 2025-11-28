@@ -25,11 +25,11 @@ Item {
         videoOutput: videoOutput
         audioOutput: audioOutput
 
-        onVideoVisibilityChanged: function(visible) {
+        onVideoVisibilityChanged: function (visible) {
             videoOutput.visible = visible
         }
 
-        onPlaybackStateChanged: function(state) {
+        onPlaybackStateChanged: function (state) {
             if (state === MediaPlayer.PlayingState) {
                 isPlaying = true
                 hideControlsTimer.start()
@@ -46,8 +46,50 @@ Item {
             console.log("MediaPlayer error:", errorString)
             unsupportedFileDialog.open()
         }
+    }
 
-        
+    Column {
+        id: volumeColumn
+        anchors.right: parent.right
+        anchors.rightMargin: 20
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: 10
+        visible: false
+
+        Text {
+            id: volumeText
+            text: Math.round(audioOutput.volume * 100) + "%"
+            color: "white"
+            font.pixelSize: 16
+            font.bold: true
+        }
+
+        Rectangle {
+            id: volumeViz
+            width: 70
+            height: 250
+            color: "#2a2a2a"
+            border.color: "white"
+            border.width: 2
+            radius: 5
+            clip: true
+
+            Rectangle {
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: parent.height * audioOutput.volume
+                color: "#4CAF50"
+                radius: 5
+            }
+        }
+
+        Timer {
+            id: volumeDisplayTimer
+            interval: 2000
+            repeat: false
+            onTriggered: volumeColumn.visible = false
+        }
     }
 
     AudioOutput {
@@ -80,8 +122,12 @@ Item {
         onWheel: function (wheel) {
             if (wheel.angleDelta.y > 0 && videoOutput.visible) {
                 audioOutput.volume = Math.min(audioOutput.volume + 0.05, 1.0)
+                volumeColumn.visible = true
+                volumeDisplayTimer.restart()
             } else if (wheel.angleDelta.y < 0 && videoOutput.visible) {
                 audioOutput.volume = Math.max(audioOutput.volume - 0.05, 0.0)
+                volumeColumn.visible = true
+                volumeDisplayTimer.restart()
             }
         }
     }
@@ -98,4 +144,3 @@ Item {
         }
     }
 }
-
