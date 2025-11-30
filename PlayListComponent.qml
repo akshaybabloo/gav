@@ -6,6 +6,14 @@ Item {
     required property ListModel playList
     property alias playListView: playListView
 
+    function toPathList(model) {
+        var dataArray = []
+        for (var i = 0; i < model.count; ++i) {
+            dataArray.push(model.get(i).path)
+        }
+        return dataArray
+    }
+
     ColumnLayout {
         anchors.centerIn: parent
 
@@ -46,6 +54,7 @@ Item {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.margins: 10
+                spacing: 15
 
                 Item {
                     Layout.fillWidth: true
@@ -63,11 +72,23 @@ Item {
                     Layout.preferredWidth: 25
                     Layout.preferredHeight: 30
                 }
+                Button {
+                    id: collageButton
+                    text: "\uefb2"
+                    font.family: materialSymbolsOutlined.name
+                    font.weight: Font.Light
+                    scale: 1.5
+                    onClicked: {
+                        collage.toCollage(toPathList(playList))
+                    }
+                    Material.roundedScale: Material.NotRounded
+                    Layout.preferredWidth: 25
+                    Layout.preferredHeight: 30
+                }
             }
         }
 
-        ScrollBar.vertical: ScrollBar {
-        }
+        ScrollBar.vertical: ScrollBar {}
 
         onCurrentIndexChanged: {
             if (currentIndex !== -1) {
