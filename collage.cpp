@@ -222,6 +222,8 @@ QImage Collage::drawCollage(const ImageMeta &meta) {
         return QImage();
     }
 
+    QList<QImage> processedImages;
+
     for (const auto &img: images) {
         QImage resized = img.image.scaled(256, 256, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 
@@ -247,7 +249,93 @@ QImage Collage::drawCollage(const ImageMeta &meta) {
             qDebug() << "Failed to save debug image:" << debugFilename;
         }
 #endif
+        processedImages.append(resized);
     }
 
-    return QImage();
+    // Create description table at the top
+    constexpr int tableMargin = -10;
+    constexpr int tableRowHeight = 15;
+    constexpr int tablePadding = 2;
+
+    // Prepare metadata text
+    QStringList metaLines;
+    metaLines << QString("Name: %1").arg(meta.name);
+    metaLines << QString("Duration: %1").arg(meta.duration);
+    metaLines << QString("Resolution: %1").arg(meta.resolution);
+    metaLines << QString("Size: %1").arg(meta.size);
+    metaLines << QString("Video Codec: %1").arg(meta.videoCodes);
+    metaLines << QString("Audio Codec: %1").arg(meta.audioCodec);
+
+    const int tableHeight = metaLines.size() * tableRowHeight + 2 * tablePadding;
+
+    // Draw collage using QPainter instead of QTableWidget
+    constexpr int cols = 4;
+    const int rows = (processedImages.size() + cols - 1) / cols;
+    constexpr int cellWidth = 256;
+    constexpr int cellHeight = 256;
+    constexpr int paddingX = 5;      // Gap between columns
+    constexpr int paddingY = -100;   // Gap between rows
+    constexpr int marginTop = 5;     // Top margin
+    constexpr int marginBottom = 5;  // Bottom margin
+    constexpr int marginLeft = 5;    // Left margin
+    constexpr int marginRight = 5;   // Right margin
+
+    // Canvas width: left margin + all columns + gaps between columns + right margin
+    constexpr int canvasWidth = marginLeft + cols * cellWidth + (cols - 1) * paddingX + marginRight;
+    // Canvas height: top margin + table + margin + all rows + gaps between rows + bottom margin
+    const int canvasHeight = marginTop + tableHeight + tableMargin + rows * cellHeight + (rows - 1) * paddingY + marginBottom;
+
+    QImage collageImage(canvasWidth, canvasHeight, QImage::Format_ARGB32);
+    collageImage.fill(Qt::white);
+
+    QPainter collagePainter(&collageImage);
+
+    // Draw description table background
+    constexpr int tableX = marginLeft;
+    constexpr int tableY = marginTop;
+    constexpr int tableWidth = canvasWidth - marginLeft - marginRight;
+
+    collagePainter.setPen(QPen(Qt::black, 2));
+    collagePainter.setBrush(QColor(240, 240, 240));
+    collagePainter.drawRect(tableX, tableY, tableWidth, tableHeight);
+
+    // Draw table content
+    collagePainter.setPen(Qt::black);
+    collagePainter.setFont(QFont("Arial", 10));
+
+    for (int i = 0; i < metaLines.size(); ++i) {
+        constexpr int textX = tableX + tablePadding;
+        const int textY = tableY + tablePadding + i * tableRowHeight + tableRowHeight / 2 + 5;
+        collagePainter.drawText(textX, textY, metaLines[i]);
+    }
+
+    // Draw each image in a grid layout
+    const int imagesStartY = marginTop + tableHeight + tableMargin;
+    for (int i = 0; i < processedImages.size(); ++i) {
+        const int row = i / cols;
+        const int col = i % cols;
+        // Position: margin + (cell size + gap) * index
+        const int x = marginLeft + col * (cellWidth + paddingX);
+        const int y = imagesStartY + row * (cellHeight + paddingY);
+
+        // Draw the image centered in the cell
+        const QImage &img = processedImages[i];
+        const int imgX = x + (cellWidth - img.width()) / 2;
+        const int imgY = y + (cellHeight - img.height()) / 2;
+
+        collagePainter.drawImage(imgX, imgY, img);
+    }
+
+    collagePainter.end();
+
+#ifdef QT_DEBUG
+    // Save collage image to disk for debugging
+    if (collageImage.save("debug_collage.jpg")) {
+        qDebug() << "Saved debug collage image: debug_collage.jpg";
+    } else {
+        qDebug() << "Failed to save debug collage image: debug_collage.jpg";
+    }
+#endif
+
+    return collageImage;
 }
