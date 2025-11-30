@@ -2,6 +2,23 @@
 #define COLLAGE_H
 
 #include <QQuickItem>
+#include <QImage>
+
+struct ImageTime {
+    QImage image;
+    qint64 timestamp;
+};
+
+struct ImageMeta
+{
+    QList<ImageTime> image;
+    QString name;
+    QString duration;
+    QString audioCodec;
+    QString videoCodes;
+    QString size;
+    QString resolution;
+};
 
 class Collage : public QQuickItem
 {
@@ -10,10 +27,10 @@ class Collage : public QQuickItem
 public:
     explicit Collage();
 
-    Q_INVOKABLE void toCollage(QList<QUrl> path);
+    Q_INVOKABLE void toCollage(const QList<QUrl>& paths);
 
 private:
-    QList<QImage> collectImages(QUrl path);
+    ImageMeta collectImages(const QUrl& path);
     QImage drawCollage(QList<QImage> clips, QString metaData);
 
 
