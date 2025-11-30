@@ -7,6 +7,7 @@
 #include <QVideoFrame>
 #include <QFileInfo>
 #include <QDebug>
+#include <QPainter>
 #include <iostream>
 
 Collage::Collage()
@@ -14,7 +15,8 @@ Collage::Collage()
 
 void Collage::toCollage(const QList<QUrl> &paths) {
     for (const auto &path: paths) {
-        collectImages(path);
+        auto meta = collectImages(path);
+        auto collageImage = drawCollage(meta);
     }
 }
 
@@ -85,7 +87,7 @@ ImageMeta Collage::collectImages(const QUrl &path) {
     // Seek over the video and capture frames
     qint64 duration = player.duration();
     if (duration > 0) {
-        int numFrames = qMin(10, static_cast<int>(duration / 1000) + 1); // At least 1 frame, up to 10
+        int numFrames = qMin(16, static_cast<int>(duration / 1000) + 1); // At least 1 frame, up to 10
         numFrames = qMax(1, numFrames); // Ensure at least one frame
         qDebug() << "Will attempt to capture" << numFrames << "frames";
 
@@ -211,4 +213,41 @@ ImageMeta Collage::collectImages(const QUrl &path) {
             << "Resolution:" << image.resolution;
 
     return image;
+}
+
+QImage Collage::drawCollage(const ImageMeta &meta) {
+    auto images = meta.image;
+    if (images.isEmpty()) {
+        qDebug() << "No images to draw collage.";
+        return QImage();
+    }
+
+    for (const auto &img: images) {
+        QImage resized = img.image.scaled(256, 256, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+
+        // convert img.timestamp to hh:mm:ss format
+        const qint64 seconds = img.timestamp / 1000;
+        const qint64 hh = seconds / 3600;
+        const qint64 mm = (seconds % 3600) / 60;
+        const qint64 ss = seconds % 60;
+        QString timeText = QString("%1:%2:%3")
+                               .arg(hh, 2, 10, QChar('0'))
+                               .arg(mm, 2, 10, QChar('0'))
+                               .arg(ss, 2, 10, QChar('0'));
+        QPainter painter(&resized);
+        painter.setPen(Qt::yellow);
+        painter.setFont(QFont("Arial", 10, QFont::Bold));
+        painter.drawText(resized.rect().adjusted(2, 2, -2, -2), Qt::AlignBottom | Qt::AlignRight, timeText);
+        painter.end();
+#ifdef QT_DEBUG
+        // Save image to disk for debugging
+        if (QString debugFilename = QString("debug_frame_%1ms.jpg").arg(img.timestamp); resized.save(debugFilename)) {
+            qDebug() << "Saved debug image:" << debugFilename;
+        } else {
+            qDebug() << "Failed to save debug image:" << debugFilename;
+        }
+#endif
+    }
+
+    return QImage();
 }

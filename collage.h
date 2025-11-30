@@ -31,7 +31,7 @@ public:
 
 private:
     ImageMeta collectImages(const QUrl& path);
-    QImage drawCollage(QList<QImage> clips, QString metaData);
+    QImage drawCollage(const ImageMeta& meta);
 
 
 signals:
