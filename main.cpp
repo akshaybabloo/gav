@@ -52,6 +52,26 @@ int main(int argc, char *argv[]) {
             urls.append(QUrl::fromUserInput(path));
         }
 
+        // Create collage instance
+        Collage collage;
+
+        // Track results
+        int successCount = 0;
+        int failCount = 0;
+        QStringList successPaths;
+        QStringList failPaths;
+
+        // Connect signals to track progress
+        QObject::connect(&collage, &Collage::collageCompleted, [&](int index, const QString& outputPath, bool success) {
+            if (success) {
+                successCount++;
+                successPaths.append(outputPath);
+            } else {
+                failCount++;
+                failPaths.append(outputPath.isEmpty() ? QString("Unknown") : outputPath);
+            }
+        });
+
         // Start spinner in a separate thread
         std::atomic isRunning(true);
         std::thread spinnerThread([&isRunning]() {
@@ -66,17 +86,35 @@ int main(int argc, char *argv[]) {
         });
 
         // Call the collage function
-        Collage::toCollage(urls);
+        collage.toCollage(urls);
 
         // Stop the spinner
         isRunning = false;
         spinnerThread.join();
 
-        // Clear the loading line and show completion message
-        std::cout << "\r\033[K"; // Clear the current line
-        std::cout << "Done! Collage(s) created successfully." << std::endl;
+        // Clear the loading line
+        std::cout << "\r\033[K";
 
-        return 0;
+        // Display results
+        std::cout << "\n=== Collage Creation Summary ===\n" << std::endl;
+
+        for (int i = 0; i < successPaths.size(); ++i) {
+            std::cout << "[" << i << "] ✓ Success: "
+                     << successPaths[i].toStdString() << std::endl;
+        }
+
+        for (int i = 0; i < failPaths.size(); ++i) {
+            std::cout << "[" << (successPaths.size() + i) << "] ✗ Failed: "
+                     << failPaths[i].toStdString() << std::endl;
+        }
+
+        std::cout << "\n" << successCount << " collage(s) created successfully";
+        if (failCount > 0) {
+            std::cout << ", " << failCount << " failed";
+        }
+        std::cout << ".\n" << std::endl;
+
+        return failCount > 0 ? 1 : 0;
     }
 
     QQmlApplicationEngine engine;

@@ -161,6 +161,10 @@ ApplicationWindow {
         id: captureSnackbar
     }
 
+    CustomSnackbar {
+        id: collageSnackbar
+    }
+
     Connections {
         target: mediaComponent.mediaPlayer
         function onFrameCaptured(success, path) {
@@ -170,6 +174,19 @@ ApplicationWindow {
                 captureSnackbar.message = "Error: " + path
             }
             captureSnackbar.show()
+        }
+    }
+
+    Connections {
+        target: collage
+
+        function onCollageFinished(successCount, failCount) {
+            if (successCount > 0) {
+                collageSnackbar.message = successCount + " collage(s) created successfully"
+            } else {
+                collageSnackbar.message = "Collage creation failed"
+            }
+            collageSnackbar.show()
         }
     }
 
