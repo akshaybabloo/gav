@@ -95,6 +95,49 @@ Item {
         }
     }
 
+    // Zoom level indicator
+    Rectangle {
+        id: zoomIndicator
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: 20
+        width: zoomText.width + 30
+        height: zoomText.height + 20
+        color: "#2a2a2a"
+        border.color: "white"
+        border.width: 2
+        radius: 8
+        visible: videoOutput.zoomLevel > 1.0
+        z: 100
+        opacity: 0.8
+
+        Text {
+            id: zoomText
+            anchors.centerIn: parent
+            text: "Zoom: " + Math.round(videoOutput.zoomLevel * 100) + "%"
+            color: "white"
+            font.pixelSize: 18
+            font.bold: true
+        }
+
+        // Auto-hide after 2 seconds of no zoom changes
+        Timer {
+            id: zoomDisplayTimer
+            interval: 2000
+            repeat: false
+            running: videoOutput.zoomLevel > 1.0
+            onTriggered: {
+                if (videoOutput.zoomLevel <= 1.0) {
+                    zoomIndicator.visible = false
+                }
+            }
+        }
+
+        Behavior on opacity {
+            NumberAnimation { duration: 200 }
+        }
+    }
+
     AudioOutput {
         id: audioOutput
         volume: 0.5
@@ -104,16 +147,65 @@ Item {
         id: videoOutput
         anchors.fill: parent
         visible: false
+
+        // Zoom and pan properties
+        property real zoomLevel: 1.0
+        property real panX: 0
+        property real panY: 0
+
+        transform: [
+            Scale {
+                id: videoScale
+                origin.x: videoOutput.width / 2
+                origin.y: videoOutput.height / 2
+                xScale: videoOutput.zoomLevel
+                yScale: videoOutput.zoomLevel
+            },
+            Translate {
+                id: videoTranslate
+                x: videoOutput.panX
+                y: videoOutput.panY
+            }
+        ]
+
+        Behavior on zoomLevel {
+            NumberAnimation { duration: 150; easing.type: Easing.OutQuad }
+        }
+
+        Behavior on panX {
+            NumberAnimation { duration: 100; easing.type: Easing.OutQuad }
+        }
+
+        Behavior on panY {
+            NumberAnimation { duration: 100; easing.type: Easing.OutQuad }
+        }
     }
 
     MouseArea {
         id: mouseArea
         anchors.fill: parent
         hoverEnabled: true
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+
         property point lastPos: Qt.point(mouseX, mouseY)
+        property point dragStartPos: Qt.point(0, 0)
+        property bool isDragging: false
+        property real startPanX: 0
+        property real startPanY: 0
 
         onPositionChanged: {
-            if (mouseX !== lastPos.x || mouseY !== lastPos.y) {
+            if (isDragging && videoOutput.zoomLevel > 1.0) {
+                // Calculate drag delta
+                var deltaX = mouseX - dragStartPos.x
+                var deltaY = mouseY - dragStartPos.y
+
+                // Update pan position with constraints
+                var maxPanX = videoOutput.width * (videoOutput.zoomLevel - 1) / 2
+                var maxPanY = videoOutput.height * (videoOutput.zoomLevel - 1) / 2
+
+                videoOutput.panX = Math.max(-maxPanX, Math.min(maxPanX, startPanX + deltaX))
+                videoOutput.panY = Math.max(-maxPanY, Math.min(maxPanY, startPanY + deltaY))
+            } else if (mouseX !== lastPos.x || mouseY !== lastPos.y) {
                 controlsAreVisible = true
                 if (customMediaPlayer.playbackState === MediaPlayer.PlayingState) {
                     hideControlsTimer.restart()
@@ -122,8 +214,62 @@ Item {
             }
         }
 
+        onPressed: function (mouse) {
+            if (videoOutput.zoomLevel > 1.0) {
+                isDragging = true
+                dragStartPos = Qt.point(mouseX, mouseY)
+                startPanX = videoOutput.panX
+                startPanY = videoOutput.panY
+                cursorShape = Qt.ClosedHandCursor
+            }
+        }
+
+        onReleased: function (mouse) {
+            isDragging = false
+            cursorShape = videoOutput.zoomLevel > 1.0 ? Qt.OpenHandCursor : Qt.ArrowCursor
+        }
+
+        cursorShape: {
+            if (isDragging) {
+                return Qt.ClosedHandCursor
+            } else if (videoOutput.zoomLevel > 1.0) {
+                return Qt.OpenHandCursor
+            } else {
+                return Qt.ArrowCursor
+            }
+        }
+
         onWheel: function (wheel) {
-            if (wheel.angleDelta.y > 0 && videoOutput.visible) {
+            // Ctrl + Scroll = Zoom
+            if (wheel.modifiers & Qt.ControlModifier && videoOutput.visible) {
+                var zoomDelta = wheel.angleDelta.y > 0 ? 0.1 : -0.1
+                var newZoom = Math.max(1.0, Math.min(5.0, videoOutput.zoomLevel + zoomDelta))
+
+                // Reset pan when zooming back to 1.0
+                if (newZoom === 1.0) {
+                    videoOutput.panX = 0
+                    videoOutput.panY = 0
+                } else {
+                    // Adjust pan to keep zoom centered on mouse position
+                    var mouseRelX = (mouseX - videoOutput.width / 2) / videoOutput.width
+                    var mouseRelY = (mouseY - videoOutput.height / 2) / videoOutput.height
+
+                    // Scale pan proportionally to zoom change
+                    var zoomRatio = newZoom / videoOutput.zoomLevel
+                    videoOutput.panX *= zoomRatio
+                    videoOutput.panY *= zoomRatio
+
+                    // Constrain pan within bounds
+                    var maxPanX = videoOutput.width * (newZoom - 1) / 2
+                    var maxPanY = videoOutput.height * (newZoom - 1) / 2
+                    videoOutput.panX = Math.max(-maxPanX, Math.min(maxPanX, videoOutput.panX))
+                    videoOutput.panY = Math.max(-maxPanY, Math.min(maxPanY, videoOutput.panY))
+                }
+
+                videoOutput.zoomLevel = newZoom
+
+            // Regular Scroll = Volume
+            } else if (wheel.angleDelta.y > 0 && videoOutput.visible) {
                 audioOutput.volume = Math.min(audioOutput.volume + 0.05, 1.0)
                 volumeColumn.visible = true
                 volumeDisplayTimer.restart()
