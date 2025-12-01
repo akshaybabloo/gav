@@ -2,6 +2,8 @@
 #include <QQmlApplicationEngine>
 #include <QCommandLineParser>
 #include <iostream>
+#include <thread>
+#include <atomic>
 
 #include "collage.h"
 
@@ -50,8 +52,30 @@ int main(int argc, char *argv[]) {
             urls.append(QUrl::fromUserInput(path));
         }
 
-        // Call the collage function and exit
+        // Start spinner in a separate thread
+        std::atomic isRunning(true);
+        std::thread spinnerThread([&isRunning]() {
+            std::vector spinner = {'|', '/', '-', '\\'};
+            int i = 0;
+            while (isRunning) {
+                std::cout << "\rCreating collage... " << spinner[i % 4] << " ";
+                std::cout.flush();
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                i++;
+            }
+        });
+
+        // Call the collage function
         Collage::toCollage(urls);
+
+        // Stop the spinner
+        isRunning = false;
+        spinnerThread.join();
+
+        // Clear the loading line and show completion message
+        std::cout << "\r\033[K"; // Clear the current line
+        std::cout << "Done! Collage(s) created successfully." << std::endl;
+
         return 0;
     }
 
