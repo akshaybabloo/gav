@@ -5,10 +5,9 @@
 #include <QTimer>
 #include <QVideoSink>
 #include <QVideoFrame>
-#include <QFileInfo>
 #include <QDebug>
 #include <QPainter>
-#include <iostream>
+#include <QDir>
 
 Collage::Collage()
 = default;
@@ -16,7 +15,24 @@ Collage::Collage()
 void Collage::toCollage(const QList<QUrl> &paths) {
     for (const auto &path: paths) {
         auto meta = collectImages(path);
-        auto collageImage = drawCollage(meta);
+        if (auto collageImage = drawCollage(meta); !collageImage.isNull()) {
+            // Get the source file info
+            QFileInfo sourceFile(path.toLocalFile());
+
+            // Create output filename: originalname_collage.jpg
+            QString outputFilename = sourceFile.completeBaseName() + "_collage.jpg";
+
+            // Get the directory where the source file is located
+            QString outputPath = sourceFile.dir().filePath(outputFilename);
+
+            if (collageImage.save(outputPath, "JPEG", 100)) {
+                qDebug() << "Collage saved to:" << outputPath;
+            } else {
+                qDebug() << "Failed to save collage to:" << outputPath;
+            }
+        } else {
+            qDebug() << "Collage image is null for path:" << path.toString();
+        }
     }
 }
 
@@ -219,7 +235,7 @@ QImage Collage::drawCollage(const ImageMeta &meta) {
     auto images = meta.image;
     if (images.isEmpty()) {
         qDebug() << "No images to draw collage.";
-        return QImage();
+        return {};
     }
 
     QList<QImage> processedImages;
@@ -233,9 +249,9 @@ QImage Collage::drawCollage(const ImageMeta &meta) {
         const qint64 mm = (seconds % 3600) / 60;
         const qint64 ss = seconds % 60;
         QString timeText = QString("%1:%2:%3")
-                               .arg(hh, 2, 10, QChar('0'))
-                               .arg(mm, 2, 10, QChar('0'))
-                               .arg(ss, 2, 10, QChar('0'));
+                .arg(hh, 2, 10, QChar('0'))
+                .arg(mm, 2, 10, QChar('0'))
+                .arg(ss, 2, 10, QChar('0'));
         QPainter painter(&resized);
         painter.setPen(Qt::yellow);
         painter.setFont(QFont("Arial", 10, QFont::Bold));
@@ -273,17 +289,18 @@ QImage Collage::drawCollage(const ImageMeta &meta) {
     const int rows = (processedImages.size() + cols - 1) / cols;
     constexpr int cellWidth = 256;
     constexpr int cellHeight = 256;
-    constexpr int paddingX = 5;      // Gap between columns
-    constexpr int paddingY = -100;   // Gap between rows
-    constexpr int marginTop = 5;     // Top margin
-    constexpr int marginBottom = 5;  // Bottom margin
-    constexpr int marginLeft = 5;    // Left margin
-    constexpr int marginRight = 5;   // Right margin
+    constexpr int paddingX = 5; // Gap between columns
+    constexpr int paddingY = -100; // Gap between rows
+    constexpr int marginTop = 5; // Top margin
+    constexpr int marginBottom = 5; // Bottom margin
+    constexpr int marginLeft = 5; // Left margin
+    constexpr int marginRight = 5; // Right margin
 
     // Canvas width: left margin + all columns + gaps between columns + right margin
     constexpr int canvasWidth = marginLeft + cols * cellWidth + (cols - 1) * paddingX + marginRight;
     // Canvas height: top margin + table + margin + all rows + gaps between rows + bottom margin
-    const int canvasHeight = marginTop + tableHeight + tableMargin + rows * cellHeight + (rows - 1) * paddingY + marginBottom;
+    const int canvasHeight = marginTop + tableHeight + tableMargin + rows * cellHeight + (rows - 1) * paddingY +
+                             marginBottom;
 
     QImage collageImage(canvasWidth, canvasHeight, QImage::Format_ARGB32);
     collageImage.fill(Qt::white);
