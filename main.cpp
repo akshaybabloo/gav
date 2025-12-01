@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
     parser.addHelpOption();
     parser.addVersionOption();
 
-    QCommandLineOption sourceOption("source", "Source of the audio or video to play");
+    QCommandLineOption sourceOption({"s", "source"}, "Source of the audio or video to play");
     parser.addOption(sourceOption);
 
     QCommandLineOption collageOption({"c", "collage"}, "Create a collage from video files");
@@ -76,8 +76,8 @@ int main(int argc, char *argv[]) {
     // This prevents the console window from staying open when launched from Explorer
     DWORD procIDs[2];
     DWORD maxCount = 2;
-    DWORD result = GetConsoleProcessList((LPDWORD)procIDs, maxCount);
-    
+    DWORD result = GetConsoleProcessList((LPDWORD) procIDs, maxCount);
+
     // If result == 1, only this process is attached to console (launched from Explorer)
     // If result > 1, there's a parent console (cmd/powershell) - keep it attached
     if (result == 1) {
