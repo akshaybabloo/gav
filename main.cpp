@@ -3,6 +3,8 @@
 #include <QCommandLineParser>
 #include <iostream>
 
+#include "collage.h"
+
 #ifdef Q_OS_WIN
 #include <windows.h>
 #endif
@@ -24,14 +26,33 @@ int main(int argc, char *argv[]) {
     parser.addHelpOption();
     parser.addVersionOption();
 
-    QCommandLineOption sourceOption("source", "Source of the audio or video to play");
+    QCommandLineOption sourceOption({"s", "source"}, "Source of the audio or video to play");
     parser.addOption(sourceOption);
+
+    QCommandLineOption collageOption({"c", "collage"}, "Create a collage from video files");
+    parser.addOption(collageOption);
 
     parser.process(app);
 
     QString sourceValue;
     if (parser.isSet(sourceOption)) {
         sourceValue = parser.value(sourceOption);
+    }
+
+    if (parser.isSet(collageOption)) {
+        QStringList collagePaths = parser.positionalArguments();
+        if (collagePaths.isEmpty() && !sourceValue.isEmpty()) {
+            collagePaths.append(sourceValue);
+        }
+
+        QList<QUrl> urls;
+        for (const QString &path: collagePaths) {
+            urls.append(QUrl::fromUserInput(path));
+        }
+
+        // Call the collage function and exit
+        Collage::toCollage(urls);
+        return 0;
     }
 
     QQmlApplicationEngine engine;
@@ -55,8 +76,8 @@ int main(int argc, char *argv[]) {
     // This prevents the console window from staying open when launched from Explorer
     DWORD procIDs[2];
     DWORD maxCount = 2;
-    DWORD result = GetConsoleProcessList((LPDWORD)procIDs, maxCount);
-    
+    DWORD result = GetConsoleProcessList((LPDWORD) procIDs, maxCount);
+
     // If result == 1, only this process is attached to console (launched from Explorer)
     // If result > 1, there's a parent console (cmd/powershell) - keep it attached
     if (result == 1) {
