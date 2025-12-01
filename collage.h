@@ -27,14 +27,17 @@ class Collage : public QQuickItem
 public:
     explicit Collage();
 
-    Q_INVOKABLE static void toCollage(const QList<QUrl>& paths);
+    Q_INVOKABLE void toCollage(const QList<QUrl>& paths);
 
 private:
     static ImageMeta collectImages(const QUrl& path);
     static QImage drawCollage(const ImageMeta& meta);
 
-
 signals:
+    void collageStarted(int total);
+    void collageProgress(int index, const QString& inputPath);
+    void collageCompleted(int index, const QString& outputPath, bool success);
+    void collageFinished(int successCount, int failCount);
 };
 
 #endif // COLLAGE_H

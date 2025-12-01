@@ -74,16 +74,47 @@ Item {
                 }
                 Button {
                     id: collageButton
-                    text: "\uefb2"
+                    text: collageButton.isLoading ? "" : "\uefb2"
                     font.family: materialSymbolsOutlined.name
                     font.weight: Font.Light
                     scale: 1.5
+                    enabled: !collageButton.isLoading
+                    hoverEnabled: true
+
+                    property bool isLoading: false
+
                     onClicked: {
+                        collageButton.isLoading = true
                         collage.toCollage(toPathList(playList))
                     }
+
                     Material.roundedScale: Material.NotRounded
                     Layout.preferredWidth: 25
                     Layout.preferredHeight: 30
+
+                    // Loading spinner
+                    BusyIndicator {
+                        anchors.centerIn: parent
+                        width: parent.width * 0.8
+                        height: parent.height * 0.8
+                        running: collageButton.isLoading
+                        visible: collageButton.isLoading
+                    }
+
+                    ToolTip {
+                        text: collageButton.isLoading ? qsTr("Creating collages...") : qsTr("Create collages for all videos")
+                        delay: 1000
+                        timeout: 5000
+                        visible: collageButton.hovered
+                    }
+
+                    Connections {
+                        target: collage
+
+                        function onCollageFinished(successCount, failCount) {
+                            collageButton.isLoading = false
+                        }
+                    }
                 }
             }
         }

@@ -380,24 +380,63 @@ Item {
 
                     Button {
                         id: collageButton2
-                        text: "\uefb2"
-                        enabled: player.hasVideo
+                        text: collageButton2.isLoading ? "" : "\uefb2"
+                        enabled: player.hasVideo && !collageButton2.isLoading
                         font.family: materialSymbolsOutlined.name
                         scale: 1.5
+
+                        property bool isLoading: false
+
                         onClicked: {
+                            collageButton2.isLoading = true
                             collage.toCollage([player.source])
                         }
+
                         Material.roundedScale: Material.NotRounded
                         Layout.preferredWidth: 25
                         Layout.preferredHeight: 30
                         font.weight: Font.Light
                         hoverEnabled: true
 
+                        // Loading spinner
+                        BusyIndicator {
+                            anchors.centerIn: parent
+                            width: parent.width * 0.8
+                            height: parent.height * 0.8
+                            running: collageButton2.isLoading
+                            visible: collageButton2.isLoading
+                        }
+
                         ToolTip {
-                            text: qsTr("Capture a frame")
+                            text: collageButton2.isLoading ? qsTr("Creating collage...") : qsTr("Create collage")
                             delay: 1000
                             timeout: 5000
-                            visible: captureButton.hovered
+                            visible: collageButton2.hovered
+                        }
+
+                        Connections {
+                            target: collage
+
+                            function onCollageStarted(total) {
+                                console.log("Starting collage creation for", total, "file(s)")
+                            }
+
+                            function onCollageProgress(index, inputPath) {
+                                console.log("Processing collage", index, ":", inputPath)
+                            }
+
+                            function onCollageCompleted(index, outputPath, success) {
+                                if (success) {
+                                    console.log("Collage", index, "saved to:", outputPath)
+                                } else {
+                                    console.log("Collage", index, "failed")
+                                }
+                            }
+
+                            function onCollageFinished(successCount, failCount) {
+                                collageButton2.isLoading = false
+                                console.log("Collage creation finished:", successCount, "success,", failCount, "failed")
+                            }
                         }
                     }
 

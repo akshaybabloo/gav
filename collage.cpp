@@ -13,7 +13,16 @@ Collage::Collage()
 = default;
 
 void Collage::toCollage(const QList<QUrl> &paths) {
-    for (const auto &path: paths) {
+    emit collageStarted(paths.size());
+
+    int successCount = 0;
+    int failCount = 0;
+
+    for (int index = 0; index < paths.size(); ++index) {
+        const auto &path = paths[index];
+
+        emit collageProgress(index, path.toString());
+
         auto meta = collectImages(path);
         if (auto collageImage = drawCollage(meta); !collageImage.isNull()) {
             // Get the source file info
@@ -26,14 +35,22 @@ void Collage::toCollage(const QList<QUrl> &paths) {
             QString outputPath = sourceFile.dir().filePath(outputFilename);
 
             if (collageImage.save(outputPath, "JPEG", 100)) {
-                qDebug() << "Collage saved to:" << outputPath;
+                qDebug() << "Collage" << index << "saved to:" << outputPath;
+                emit collageCompleted(index, outputPath, true);
+                successCount++;
             } else {
-                qDebug() << "Failed to save collage to:" << outputPath;
+                qDebug() << "Failed to save collage" << index << "to:" << outputPath;
+                emit collageCompleted(index, outputPath, false);
+                failCount++;
             }
         } else {
             qDebug() << "Collage image is null for path:" << path.toString();
+            emit collageCompleted(index, "", false);
+            failCount++;
         }
     }
+
+    emit collageFinished(successCount, failCount);
 }
 
 ImageMeta Collage::collectImages(const QUrl &path) {
