@@ -3,6 +3,8 @@
 #include <QCommandLineParser>
 #include <iostream>
 
+#include "collage.h"
+
 #ifdef Q_OS_WIN
 #include <windows.h>
 #endif
@@ -27,11 +29,30 @@ int main(int argc, char *argv[]) {
     QCommandLineOption sourceOption("source", "Source of the audio or video to play");
     parser.addOption(sourceOption);
 
+    QCommandLineOption collageOption({"c", "collage"}, "Create a collage from video files");
+    parser.addOption(collageOption);
+
     parser.process(app);
 
     QString sourceValue;
     if (parser.isSet(sourceOption)) {
         sourceValue = parser.value(sourceOption);
+    }
+
+    if (parser.isSet(collageOption)) {
+        QStringList collagePaths = parser.positionalArguments();
+        if (collagePaths.isEmpty() && !sourceValue.isEmpty()) {
+            collagePaths.append(sourceValue);
+        }
+
+        QList<QUrl> urls;
+        for (const QString &path: collagePaths) {
+            urls.append(QUrl::fromUserInput(path));
+        }
+
+        // Call the collage function and exit
+        Collage::toCollage(urls);
+        return 0;
     }
 
     QQmlApplicationEngine engine;
