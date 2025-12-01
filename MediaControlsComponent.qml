@@ -378,6 +378,29 @@ Item {
                         }
                     }
 
+                    Button {
+                        id: collageButton2
+                        text: "\uefb2"
+                        enabled: player.hasVideo
+                        font.family: materialSymbolsOutlined.name
+                        scale: 1.5
+                        onClicked: {
+                            collage.toCollage([player.source])
+                        }
+                        Material.roundedScale: Material.NotRounded
+                        Layout.preferredWidth: 25
+                        Layout.preferredHeight: 30
+                        font.weight: Font.Light
+                        hoverEnabled: true
+
+                        ToolTip {
+                            text: qsTr("Capture a frame")
+                            delay: 1000
+                            timeout: 5000
+                            visible: captureButton.hovered
+                        }
+                    }
+
                     Rectangle {
                         color: "#a0a0a0"
                         Layout.preferredHeight: parent.height

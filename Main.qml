@@ -4,6 +4,8 @@ import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
 
+import gavqml
+
 ApplicationWindow {
     id: mainWindow
 
@@ -218,6 +220,11 @@ ApplicationWindow {
             text: "The dropped file is not a supported video format."
         }
     }
+
+    Collage {
+        id: collage
+    }
+
     DropArea {
         anchors.fill: parent
 
@@ -226,6 +233,7 @@ ApplicationWindow {
                 var firstFileSet = false
                 for (var i = 0; i < drop.urls.length; i++) {
                     var mediaInfo = getMediaInfo(drop.urls[i])
+                    console.debug("Media info for dropped file:", mediaInfo)
                     if (mediaInfo) {
                         playList.append(mediaInfo)
                         if (!firstFileSet) {
