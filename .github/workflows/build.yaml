@@ -37,8 +37,13 @@ jobs:
         with:
           lfs: true
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
+      - name: Setup vcpkg
+        if: startsWith(matrix.os, 'windows-')
+        run: ./vcpkg/bootstrap-vcpkg
+
+      - name: Setup vcpkg for Linux and macOS
+        if: startsWith(matrix.os, 'ubuntu-') || startsWith(matrix.os, 'macos-')
+        run: ./vcpkg/bootstrap-vcpkg.sh
 
       - uses: TheMrMilchmann/setup-msvc-dev@v4
         if: startsWith(matrix.os, 'windows-')
@@ -65,10 +70,8 @@ jobs:
         with:
           cmake-version: "4.1.x"
 
-      - name: Install Conan and Build Dependencies
-        run: |
-          uv sync
-          uv run conan install . --output-folder=build --build=missing
+      - name: Run vcpkg install
+        run: ${{ github.workspace }}/vcpkg/vcpkg install
 
       - name: Get version from Git tag
         id: version
@@ -88,7 +91,7 @@ jobs:
         shell: bash
 
       - name: Configure CMake
-        run: cmake -B build -S . -DGAV_VERSION=${{ steps.version.outputs.version }} -DCMAKE_TOOLCHAIN_FILE=${{env.QT_ROOT_DIR}}/lib/cmake/Qt6/qt.toolchain.cmake -DCMAKE_TOOLCHAIN_FILE=build/Realease/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release -GNinja
+        run: cmake -B build -S . -DGAV_VERSION=${{ steps.version.outputs.version }} -DCMAKE_TOOLCHAIN_FILE=${{env.QT_ROOT_DIR}}/lib/cmake/Qt6/qt.toolchain.cmake -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release -GNinja
 
       - name: Build
         run: |

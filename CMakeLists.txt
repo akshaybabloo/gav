@@ -55,7 +55,7 @@ if ($ENV{CLION_IDE})
     endif()
 endif ()
 
-find_package(spdlog REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Core Quick Multimedia Widgets)
 
 qt_standard_project_setup(REQUIRES 6.9)

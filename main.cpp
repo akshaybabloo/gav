@@ -7,6 +7,8 @@
 
 #include "collage.h"
 
+#include <spdlog/spdlog.h>
+
 #ifdef Q_OS_WIN
 #include <windows.h>
 #endif
