@@ -88,10 +88,15 @@ int main(int argc, char *argv[]) {
     QCommandLineOption collageOption({"c", "collage"}, "Create a collage from video files");
     parser.addOption(collageOption);
 
-    QCommandLineOption verboseOption({"v", "verbose"}, "Enable verbose logging");
+    QCommandLineOption verboseOption("verbose", "Enable verbose logging");
     parser.addOption(verboseOption);
 
     parser.process(app);
+
+    if (parser.isSet(verboseOption)) {
+        logger->set_level(spdlog::level::debug);
+        logger->debug("Verbose logging enabled");
+    }
 
     QString sourceValue;
     if (parser.isSet(sourceOption)) {
@@ -105,7 +110,7 @@ int main(int argc, char *argv[]) {
         }
 
         QList<QUrl> urls;
-        for (const QString &path: collagePaths) {
+        for (const QString &path: std::as_const(collagePaths)) {
             urls.append(QUrl::fromUserInput(path));
         }
 
