@@ -36,7 +36,7 @@ void initLogging()
     logger->set_level(spdlog::level::info);
 #endif
     
-    // https://github.com/gabime/spdlog/wiki/7.-Flush-policy
+    // https://github.com/gabime/spdlog/wiki/Flush-policy
     logger->flush_on(spdlog::level::info);
 }
 
@@ -63,6 +63,14 @@ void logOutput(QtMsgType type, const QMessageLogContext &context, const QString 
 }
 
 int main(int argc, char *argv[]) {
+#ifdef Q_OS_WIN
+    // Enable UTF-8 output on Windows console
+    SetConsoleOutputCP(CP_UTF8);
+#endif
+    
+    // Suppress FFmpeg verbose output by default
+    qputenv("QT_LOGGING_RULES", "qt.multimedia.ffmpeg*=false");
+    
     initLogging();
     qInstallMessageHandler(logOutput);
     
@@ -85,7 +93,7 @@ int main(int argc, char *argv[]) {
     QCommandLineOption sourceOption({"s", "source"}, "Source of the audio or video to play");
     parser.addOption(sourceOption);
 
-    QCommandLineOption collageOption({"c", "collage"}, "Create a collage from video files");
+    QCommandLineOption collageOption({"c", "collage"}, "Create a collage from video files", "collage");
     parser.addOption(collageOption);
 
     QCommandLineOption verboseOption("verbose", "Enable verbose logging");
@@ -96,6 +104,8 @@ int main(int argc, char *argv[]) {
     if (parser.isSet(verboseOption)) {
         logger->set_level(spdlog::level::debug);
         logger->debug("Verbose logging enabled");
+        // Re-enable FFmpeg logging in verbose mode
+        qputenv("QT_LOGGING_RULES", "qt.multimedia.ffmpeg*=true");
     }
 
     QString sourceValue;
@@ -104,9 +114,12 @@ int main(int argc, char *argv[]) {
     }
 
     if (parser.isSet(collageOption)) {
-        QStringList collagePaths = parser.positionalArguments();
+        QStringList collagePaths = parser.values(collageOption);
         if (collagePaths.isEmpty() && !sourceValue.isEmpty()) {
             collagePaths.append(sourceValue);
+        } else if (collagePaths.isEmpty()) {
+            std::cout << "No input files provided for collage creation." << std::endl;
+            return 1;
         }
 
         QList<QUrl> urls;
