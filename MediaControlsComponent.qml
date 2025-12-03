@@ -118,7 +118,7 @@ Item {
                 right: 10
             }
 
-            spacing: 5
+            spacing: 15
 
             // Seek row
             RowLayout {
