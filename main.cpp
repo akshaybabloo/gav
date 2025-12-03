@@ -134,28 +134,37 @@ int main(int argc, char *argv[]) {
             }
         });
 
-        // Start spinner in a separate thread
+        bool verbose = parser.isSet(verboseOption);
         std::atomic isRunning(true);
-        std::thread spinnerThread([&isRunning]() {
-            std::vector spinner = {'|', '/', '-', '\\'};
-            int i = 0;
-            while (isRunning) {
-                std::cout << "\rCreating collage... " << spinner[i % 4] << " ";
-                std::cout.flush();
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                i++;
-            }
-        });
+        std::thread spinnerThread;
+
+        // Only show spinner if not in verbose mode
+        if (!verbose) {
+            spinnerThread = std::thread([&isRunning]() {
+                std::vector<std::string> spinner = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
+                int i = 0;
+                while (isRunning) {
+                    std::cout << "\rCreating collage... " << spinner[i % spinner.size()] << " ";
+                    std::cout.flush();
+                    std::this_thread::sleep_for(std::chrono::milliseconds(80));
+                    i++;
+                }
+            });
+        }
 
         // Call the collage function
         collage.toCollage(urls);
 
         // Stop the spinner
         isRunning = false;
-        spinnerThread.join();
+        if (spinnerThread.joinable()) {
+            spinnerThread.join();
+        }
 
-        // Clear the loading line
-        std::cout << "\r\033[K";
+        // Clear the loading line only if spinner was shown
+        if (!verbose) {
+            std::cout << "\r\033[K";
+        }
 
         // Display results
         std::cout << "\n=== Collage Creation Summary ===\n" << std::endl;
