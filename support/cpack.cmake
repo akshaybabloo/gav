@@ -50,12 +50,16 @@ if(WIN32)
         CreateShortCut '$DESKTOP\\\\GAV.lnk' '$INSTDIR\\\\bin\\\\gav.exe' '' '$INSTDIR\\\\bin\\\\gav.exe' 0
         WriteRegStr HKLM 'SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\App Paths\\\\gav.exe' '' '$INSTDIR\\\\bin\\\\gav.exe'
         WriteRegStr HKLM 'SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\App Paths\\\\gav.exe' 'Path' '$INSTDIR\\\\bin'
+        WriteRegStr HKLM 'SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Uninstall\\\\GAV' 'DisplayVersion' '${CPACK_PACKAGE_VERSION}'
+        WriteRegStr HKLM 'SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Uninstall\\\\GAV' 'DisplayName' 'GAV - Audio Video Player'
+        WriteRegStr HKLM 'SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Uninstall\\\\GAV' 'Publisher' '${CPACK_PACKAGE_VENDOR}'
     ")
     
     set(CPACK_NSIS_DELETE_ICONS_EXTRA "
         Delete '$SMPROGRAMS\\\\$MUI_TEMP\\\\GAV.lnk'
         Delete '$DESKTOP\\\\GAV.lnk'
         DeleteRegKey HKLM 'SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\App Paths\\\\gav.exe'
+        DeleteRegKey HKLM 'SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Uninstall\\\\GAV'
     ")
     set(CPACK_NSIS_MODIFY_PATH ON)
     
@@ -68,7 +72,7 @@ if(WIN32)
     set(CPACK_NSIS_MUI_HEADERIMAGE_BITMAP "${LOGO_BMP_PATH}")
     
     # License and website
-    set(CPACK_NSIS_MENU_LINKS "https://www.gollahalli.com" "GAV Website")
+    set(CPACK_NSIS_MENU_LINKS "https://gav.gollahalli.com" "GAV Website")
     
     # Standard installation settings
     set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
