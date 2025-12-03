@@ -37,13 +37,10 @@ jobs:
         with:
           lfs: true
 
-      - name: Setup vcpkg
-        if: startsWith(matrix.os, 'windows-')
-        run: ./vcpkg/bootstrap-vcpkg
-
-      - name: Setup vcpkg for Linux and macOS
-        if: startsWith(matrix.os, 'ubuntu-') || startsWith(matrix.os, 'macos-')
-        run: ./vcpkg/bootstrap-vcpkg.sh
+      - uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          path: vcpkg
 
       - uses: TheMrMilchmann/setup-msvc-dev@v4
         if: startsWith(matrix.os, 'windows-')
@@ -70,8 +67,19 @@ jobs:
         with:
           cmake-version: "4.1.x"
 
+      - name: Bootstrap vcpkg (Windows)
+        if: startsWith(matrix.os, 'windows-')
+        run: .\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+        shell: cmd
+
+      - name: Bootstrap vcpkg (Linux/macOS)
+        if: startsWith(matrix.os, 'ubuntu-') || startsWith(matrix.os, 'macos-')
+        run: ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
+        shell: bash
+
       - name: Run vcpkg install
-        run: ${{ github.workspace }}/vcpkg/vcpkg install
+        run: ./vcpkg/vcpkg install
+        shell: bash
 
       - name: Get version from Git tag
         id: version
