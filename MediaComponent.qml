@@ -229,6 +229,11 @@ Item {
             cursorShape = videoOutput.zoomLevel > 1.0 ? Qt.OpenHandCursor : Qt.ArrowCursor
         }
 
+        onDoubleClicked: function (mouse) {
+            mainWindow.visibility = mainWindow.visibility
+                    === Window.FullScreen ? Window.Windowed : Window.FullScreen
+        }
+
         cursorShape: {
             if (isDragging) {
                 return Qt.ClosedHandCursor
