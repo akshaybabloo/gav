@@ -104,3 +104,5 @@ CPackSourceConfig.cmake
 gavqml/
 gav
 !assets/resource.rc
+vcpkg_installed/
+*.log

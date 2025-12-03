@@ -7,11 +7,73 @@
 
 #include "collage.h"
 
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+
 #ifdef Q_OS_WIN
 #include <windows.h>
 #endif
 
+std::shared_ptr<spdlog::logger> logger;
+
+void initLogging()
+{
+    // Create a console sink (stdout)
+    auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+    
+    // Create logger with the sink
+    logger = std::make_shared<spdlog::logger>("gav", console_sink);
+    
+    // Register as default logger
+    spdlog::set_default_logger(logger);
+    
+    // https://github.com/gabime/spdlog/wiki/3.-Custom-formatting
+#ifdef QT_DEBUG
+    logger->set_pattern("[%x %H:%M:%S.%f] [%o ms] [%L] [%t] %v");
+    logger->set_level(spdlog::level::debug);
+#else
+    logger->set_pattern("[%x %H:%M:%S] [%L] %v");
+    logger->set_level(spdlog::level::info);
+#endif
+    
+    // https://github.com/gabime/spdlog/wiki/Flush-policy
+    logger->flush_on(spdlog::level::info);
+}
+
+void logOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+{
+    QByteArray localMsg = msg.toLocal8Bit();
+    const char *file = context.file ? context.file : "";
+    const char *function = context.function ? context.function : "";
+    switch (type) {
+    case QtDebugMsg:
+        logger->debug("Debug: {} ({}:{}, {})", localMsg.constData(), file, context.line, function);
+        break;
+    case QtInfoMsg:
+        logger->info("Info: {} ({}:{}, {})", localMsg.constData(), file, context.line, function);
+        break;
+    case QtWarningMsg:
+        logger->warn("Warning: {} ({}:{}, {})", localMsg.constData(), file, context.line, function);
+        break;
+    case QtCriticalMsg:
+    case QtFatalMsg:
+        logger->critical("Critical: {} ({}:{}, {})", localMsg.constData(), file, context.line, function);
+        break;
+    }
+}
+
 int main(int argc, char *argv[]) {
+#ifdef Q_OS_WIN
+    // Enable UTF-8 output on Windows console
+    SetConsoleOutputCP(CP_UTF8);
+#endif
+    
+    // Suppress FFmpeg verbose output by default
+    qputenv("QT_LOGGING_RULES", "qt.multimedia.ffmpeg*=false");
+    
+    initLogging();
+    qInstallMessageHandler(logOutput);
+    
     QGuiApplication app(argc, argv);
 
 #ifdef APP_VERSION
@@ -31,10 +93,20 @@ int main(int argc, char *argv[]) {
     QCommandLineOption sourceOption({"s", "source"}, "Source of the audio or video to play");
     parser.addOption(sourceOption);
 
-    QCommandLineOption collageOption({"c", "collage"}, "Create a collage from video files");
+    QCommandLineOption collageOption({"c", "collage"}, "Create a collage from video files", "collage");
     parser.addOption(collageOption);
 
+    QCommandLineOption verboseOption("verbose", "Enable verbose logging");
+    parser.addOption(verboseOption);
+
     parser.process(app);
+
+    if (parser.isSet(verboseOption)) {
+        logger->set_level(spdlog::level::debug);
+        logger->debug("Verbose logging enabled");
+        // Re-enable FFmpeg logging in verbose mode
+        qputenv("QT_LOGGING_RULES", "qt.multimedia.ffmpeg*=true");
+    }
 
     QString sourceValue;
     if (parser.isSet(sourceOption)) {
@@ -42,13 +114,16 @@ int main(int argc, char *argv[]) {
     }
 
     if (parser.isSet(collageOption)) {
-        QStringList collagePaths = parser.positionalArguments();
+        QStringList collagePaths = parser.values(collageOption);
         if (collagePaths.isEmpty() && !sourceValue.isEmpty()) {
             collagePaths.append(sourceValue);
+        } else if (collagePaths.isEmpty()) {
+            std::cout << "No input files provided for collage creation." << std::endl;
+            return 1;
         }
 
         QList<QUrl> urls;
-        for (const QString &path: collagePaths) {
+        for (const QString &path: std::as_const(collagePaths)) {
             urls.append(QUrl::fromUserInput(path));
         }
 
@@ -72,28 +147,37 @@ int main(int argc, char *argv[]) {
             }
         });
 
-        // Start spinner in a separate thread
+        bool verbose = parser.isSet(verboseOption);
         std::atomic isRunning(true);
-        std::thread spinnerThread([&isRunning]() {
-            std::vector spinner = {'|', '/', '-', '\\'};
-            int i = 0;
-            while (isRunning) {
-                std::cout << "\rCreating collage... " << spinner[i % 4] << " ";
-                std::cout.flush();
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                i++;
-            }
-        });
+        std::thread spinnerThread;
+
+        // Only show spinner if not in verbose mode
+        if (!verbose) {
+            spinnerThread = std::thread([&isRunning]() {
+                std::vector<std::string> spinner = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
+                int i = 0;
+                while (isRunning) {
+                    std::cout << "\rCreating collage... " << spinner[i % spinner.size()] << " ";
+                    std::cout.flush();
+                    std::this_thread::sleep_for(std::chrono::milliseconds(80));
+                    i++;
+                }
+            });
+        }
 
         // Call the collage function
         collage.toCollage(urls);
 
         // Stop the spinner
         isRunning = false;
-        spinnerThread.join();
+        if (spinnerThread.joinable()) {
+            spinnerThread.join();
+        }
 
-        // Clear the loading line
-        std::cout << "\r\033[K";
+        // Clear the loading line only if spinner was shown
+        if (!verbose) {
+            std::cout << "\r\033[K";
+        }
 
         // Display results
         std::cout << "\n=== Collage Creation Summary ===\n" << std::endl;

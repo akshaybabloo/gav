@@ -55,6 +55,12 @@ if ($ENV{CLION_IDE})
     endif()
 endif ()
 
+# Use external fmt library for spdlog (must be set before find_package)
+set(SPDLOG_FMT_EXTERNAL ON)
+
+# Find fmt first, then spdlog
+find_package(fmt CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Core Quick Multimedia Widgets)
 
 qt_standard_project_setup(REQUIRES 6.9)
@@ -80,7 +86,10 @@ else()
     )
 endif()
 
-target_compile_definitions(appgav PRIVATE APP_VERSION="${GAV_FULL_VERSION}")
+target_compile_definitions(appgav PRIVATE 
+    APP_VERSION="${GAV_FULL_VERSION}"
+    _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING # For https://github.com/fmtlib/fmt/issues/3183
+)
 
 qt_add_resources(appgav "assets"
     PREFIX "/"
@@ -126,7 +135,7 @@ set_target_properties(appgav PROPERTIES
 set_target_properties(appgav PROPERTIES OUTPUT_NAME "gav")
 
 target_link_libraries(appgav
-    PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Qml Qt6::Multimedia Qt6::Widgets
+    PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Qml Qt6::Multimedia Qt6::Widgets spdlog::spdlog fmt::fmt
 )
 
 include(InstallRequiredSystemLibraries)

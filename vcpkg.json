@@ -1,0 +1,16 @@
+{
+  "dependencies": [
+    "fmt",
+    {
+      "name": "spdlog",
+      "version>=": "1.16.0"
+    },
+    "vulkan-headers"
+  ],
+  "overrides": [
+    {
+      "name": "fmt",
+      "version": "12.1.0"
+    }
+  ]
+}

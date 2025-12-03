@@ -37,6 +37,11 @@ jobs:
         with:
           lfs: true
 
+      - uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          path: vcpkg
+
       - uses: TheMrMilchmann/setup-msvc-dev@v4
         if: startsWith(matrix.os, 'windows-')
         with:
@@ -62,6 +67,20 @@ jobs:
         with:
           cmake-version: "4.1.x"
 
+      - name: Bootstrap vcpkg (Windows)
+        if: startsWith(matrix.os, 'windows-')
+        run: .\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+        shell: cmd
+
+      - name: Bootstrap vcpkg (Linux/macOS)
+        if: startsWith(matrix.os, 'ubuntu-') || startsWith(matrix.os, 'macos-')
+        run: ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
+        shell: bash
+
+      - name: Run vcpkg install
+        run: ./vcpkg/vcpkg install
+        shell: bash
+
       - name: Get version from Git tag
         id: version
         run: |
@@ -80,7 +99,7 @@ jobs:
         shell: bash
 
       - name: Configure CMake
-        run: cmake -B build -S . -DGAV_VERSION=${{ steps.version.outputs.version }} -DCMAKE_TOOLCHAIN_FILE=${{env.QT_ROOT_DIR}}/lib/cmake/Qt6/qt.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -GNinja
+        run: cmake -B build -S . -DGAV_VERSION=${{ steps.version.outputs.version }} -DCMAKE_TOOLCHAIN_FILE=${{env.QT_ROOT_DIR}}/lib/cmake/Qt6/qt.toolchain.cmake -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release -GNinja
 
       - name: Build
         run: |
