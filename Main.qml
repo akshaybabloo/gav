@@ -289,6 +289,27 @@ ApplicationWindow {
 
         anchors.fill: parent
         path: ""
+        focus: true
+
+        Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Left) {
+                // Seek backward 5 seconds
+                mediaPlayer.position = Math.max(0, mediaPlayer.position - 5000)
+                event.accepted = true
+            } else if (event.key === Qt.Key_Right) {
+                // Seek forward 5 seconds
+                mediaPlayer.position = Math.min(mediaPlayer.duration, mediaPlayer.position + 5000)
+                event.accepted = true
+            } else if (event.key === Qt.Key_Space) {
+                // Play/Pause
+                if (mediaPlayer.playbackState === MediaPlayer.PlayingState) {
+                    mediaPlayer.pause()
+                } else {
+                    mediaPlayer.play()
+                }
+                event.accepted = true
+            }
+        }
 
         onMediaLoadedChanged: {
             if (mediaLoaded && shouldAutoPlay) {
