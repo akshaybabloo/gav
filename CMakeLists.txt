@@ -55,6 +55,9 @@ if ($ENV{CLION_IDE})
     endif()
 endif ()
 
+# Enable VCPKG app-local deployment of dependencies
+set(X_VCPKG_APPLOCAL_DEPS_INSTALL ON)
+
 # Use external fmt library for spdlog (must be set before find_package)
 set(SPDLOG_FMT_EXTERNAL ON)
 
