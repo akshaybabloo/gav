@@ -8,6 +8,8 @@ qt_generate_deploy_qml_app_script(
 
 message("deploy script name: ${deploy_script}")
 message("qt_deploy_support: ${QT_DEPLOY_SUPPORT}")
+
+# Deploy Qt dependencies
 install(SCRIPT ${deploy_script})
 
 # Enable support for packing using CPack
