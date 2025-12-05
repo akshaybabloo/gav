@@ -98,8 +98,15 @@ jobs:
           fi
         shell: bash
 
-      - name: Configure CMake
+      - name: Configure CMake (Windows)
+        if: startsWith(matrix.os, 'windows-')
+        run: cmake -B build -S . -DGAV_VERSION="${{ steps.version.outputs.version }}" -DCMAKE_TOOLCHAIN_FILE=${{env.QT_ROOT_DIR}}/lib/cmake/Qt6/qt.toolchain.cmake -DX_VCPKG_APPLOCAL_DEPS_INSTALL:BOOL=ON -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release -GNinja
+        shell: pwsh
+
+      - name: Configure CMake (Linux/macOS)
+        if: startsWith(matrix.os, 'ubuntu-') || startsWith(matrix.os, 'macos-')
         run: cmake -B build -S . -DGAV_VERSION=${{ steps.version.outputs.version }} -DCMAKE_TOOLCHAIN_FILE=${{env.QT_ROOT_DIR}}/lib/cmake/Qt6/qt.toolchain.cmake -DX_VCPKG_APPLOCAL_DEPS_INSTALL:BOOL=ON -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release -GNinja
+        shell: bash
 
       - name: Build
         run: |
