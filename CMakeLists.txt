@@ -19,6 +19,9 @@ project(gav VERSION ${GAV_NUMERIC_VERSION} LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Option to build tests
+option(BUILD_TESTS "Build tests" ON)
+
 # Check if in CLion
 if ($ENV{CLION_IDE})
     set(QT_VERSION "6.10.*")
@@ -160,6 +163,45 @@ if(UNIX AND NOT APPLE)
     install(FILES support/gav.desktop
             DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
             COMPONENT GAV)
+endif()
+
+# Testing
+if(BUILD_TESTS)
+    enable_testing()
+    find_package(GTest CONFIG REQUIRED)
+    find_package(Qt6 REQUIRED COMPONENTS Test)
+    
+    # Create test executable
+    add_executable(gav_tests
+        tests/test_main.cpp
+        tests/test_path_conversion.cpp
+        tests/test_collage.cpp
+        collage.cpp
+        collage.h
+    )
+    
+    target_link_libraries(gav_tests
+        PRIVATE 
+        GTest::gtest 
+        GTest::gtest_main
+        Qt6::Core
+        Qt6::Quick
+        Qt6::Multimedia
+        spdlog::spdlog
+        fmt::fmt
+        Qt6::Test
+    )
+    
+    target_compile_definitions(gav_tests PRIVATE 
+        APP_VERSION="${GAV_FULL_VERSION}"
+        _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+    )
+    
+    # Discover tests
+    include(GoogleTest)
+    gtest_discover_tests(gav_tests)
+    
+    message(STATUS "Tests enabled. Run with: ctest or ./gav_tests")
 endif()
 
 include(support/cpack.cmake)
