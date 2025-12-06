@@ -1,6 +1,8 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QCommandLineParser>
+#include <QFileInfo>
+#include <QDir>
 #include <iostream>
 #include <thread>
 #include <atomic>
@@ -203,9 +205,32 @@ int main(int argc, char *argv[]) {
 
     QQmlApplicationEngine engine;
     if (!sourceValue.isEmpty()) {
-        QUrl sourceURL = QUrl::fromUserInput(sourceValue);
-        if (!sourceURL.isEmpty() && sourceURL.isValid())
+        // Check if the path is relative or absolute
+        QFileInfo fileInfo(sourceValue);
+        QUrl sourceURL;
+        
+        if (fileInfo.isRelative()) {
+            // Convert relative path to absolute
+            QString absolutePath = QDir::current().absoluteFilePath(sourceValue);
+            sourceURL = QUrl::fromLocalFile(absolutePath);
+            logger->debug("Converted relative path '{}' to absolute: '{}'", 
+                         sourceValue.toStdString(), absolutePath.toStdString());
+        } else if (fileInfo.isAbsolute()) {
+            // Use absolute path directly
+            sourceURL = QUrl::fromLocalFile(sourceValue);
+            logger->debug("Using absolute path: '{}'", sourceValue.toStdString());
+        } else {
+            // Try to parse as URL (e.g., file://, http://, etc.)
+            sourceURL = QUrl::fromUserInput(sourceValue);
+            logger->debug("Parsed as URL: '{}'", sourceURL.toString().toStdString());
+        }
+        
+        if (!sourceURL.isEmpty() && sourceURL.isValid()) {
             engine.setInitialProperties({{"source", sourceURL}});
+            logger->info("Loading source: '{}'", sourceURL.toString().toStdString());
+        } else {
+            logger->warn("Invalid source URL: '{}'", sourceValue.toStdString());
+        }
     }
 
     QObject::connect(
