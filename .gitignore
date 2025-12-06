@@ -106,3 +106,5 @@ gav
 !assets/resource.rc
 vcpkg_installed/
 *.log
+CTestTestfile.cmake
+gav_tests*

@@ -113,6 +113,12 @@ jobs:
           cd build
           ninja
 
+      - name: Run Tests
+        run: |
+          cd build
+          ctest --output-on-failure --verbose
+        continue-on-error: false
+
       - name: Package
         run: |
           cd build

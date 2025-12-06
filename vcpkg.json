@@ -5,7 +5,8 @@
       "name": "spdlog",
       "version>=": "1.16.0"
     },
-    "vulkan-headers"
+    "vulkan-headers",
+    "gtest"
   ],
   "overrides": [
     {
