@@ -6,6 +6,7 @@
 #include <iostream>
 #include <thread>
 #include <atomic>
+#include <memory>
 
 #include "collage.h"
 
@@ -150,15 +151,15 @@ int main(int argc, char *argv[]) {
         });
 
         bool verbose = parser.isSet(verboseOption);
-        std::atomic isRunning(true);
+        auto isRunning = std::make_shared<std::atomic<bool>>(true);
         std::thread spinnerThread;
 
         // Only show spinner if not in verbose mode
         if (!verbose) {
-            spinnerThread = std::thread([&isRunning]() {
+            spinnerThread = std::thread([isRunning]() {
                 std::vector<std::string> spinner = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
                 int i = 0;
-                while (isRunning) {
+                while (*isRunning) {
                     std::cout << "\rCreating collage... " << spinner[i % spinner.size()] << " ";
                     std::cout.flush();
                     std::this_thread::sleep_for(std::chrono::milliseconds(80));
@@ -171,7 +172,7 @@ int main(int argc, char *argv[]) {
         collage.toCollage(urls);
 
         // Stop the spinner
-        isRunning = false;
+        *isRunning = false;
         if (spinnerThread.joinable()) {
             spinnerThread.join();
         }
@@ -208,27 +209,35 @@ int main(int argc, char *argv[]) {
         // Check if the path is relative or absolute
         QFileInfo fileInfo(sourceValue);
         QUrl sourceURL;
-        
+
         if (fileInfo.isRelative()) {
             // Convert relative path to absolute
             QString absolutePath = QDir::current().absoluteFilePath(sourceValue);
-            sourceURL = QUrl::fromLocalFile(absolutePath);
-            logger->debug("Converted relative path '{}' to absolute: '{}'", 
-                         sourceValue.toStdString(), absolutePath.toStdString());
+            QFileInfo resolvedInfo(absolutePath);
+            if (!resolvedInfo.exists()) {
+                logger->warn("File does not exist: '{}'", absolutePath.toStdString());
+            } else {
+                sourceURL = QUrl::fromLocalFile(absolutePath);
+                logger->debug("Converted relative path '{}' to absolute: '{}'",
+                             sourceValue.toStdString(), absolutePath.toStdString());
+            }
         } else if (fileInfo.isAbsolute()) {
-            // Use absolute path directly
-            sourceURL = QUrl::fromLocalFile(sourceValue);
-            logger->debug("Using absolute path: '{}'", sourceValue.toStdString());
+            if (!fileInfo.exists()) {
+                logger->warn("File does not exist: '{}'", sourceValue.toStdString());
+            } else {
+                sourceURL = QUrl::fromLocalFile(sourceValue);
+                logger->debug("Using absolute path: '{}'", sourceValue.toStdString());
+            }
         } else {
             // Try to parse as URL (e.g., file://, http://, etc.)
             sourceURL = QUrl::fromUserInput(sourceValue);
             logger->debug("Parsed as URL: '{}'", sourceURL.toString().toStdString());
         }
-        
+
         if (!sourceURL.isEmpty() && sourceURL.isValid()) {
             engine.setInitialProperties({{"source", sourceURL}});
             logger->info("Loading source: '{}'", sourceURL.toString().toStdString());
-        } else {
+        } else if (!sourceURL.isEmpty()) {
             logger->warn("Invalid source URL: '{}'", sourceValue.toStdString());
         }
     }

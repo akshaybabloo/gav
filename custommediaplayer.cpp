@@ -35,6 +35,14 @@ CustomMediaPlayer::CustomMediaPlayer() {
 QUrl CustomMediaPlayer::source() const { return m_mediaPlayer->source(); }
 
 void CustomMediaPlayer::setSource(const QUrl &source) {
+  if (source.isEmpty()) {
+    emit errorOccurred("Source URL is empty.");
+    return;
+  }
+  if (!source.isValid()) {
+    emit errorOccurred("Source URL is invalid: " + source.toString());
+    return;
+  }
   m_mediaPlayer->setSource(source);
 }
 
