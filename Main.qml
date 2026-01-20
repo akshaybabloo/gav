@@ -9,23 +9,22 @@ import gavqml
 ApplicationWindow {
     id: mainWindow
 
-    property url source
-    property bool shouldAutoPlay: false
-
     property bool controlsVisibleAlias: mediaComponent.controlsAreVisible
     property bool mediaControlsContainsMouse: false
+    property bool shouldAutoPlay: false
+    property url source
 
     // TODO: Maybe use backend to verify
     function getMediaInfo(fileUrl) {
-        var path = fileUrl.toString()
+        var path = fileUrl.toString();
         // On Windows, fileUrl can start with 'file:///'
         if (path.startsWith('file:///')) {
-            path = path.substring(8)
+            path = path.substring(8);
         }
-        var name = path.substring(path.lastIndexOf('/') + 1)
-        var extension = name.substring(name.lastIndexOf('.') + 1).toLowerCase()
-        var videoExtensions = ["mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "m4v", "mpg"]
-        var audioExtensions = ["mp3", "wav", "ogg", "flac", "aac", "wma", "m4a"]
+        var name = path.substring(path.lastIndexOf('/') + 1);
+        var extension = name.substring(name.lastIndexOf('.') + 1).toLowerCase();
+        var videoExtensions = ["mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "m4v", "mpg"];
+        var audioExtensions = ["mp3", "wav", "ogg", "flac", "aac", "wma", "m4a"];
 
         if (videoExtensions.indexOf(extension) !== -1) {
             return {
@@ -33,16 +32,16 @@ ApplicationWindow {
                 "path": fileUrl,
                 "type": "video",
                 "icon": "\ueb87"
-            }
+            };
         } else if (audioExtensions.indexOf(extension) !== -1) {
             return {
                 "name": name,
                 "path": fileUrl,
                 "type": "audio",
                 "icon": "\ue405"
-            }
+            };
         } else {
-            return null
+            return null;
         }
     }
 
@@ -50,25 +49,6 @@ ApplicationWindow {
     title: qsTr("GAV")
     visible: true
     width: 1024
-
-    onSourceChanged: {
-        const s = "" + source
-        if (!s) {
-            console.log("No source provided")
-            return
-        }
-
-        const mediaInfo = getMediaInfo(source)
-        if (mediaInfo) {
-            playList.append(mediaInfo)
-            mediaComponent.path = mediaInfo.path
-            mainWindow.title = "GAV - " + mediaInfo.name
-            playlistComponent.playListView.currentIndex = playList.count - 1
-            shouldAutoPlay = true
-        } else {
-            unsupportedFileDialog.open()
-        }
-    }
 
     footer: Loader {
         id: mediaControlsComponentLoader
@@ -83,7 +63,7 @@ ApplicationWindow {
 
         // Let the loaded MediaControls fill the Loader
         onLoaded: if (item)
-                      item.anchors.fill = mediaControlsComponentLoader
+            item.anchors.fill = mediaControlsComponentLoader
     }
 
     // --- Loader for WINDOWED mode ---
@@ -102,7 +82,26 @@ ApplicationWindow {
 
         // Let the loaded MenuBar fill the Loader
         onLoaded: if (item)
-                      item.anchors.fill = windowedMenuBarLoader
+            item.anchors.fill = windowedMenuBarLoader
+    }
+
+    onSourceChanged: {
+        const s = "" + source;
+        if (!s) {
+            console.log("No source provided");
+            return;
+        }
+
+        const mediaInfo = getMediaInfo(source);
+        if (mediaInfo) {
+            playList.append(mediaInfo);
+            mediaComponent.path = mediaInfo.path;
+            mainWindow.title = "GAV - " + mediaInfo.name;
+            playlistComponent.playListView.currentIndex = playList.count - 1;
+            shouldAutoPlay = true;
+        } else {
+            unsupportedFileDialog.open();
+        }
     }
 
     // --- Reusable MenuBar definition ---
@@ -118,7 +117,8 @@ ApplicationWindow {
 
                     onTriggered: fileDialog.open()
                 }
-                MenuSeparator {}
+                MenuSeparator {
+                }
                 Action {
                     text: qsTr("Exit")
 
@@ -156,38 +156,37 @@ ApplicationWindow {
             }
         }
     }
-
     CustomSnackbar {
         id: captureSnackbar
-    }
 
+    }
     CustomSnackbar {
         id: collageSnackbar
-    }
 
+    }
     Connections {
-        target: mediaComponent.mediaPlayer
         function onFrameCaptured(success, path) {
             if (success) {
-                captureSnackbar.message = "Frame captured: " + path
+                captureSnackbar.message = "Frame captured: " + path;
             } else {
-                captureSnackbar.message = "Error: " + path
+                captureSnackbar.message = "Error: " + path;
             }
-            captureSnackbar.show()
+            captureSnackbar.show();
         }
+
+        target: mediaComponent.mediaPlayer
     }
-
     Connections {
-        target: collage
-
         function onCollageFinished(successCount, failCount) {
             if (successCount > 0) {
-                collageSnackbar.message = successCount + " collage(s) created successfully"
+                collageSnackbar.message = successCount + " collage(s) created successfully";
             } else {
-                collageSnackbar.message = "Collage creation failed"
+                collageSnackbar.message = "Collage creation failed";
             }
-            collageSnackbar.show()
+            collageSnackbar.show();
         }
+
+        target: collage
     }
 
     // About dialog
@@ -201,6 +200,7 @@ ApplicationWindow {
 
         ColumnLayout {
             spacing: 5
+
             Image {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.preferredHeight: 200
@@ -236,30 +236,29 @@ ApplicationWindow {
             text: "The dropped file is not a supported video format."
         }
     }
-
     Collage {
         id: collage
-    }
 
+    }
     DropArea {
         anchors.fill: parent
 
         onDropped: function (drop) {
             if (drop.urls && drop.urls.length > 0) {
-                var firstFileSet = false
+                var firstFileSet = false;
                 for (var i = 0; i < drop.urls.length; i++) {
-                    var mediaInfo = getMediaInfo(drop.urls[i])
-                    console.debug("Media info for dropped file:", mediaInfo)
+                    var mediaInfo = getMediaInfo(drop.urls[i]);
+                    console.debug("Media info for dropped file:", JSON.stringify(mediaInfo));
                     if (mediaInfo) {
-                        playList.append(mediaInfo)
+                        playList.append(mediaInfo);
                         if (!firstFileSet) {
-                            mediaComponent.path = mediaInfo.path
-                            mainWindow.title = "GAV - " + mediaInfo.name
-                            playlistComponent.playListView.currentIndex = playList.count - 1
-                            firstFileSet = true
+                            mediaComponent.path = mediaInfo.path;
+                            mainWindow.title = "GAV - " + mediaInfo.name;
+                            playlistComponent.playListView.currentIndex = playList.count - 1;
+                            firstFileSet = true;
                         }
                     } else {
-                        unsupportedFileDialog.open()
+                        unsupportedFileDialog.open();
                     }
                 }
             }
@@ -267,19 +266,19 @@ ApplicationWindow {
     }
     FileDialog {
         id: fileDialog
-        currentFolder: StandardPaths.standardLocations(
-                           StandardPaths.DownloadLocation)[0]
+
+        currentFolder: StandardPaths.standardLocations(StandardPaths.DownloadLocation)[0]
         nameFilters: ["Video Files (*.mp4 *.avi *.mkv *.mov *.wmv *.flv *.webm *.m4v *.mpg)", "Audio Files (*.mp3 *.wav *.ogg *.flac *.aac *.wma *m4a)", "All files (*)"]
 
         onAccepted: {
-            var mediaInfo = getMediaInfo(selectedFile)
+            var mediaInfo = getMediaInfo(selectedFile);
             if (mediaInfo) {
-                playList.append(mediaInfo)
-                mediaComponent.path = mediaInfo.path
-                mainWindow.title = "GAV - " + mediaInfo.name
-                playlistComponent.playListView.currentIndex = playList.count - 1
+                playList.append(mediaInfo);
+                mediaComponent.path = mediaInfo.path;
+                mainWindow.title = "GAV - " + mediaInfo.name;
+                playlistComponent.playListView.currentIndex = playList.count - 1;
             } else {
-                unsupportedFileDialog.open()
+                unsupportedFileDialog.open();
             }
         }
     }
@@ -287,38 +286,38 @@ ApplicationWindow {
         id: mediaComponent
 
         anchors.fill: parent
-        path: ""
         focus: true
+        path: ""
 
-        Keys.onPressed: function(event) {
+        Keys.onPressed: function (event) {
             if (event.key === Qt.Key_Left) {
                 // Seek backward 5 seconds
-                mediaPlayer.position = Math.max(0, mediaPlayer.position - 5000)
-                event.accepted = true
+                mediaPlayer.position = Math.max(0, mediaPlayer.position - 5000);
+                event.accepted = true;
             } else if (event.key === Qt.Key_Right) {
                 // Seek forward 5 seconds
-                mediaPlayer.position = Math.min(mediaPlayer.duration, mediaPlayer.position + 5000)
-                event.accepted = true
+                mediaPlayer.position = Math.min(mediaPlayer.duration, mediaPlayer.position + 5000);
+                event.accepted = true;
             } else if (event.key === Qt.Key_Space) {
                 // Play/Pause
                 if (mediaPlayer.playbackState === MediaPlayer.PlayingState) {
-                    mediaPlayer.pause()
+                    mediaPlayer.pause();
                 } else {
-                    mediaPlayer.play()
+                    mediaPlayer.play();
                 }
-                event.accepted = true
+                event.accepted = true;
             }
         }
-
         onMediaLoadedChanged: {
             if (mediaLoaded && shouldAutoPlay) {
-                mediaPlayer.play()
-                shouldAutoPlay = false
+                mediaPlayer.play();
+                shouldAutoPlay = false;
             }
         }
     }
     ListModel {
         id: playList
+
     }
     PlayListComponent {
         id: playlistComponent
@@ -337,13 +336,13 @@ ApplicationWindow {
             implicitHeight: 60
             mediaLoaded: mediaComponent.mediaLoaded
             player: mediaComponent.mediaPlayer
-            videoOutput: mediaComponent.videoOutput
             playlistCount: playList.count
             playlistCurrentIndex: playlistComponent.playListView.currentIndex
+            videoOutput: mediaComponent.videoOutput
 
+            onContainsMouseChanged: mainWindow.mediaControlsContainsMouse = containsMouse
             onNextTrack: playlistComponent.playListView.currentIndex++
             onPreviousTrack: playlistComponent.playListView.currentIndex--
-            onContainsMouseChanged: mainWindow.mediaControlsContainsMouse = containsMouse
         }
     }
 
@@ -368,7 +367,7 @@ ApplicationWindow {
         }
 
         onLoaded: if (item)
-                      item.anchors.fill = fullscreenMediaControlsComponentLoader
+            item.anchors.fill = fullscreenMediaControlsComponentLoader
     }
     FontLoader {
         id: materialSymbolsOutlined

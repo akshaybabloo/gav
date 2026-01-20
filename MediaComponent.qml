@@ -153,11 +153,15 @@ Item {
         property real panX: 0
         property real panY: 0
 
+        // Zoom origin point (where the mouse was when zooming)
+        property real zoomOriginX: width / 2
+        property real zoomOriginY: height / 2
+
         transform: [
             Scale {
                 id: videoScale
-                origin.x: videoOutput.width / 2
-                origin.y: videoOutput.height / 2
+                origin.x: videoOutput.zoomOriginX
+                origin.y: videoOutput.zoomOriginY
                 xScale: videoOutput.zoomLevel
                 yScale: videoOutput.zoomLevel
             },
@@ -169,7 +173,7 @@ Item {
         ]
 
         Behavior on zoomLevel {
-            NumberAnimation { duration: 150; easing.type: Easing.OutQuad }
+            NumberAnimation { duration: 50; easing.type: Easing.OutQuad }
         }
 
         Behavior on panX {
@@ -245,30 +249,22 @@ Item {
         }
 
         onWheel: function (wheel) {
-            // Ctrl + Scroll = Zoom
+            // Ctrl + Scroll = Zoom (Chrome-like multiplicative scaling)
             if (wheel.modifiers & Qt.ControlModifier && videoOutput.visible) {
-                var zoomDelta = wheel.angleDelta.y > 0 ? 0.1 : -0.1
-                var newZoom = Math.max(1.0, Math.min(5.0, videoOutput.zoomLevel + zoomDelta))
+                // Each scroll step multiplies/divides by ~1.25 (Chrome uses similar factor)
+                var zoomFactor = wheel.angleDelta.y > 0 ? 1.25 : 0.8
+                var newZoom = Math.max(1.0, Math.min(5.0, videoOutput.zoomLevel * zoomFactor))
 
-                // Reset pan when zooming back to 1.0
+                // Reset when zooming back to 1.0
                 if (newZoom === 1.0) {
                     videoOutput.panX = 0
                     videoOutput.panY = 0
+                    videoOutput.zoomOriginX = videoOutput.width / 2
+                    videoOutput.zoomOriginY = videoOutput.height / 2
                 } else {
-                    // Adjust pan to keep zoom centered on mouse position
-                    var mouseRelX = (mouseX - videoOutput.width / 2) / videoOutput.width
-                    var mouseRelY = (mouseY - videoOutput.height / 2) / videoOutput.height
-
-                    // Scale pan proportionally to zoom change
-                    var zoomRatio = newZoom / videoOutput.zoomLevel
-                    videoOutput.panX *= zoomRatio
-                    videoOutput.panY *= zoomRatio
-
-                    // Constrain pan within bounds
-                    var maxPanX = videoOutput.width * (newZoom - 1) / 2
-                    var maxPanY = videoOutput.height * (newZoom - 1) / 2
-                    videoOutput.panX = Math.max(-maxPanX, Math.min(maxPanX, videoOutput.panX))
-                    videoOutput.panY = Math.max(-maxPanY, Math.min(maxPanY, videoOutput.panY))
+                    // Set zoom origin to mouse position for zoom-to-cursor effect
+                    videoOutput.zoomOriginX = mouseX
+                    videoOutput.zoomOriginY = mouseY
                 }
 
                 videoOutput.zoomLevel = newZoom
