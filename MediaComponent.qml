@@ -19,6 +19,8 @@ Item {
     property bool isVideo: customMediaPlayer.hasVideo
     property bool isPlaying: false
 
+    signal stopped()
+
     CustomMediaPlayer {
         id: customMediaPlayer
         source: path
@@ -36,9 +38,20 @@ Item {
             } else if (state === MediaPlayer.PausedState) {
                 isPlaying = true // We still want to show the video when paused
             } else {
+                // Stopped state - reset everything
                 controlsAreVisible = true
                 isPlaying = false
                 hideControlsTimer.stop()
+
+                // Reset zoom and pan
+                videoOutput.zoomLevel = 1.0
+                videoOutput.panX = 0
+                videoOutput.panY = 0
+                videoOutput.zoomOriginX = videoOutput.width / 2
+                videoOutput.zoomOriginY = videoOutput.height / 2
+
+                // Notify parent to reset path and title
+                stopped()
             }
         }
 

@@ -314,6 +314,10 @@ ApplicationWindow {
                 shouldAutoPlay = false;
             }
         }
+        onStopped: {
+            mediaComponent.path = "";
+            mainWindow.title = qsTr("GAV");
+        }
     }
     ListModel {
         id: playList

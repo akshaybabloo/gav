@@ -17,7 +17,7 @@ CustomMediaPlayer::CustomMediaPlayer() {
   connect(m_mediaPlayer, &QMediaPlayer::mediaStatusChanged, this,
           &CustomMediaPlayer::mediaStatusChanged);
   connect(m_mediaPlayer, &QMediaPlayer::playbackRateChanged, this, &CustomMediaPlayer::playbackRateChanged);
-  
+
 
   connect(m_mediaPlayer, &QMediaPlayer::durationChanged, this,
           &CustomMediaPlayer::durationChanged);
@@ -28,7 +28,7 @@ CustomMediaPlayer::CustomMediaPlayer() {
 
   connect(m_mediaPlayer,
           QOverload<QMediaPlayer::Error, const QString &>::of(
-              &QMediaPlayer::errorOccurred),
+            &QMediaPlayer::errorOccurred),
           this, &CustomMediaPlayer::onMediaPlayerError);
 }
 
@@ -95,13 +95,30 @@ void CustomMediaPlayer::play() {
     m_mediaPlayer->play();
   }
 }
+
 void CustomMediaPlayer::pause() {
   m_playWhenLoaded = false;
   m_mediaPlayer->pause();
 }
+
 void CustomMediaPlayer::stop() {
   m_playWhenLoaded = false;
   m_mediaPlayer->stop();
+  m_mediaPlayer->setSource(QUrl());
+  m_mediaPlayer->setPosition(0);
+
+  // Reset internal state
+  if (m_hasVideo) {
+    m_hasVideo = false;
+    emit hasVideoChanged();
+  }
+  if (m_mediaLoaded) {
+    m_mediaLoaded = false;
+    emit mediaLoadedChanged();
+  }
+  emit videoVisibilityChanged(false);
+  emit durationChanged();
+  emit positionChanged();
 }
 
 void CustomMediaPlayer::onMediaPlayerError(QMediaPlayer::Error error,
@@ -144,62 +161,62 @@ void CustomMediaPlayer::onStatusChanged(QMediaPlayer::MediaStatus status) {
 }
 
 qreal CustomMediaPlayer::playbackRate() const {
-    return m_mediaPlayer->playbackRate();
+  return m_mediaPlayer->playbackRate();
 }
 
 void CustomMediaPlayer::setPlaybackRate(qreal rate) {
-    if (m_mediaPlayer->playbackRate() == rate)
-        return;
-    m_mediaPlayer->setPlaybackRate(rate);
-    emit playbackRateChanged();
+  if (m_mediaPlayer->playbackRate() == rate)
+    return;
+  m_mediaPlayer->setPlaybackRate(rate);
+  emit playbackRateChanged();
 }
 
 void CustomMediaPlayer::captureFrame() {
-    QVideoSink *sink = m_mediaPlayer->videoSink();
-    if (!sink) {
-        emit frameCaptured(false, "No video sink available.");
-        return;
-    }
+  QVideoSink *sink = m_mediaPlayer->videoSink();
+  if (!sink) {
+    emit frameCaptured(false, "No video sink available.");
+    return;
+  }
 
-    QVideoFrame frame = sink->videoFrame();
-    if (!frame.isValid()) {
-        emit frameCaptured(false, "Invalid video frame.");
-        return;
-    }
+  QVideoFrame frame = sink->videoFrame();
+  if (!frame.isValid()) {
+    emit frameCaptured(false, "Invalid video frame.");
+    return;
+  }
 
-    QImage image = frame.toImage();
-    if (image.isNull()) {
-        emit frameCaptured(false, "Failed to convert frame to image.");
-        return;
-    }
+  QImage image = frame.toImage();
+  if (image.isNull()) {
+    emit frameCaptured(false, "Failed to convert frame to image.");
+    return;
+  }
 
-    QString videoName = m_mediaPlayer->source().fileName();
-    videoName = videoName.left(videoName.lastIndexOf('.'));
+  QString videoName = m_mediaPlayer->source().fileName();
+  videoName = videoName.left(videoName.lastIndexOf('.'));
 
-    qint64 pos = m_mediaPlayer->position();
-    QString timeOfFrame = QDateTime::fromMSecsSinceEpoch(pos).toUTC().toString("hh-mm-ss-zzz");
+  qint64 pos = m_mediaPlayer->position();
+  QString timeOfFrame = QDateTime::fromMSecsSinceEpoch(pos).toUTC().toString("hh-mm-ss-zzz");
 
-    QString systemTime = QDateTime::currentDateTime().toString("yyyy-MM-dd_hh-mm-ss");
+  QString systemTime = QDateTime::currentDateTime().toString("yyyy-MM-dd_hh-mm-ss");
 
-    QString filename = QString("%1_%2_%3.jpeg").arg(videoName, timeOfFrame, systemTime);
+  QString filename = QString("%1_%2_%3.jpeg").arg(videoName, timeOfFrame, systemTime);
 
-    QString picturesPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
-    if (picturesPath.isEmpty()) {
-        emit frameCaptured(false, "Could not determine pictures location.");
-        return;
-    }
+  QString picturesPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+  if (picturesPath.isEmpty()) {
+    emit frameCaptured(false, "Could not determine pictures location.");
+    return;
+  }
 
-    QDir dir(picturesPath);
-    if (!dir.exists()) {
-        dir.mkpath(".");
-    }
+  QDir dir(picturesPath);
+  if (!dir.exists()) {
+    dir.mkpath(".");
+  }
 
-    QString fullPath = dir.filePath(filename);
+  QString fullPath = dir.filePath(filename);
 
-    if (image.save(fullPath, "JPEG")) {
-        emit frameCaptured(true, fullPath);
-    } else {
-        emit frameCaptured(false, "Failed to save image.");
-    }
+  if (image.save(fullPath, "JPEG")) {
+    emit frameCaptured(true, fullPath);
+  } else {
+    emit frameCaptured(false, "Failed to save image.");
+  }
 }
 
