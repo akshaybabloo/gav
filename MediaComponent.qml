@@ -238,7 +238,10 @@ Item {
         hoverEnabled: true
 
         onDoubleClicked: function (mouse) {
-            mainWindow.visibility = mainWindow.visibility === Window.FullScreen ? Window.Windowed : Window.FullScreen;
+            // Only toggle fullscreen when video is playing or paused
+            if (customMediaPlayer.playbackState !== MediaPlayer.StoppedState) {
+                mainWindow.visibility = mainWindow.visibility === Window.FullScreen ? Window.Windowed : Window.FullScreen;
+            }
         }
         onPositionChanged: {
             if (isDragging && videoOutput.zoomLevel > 1.0) {
