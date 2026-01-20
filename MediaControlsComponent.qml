@@ -40,13 +40,13 @@ Item {
         id: forwardHoldTimer
         interval: 200
         repeat: true
-        onTriggered: player.position += 1000
+        onTriggered: player.position = Math.min(player.position + 1000, player.duration)
     }
     Timer {
         id: rewindHoldTimer
         interval: 200
         repeat: true
-        onTriggered: player.position -= 1000
+        onTriggered: player.position = Math.max(player.position - 1000, 0)
     }
     Timer {
         id: rewindSeekTimer
@@ -221,7 +221,7 @@ Item {
                         Timer {
                             id: rewSingleClickTimer
                             interval: 250
-                            onTriggered: player.position -= 1000
+                            onTriggered: player.position = Math.max(player.position - 1000, 0)
                         }
 
                         onClicked: {
@@ -300,7 +300,7 @@ Item {
                         Timer {
                             id: ffwSingleClickTimer
                             interval: 250
-                            onTriggered: player.position += 1000
+                            onTriggered: player.position = Math.min(player.position + 1000, player.duration)
                         }
 
                         onClicked: {
