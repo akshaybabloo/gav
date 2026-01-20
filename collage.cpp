@@ -7,6 +7,7 @@
 #include <QVideoFrame>
 #include <QDebug>
 #include <QPainter>
+#include <QFontMetrics>
 #include <QDir>
 
 Collage::Collage()
@@ -255,10 +256,20 @@ QImage Collage::drawCollage(const ImageMeta &meta) {
         return {};
     }
 
+    // Determine if video is portrait or landscape from first frame
+    bool isPortrait = false;
+    if (!images.isEmpty()) {
+        const auto &firstImg = images.first().image;
+        isPortrait = firstImg.height() > firstImg.width();
+    }
+
     QList<QImage> processedImages;
 
+    // Larger thumbnails for better quality
+    constexpr int thumbSize = 320;
+
     for (const auto &img: images) {
-        QImage resized = img.image.scaled(256, 256, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        QImage resized = img.image.scaled(thumbSize, thumbSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 
         // convert img.timestamp to hh:mm:ss format
         const qint64 seconds = img.timestamp / 1000;
@@ -269,11 +280,27 @@ QImage Collage::drawCollage(const ImageMeta &meta) {
                 .arg(hh, 2, 10, QChar('0'))
                 .arg(mm, 2, 10, QChar('0'))
                 .arg(ss, 2, 10, QChar('0'));
+
         QPainter painter(&resized);
-        painter.setPen(Qt::yellow);
-        painter.setFont(QFont("Arial", 10, QFont::Bold));
-        painter.drawText(resized.rect().adjusted(2, 2, -2, -2), Qt::AlignBottom | Qt::AlignRight, timeText);
+        painter.setRenderHint(QPainter::Antialiasing);
+
+        // Draw semi-transparent background for timestamp
+        QFont font("Arial", 10, QFont::Bold);
+        painter.setFont(font);
+        QFontMetrics fm(font);
+        QRect textRect = fm.boundingRect(timeText);
+        int padding = 4;
+        QRect bgRect(resized.width() - textRect.width() - padding * 2 - 2,
+                     resized.height() - textRect.height() - padding * 2 - 2,
+                     textRect.width() + padding * 2,
+                     textRect.height() + padding * 2);
+        painter.fillRect(bgRect, QColor(0, 0, 0, 160));
+
+        // Draw timestamp text
+        painter.setPen(Qt::white);
+        painter.drawText(bgRect, Qt::AlignCenter, timeText);
         painter.end();
+
 #ifdef QT_DEBUG
         // Save image to disk for debugging
         if (QString debugFilename = QString("debug_frame_%1ms.jpg").arg(img.timestamp); resized.save(debugFilename)) {
@@ -286,14 +313,30 @@ QImage Collage::drawCollage(const ImageMeta &meta) {
     }
 
     // Create description table at the top
-    constexpr int tableMargin = -10;
-    constexpr int tableRowHeight = 15;
-    constexpr int tablePadding = 2;
+    constexpr int tableMargin = 10;
+    constexpr int tableRowHeight = 18;
+    constexpr int tablePadding = 8;
+    constexpr int tableRadius = 8;
+
+    // Format duration as hh:mm:ss
+    QString formattedDuration = meta.duration;
+    bool ok;
+    qint64 durationMs = meta.duration.toLongLong(&ok);
+    if (ok && durationMs > 0) {
+        qint64 totalSeconds = durationMs / 1000;
+        qint64 hours = totalSeconds / 3600;
+        qint64 minutes = (totalSeconds % 3600) / 60;
+        qint64 secs = totalSeconds % 60;
+        formattedDuration = QString("%1:%2:%3")
+                .arg(hours, 2, 10, QChar('0'))
+                .arg(minutes, 2, 10, QChar('0'))
+                .arg(secs, 2, 10, QChar('0'));
+    }
 
     // Prepare metadata text
     QStringList metaLines;
     metaLines << QString("Name: %1").arg(meta.name);
-    metaLines << QString("Duration: %1").arg(meta.duration);
+    metaLines << QString("Duration: %1").arg(formattedDuration);
     metaLines << QString("Resolution: %1").arg(meta.resolution);
     metaLines << QString("Size: %1").arg(meta.size);
     metaLines << QString("Video Codec: %1").arg(meta.videoCodec);
@@ -302,19 +345,30 @@ QImage Collage::drawCollage(const ImageMeta &meta) {
     const int tableHeight = metaLines.size() * tableRowHeight + 2 * tablePadding;
 
     // Draw collage using QPainter instead of QTableWidget
-    constexpr int cols = 4;
+    // Auto-adjust columns: 3 for portrait videos, 4 for landscape
+    const int cols = isPortrait ? 3 : 4;
     const int rows = (processedImages.size() + cols - 1) / cols;
-    constexpr int cellWidth = 256;
-    constexpr int cellHeight = 256;
     constexpr int paddingX = 5; // Gap between columns
-    constexpr int paddingY = -100; // Gap between rows
+    constexpr int paddingY = 5; // Gap between rows
     constexpr int marginTop = 5; // Top margin
     constexpr int marginBottom = 5; // Bottom margin
     constexpr int marginLeft = 5; // Left margin
     constexpr int marginRight = 5; // Right margin
 
+    // Find the actual max dimensions from processed images
+    int maxImgWidth = 0;
+    int maxImgHeight = 0;
+    for (const auto &img: processedImages) {
+        maxImgWidth = qMax(maxImgWidth, img.width());
+        maxImgHeight = qMax(maxImgHeight, img.height());
+    }
+
+    // Use actual image dimensions for cell size
+    const int cellWidth = maxImgWidth;
+    const int cellHeight = maxImgHeight;
+
     // Canvas width: left margin + all columns + gaps between columns + right margin
-    constexpr int canvasWidth = marginLeft + cols * cellWidth + (cols - 1) * paddingX + marginRight;
+    const int canvasWidth = marginLeft + cols * cellWidth + (cols - 1) * paddingX + marginRight;
     // Canvas height: top margin + table + margin + all rows + gaps between rows + bottom margin
     const int canvasHeight = marginTop + tableHeight + tableMargin + rows * cellHeight + (rows - 1) * paddingY +
                              marginBottom;
@@ -325,20 +379,21 @@ QImage Collage::drawCollage(const ImageMeta &meta) {
     QPainter collagePainter(&collageImage);
 
     // Draw description table background
-    constexpr int tableX = marginLeft;
-    constexpr int tableY = marginTop;
-    constexpr int tableWidth = canvasWidth - marginLeft - marginRight;
+    const int tableX = marginLeft;
+    const int tableY = marginTop;
+    const int tableWidth = canvasWidth - marginLeft - marginRight;
 
-    collagePainter.setPen(QPen(Qt::black, 2));
-    collagePainter.setBrush(QColor(240, 240, 240));
-    collagePainter.drawRect(tableX, tableY, tableWidth, tableHeight);
+    collagePainter.setRenderHint(QPainter::Antialiasing);
+    collagePainter.setPen(QPen(QColor(100, 100, 100), 1));
+    collagePainter.setBrush(QColor(245, 245, 245));
+    collagePainter.drawRoundedRect(tableX, tableY, tableWidth, tableHeight, tableRadius, tableRadius);
 
     // Draw table content
     collagePainter.setPen(Qt::black);
     collagePainter.setFont(QFont("Arial", 10));
 
     for (int i = 0; i < metaLines.size(); ++i) {
-        constexpr int textX = tableX + tablePadding;
+        const int textX = tableX + tablePadding;
         const int textY = tableY + tablePadding + i * tableRowHeight + tableRowHeight / 2 + 5;
         collagePainter.drawText(textX, textY, metaLines[i]);
     }
@@ -358,6 +413,11 @@ QImage Collage::drawCollage(const ImageMeta &meta) {
         const int imgY = y + (cellHeight - img.height()) / 2;
 
         collagePainter.drawImage(imgX, imgY, img);
+
+        // Draw thin border around thumbnail
+        collagePainter.setPen(QPen(QColor(180, 180, 180), 1));
+        collagePainter.setBrush(Qt::NoBrush);
+        collagePainter.drawRect(imgX, imgY, img.width(), img.height());
     }
 
     collagePainter.end();
