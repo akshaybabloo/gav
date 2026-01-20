@@ -7,52 +7,59 @@ Popup {
 
     property alias message: snackbarMessage.text
 
-    // Positioning
-    x: (parent.width - width) / 2
-    y: parent.height - height - 20
-    width: Math.min(parent.width * 0.9, 800)
+    // Public function to show
+    function show() {
+        open();
+    }
+
+    // Behavior
+    closePolicy: Popup.NoAutoClose
 
     // Appearance
     padding: 10
+    width: Math.min(parent.width * 0.9, 800)
+
+    // Positioning
+    x: (parent.width - width) / 2
+    y: parent.height - height - 20
+
     background: Rectangle {
         color: "#333"
         radius: 4
     }
-
     contentItem: RowLayout {
         spacing: 10
 
         Label {
             id: snackbarMessage
+
+            Layout.fillWidth: true
             color: "white"
             wrapMode: Text.WordWrap
-            Layout.fillWidth: true
         }
         Button {
-            text: "Dismiss"
-            onClicked: root.close()
             Layout.alignment: Qt.AlignVCenter
+            text: "Dismiss"
+
             background: Rectangle {
-                color: "transparent"
                 border.color: "white"
                 border.width: 1
+                color: "transparent"
                 radius: 4
             }
+
+            onClicked: root.close()
         }
     }
 
-    // Behavior
-    closePolicy: Popup.NoAutoClose
+    onClosed: hideTimer.stop()
+    onOpened: hideTimer.start()
+
     Timer {
         id: hideTimer
-        interval: 3000
-        onTriggered: root.close()
-    }
-    onOpened: hideTimer.start()
-    onClosed: hideTimer.stop()
 
-    // Public function to show
-    function show() {
-        open()
+        interval: 3000
+
+        onTriggered: root.close()
     }
 }

@@ -5,7 +5,7 @@ Rectangle {
     property string borderColor: "red"
 
     anchors.fill: parent
-    border.width: 5
     border.color: color
+    border.width: 5
     color: "transparent"
 }

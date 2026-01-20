@@ -19,17 +19,16 @@
 
 std::shared_ptr<spdlog::logger> logger;
 
-void initLogging()
-{
+void initLogging() {
     // Create a console sink (stdout)
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-    
+
     // Create logger with the sink
     logger = std::make_shared<spdlog::logger>("gav", console_sink);
-    
+
     // Register as default logger
     spdlog::set_default_logger(logger);
-    
+
     // https://github.com/gabime/spdlog/wiki/3.-Custom-formatting
 #ifdef QT_DEBUG
     logger->set_pattern("[%x %H:%M:%S.%f] [%o ms] [%L] [%t] %v");
@@ -38,30 +37,29 @@ void initLogging()
     logger->set_pattern("[%x %H:%M:%S] [%L] %v");
     logger->set_level(spdlog::level::info);
 #endif
-    
+
     // https://github.com/gabime/spdlog/wiki/Flush-policy
     logger->flush_on(spdlog::level::info);
 }
 
-void logOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg)
-{
+void logOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg) {
     QByteArray localMsg = msg.toLocal8Bit();
     const char *file = context.file ? context.file : "";
     const char *function = context.function ? context.function : "";
     switch (type) {
-    case QtDebugMsg:
-        logger->debug("Debug: {} ({}:{}, {})", localMsg.constData(), file, context.line, function);
-        break;
-    case QtInfoMsg:
-        logger->info("Info: {} ({}:{}, {})", localMsg.constData(), file, context.line, function);
-        break;
-    case QtWarningMsg:
-        logger->warn("Warning: {} ({}:{}, {})", localMsg.constData(), file, context.line, function);
-        break;
-    case QtCriticalMsg:
-    case QtFatalMsg:
-        logger->critical("Critical: {} ({}:{}, {})", localMsg.constData(), file, context.line, function);
-        break;
+        case QtDebugMsg:
+            logger->debug("Debug: {} ({}:{}, {})", localMsg.constData(), file, context.line, function);
+            break;
+        case QtInfoMsg:
+            logger->info("Info: {} ({}:{}, {})", localMsg.constData(), file, context.line, function);
+            break;
+        case QtWarningMsg:
+            logger->warn("Warning: {} ({}:{}, {})", localMsg.constData(), file, context.line, function);
+            break;
+        case QtCriticalMsg:
+        case QtFatalMsg:
+            logger->critical("Critical: {} ({}:{}, {})", localMsg.constData(), file, context.line, function);
+            break;
     }
 }
 
@@ -70,13 +68,13 @@ int main(int argc, char *argv[]) {
     // Enable UTF-8 output on Windows console
     SetConsoleOutputCP(CP_UTF8);
 #endif
-    
+
     // Suppress FFmpeg verbose output by default
     qputenv("QT_LOGGING_RULES", "qt.multimedia.ffmpeg*=false");
-    
+
     initLogging();
     qInstallMessageHandler(logOutput);
-    
+
     QGuiApplication app(argc, argv);
 
 #ifdef APP_VERSION
@@ -140,7 +138,7 @@ int main(int argc, char *argv[]) {
         QStringList failPaths;
 
         // Connect signals to track progress
-        QObject::connect(&collage, &Collage::collageCompleted, [&](int index, const QString& outputPath, bool success) {
+        QObject::connect(&collage, &Collage::collageCompleted, [&](int index, const QString &outputPath, bool success) {
             if (success) {
                 successCount++;
                 successPaths.append(outputPath);
@@ -187,12 +185,12 @@ int main(int argc, char *argv[]) {
 
         for (int i = 0; i < successPaths.size(); ++i) {
             std::cout << "[" << i << "] ✓ Success: "
-                     << successPaths[i].toStdString() << std::endl;
+                    << successPaths[i].toStdString() << std::endl;
         }
 
         for (int i = 0; i < failPaths.size(); ++i) {
             std::cout << "[" << (successPaths.size() + i) << "] ✗ Failed: "
-                     << failPaths[i].toStdString() << std::endl;
+                    << failPaths[i].toStdString() << std::endl;
         }
 
         std::cout << "\n" << successCount << " collage(s) created successfully";
@@ -219,7 +217,7 @@ int main(int argc, char *argv[]) {
             } else {
                 sourceURL = QUrl::fromLocalFile(absolutePath);
                 logger->debug("Converted relative path '{}' to absolute: '{}'",
-                             sourceValue.toStdString(), absolutePath.toStdString());
+                              sourceValue.toStdString(), absolutePath.toStdString());
             }
         } else if (fileInfo.isAbsolute()) {
             if (!fileInfo.exists()) {
