@@ -3,6 +3,9 @@
 
 #include <QQuickItem>
 #include <QImage>
+#include <QFutureWatcher>
+#include <QThreadPool>
+#include <QProcess>
 
 struct ImageTime {
     QImage image;
@@ -20,18 +23,42 @@ struct ImageMeta
     QString resolution;
 };
 
+// Result of processing a single video
+struct CollageResult {
+    int index;
+    QString inputPath;
+    QString outputPath;
+    bool success;
+};
+
 class Collage : public QQuickItem
 {
     Q_OBJECT
     QML_ELEMENT
 public:
     explicit Collage();
+    ~Collage() override;
 
     Q_INVOKABLE void toCollage(const QList<QUrl>& paths);
+
+    // Static method for CLI mode - processes single file synchronously
+    static QString createCollageSingle(const QUrl& path);
+
+    // Maximum concurrent collage operations (separate processes)
+    static constexpr int MAX_CONCURRENT = 4;
 
 private:
     static ImageMeta collectImages(const QUrl& path);
     static QImage drawCollage(const ImageMeta& meta);
+
+    // Process video via external process
+    static CollageResult processVideoExternal(int index, const QUrl& path);
+
+    void onFutureFinished();
+
+    QThreadPool m_threadPool;
+    QFutureWatcher<CollageResult> m_watcher;
+    QList<QUrl> m_currentPaths;
 
 signals:
     void collageStarted(int total);

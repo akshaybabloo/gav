@@ -2,51 +2,149 @@
 #include <QMediaPlayer>
 #include <QMediaMetaData>
 #include <QEventLoop>
-#include <QTimer>
 #include <QVideoSink>
 #include <QVideoFrame>
 #include <QDebug>
 #include <QPainter>
 #include <QFontMetrics>
-#include <QDir>
+#include <QtConcurrent>
+#include <QCoreApplication>
 
-Collage::Collage()
-= default;
+Collage::Collage() {
+    // Set up thread pool with limited concurrency
+    m_threadPool.setMaxThreadCount(MAX_CONCURRENT);
+    qDebug() << "Collage thread pool initialized with" << MAX_CONCURRENT << "max threads";
+
+    // Connect watcher signals
+    connect(&m_watcher, &QFutureWatcher<CollageResult>::resultReadyAt,
+            this, [this](int resultIndex) {
+                CollageResult result = m_watcher.resultAt(resultIndex);
+                emit collageCompleted(result.index, result.outputPath, result.success);
+            });
+
+    connect(&m_watcher, &QFutureWatcher<CollageResult>::finished,
+            this, &Collage::onFutureFinished);
+}
+
+Collage::~Collage() {
+    m_watcher.cancel();
+    m_watcher.waitForFinished();
+}
 
 void Collage::toCollage(const QList<QUrl> &paths) {
+    // Cancel any running operation
+    if (m_watcher.isRunning()) {
+        m_watcher.cancel();
+        m_watcher.waitForFinished();
+    }
+
+    m_currentPaths = paths;
     emit collageStarted(paths.size());
 
+    if (paths.isEmpty()) {
+        emit collageFinished(0, 0);
+        return;
+    }
+
+    // Create list of index-path pairs for mapping
+    QList<QPair<int, QUrl>> indexedPaths;
+    for (int i = 0; i < paths.size(); ++i) {
+        indexedPaths.append({i, paths[i]});
+        emit collageProgress(i, paths[i].toString());
+    }
+
+    // Use QtConcurrent::mapped with custom thread pool
+    // Each video is processed in a SEPARATE PROCESS for complete isolation
+    QFuture<CollageResult> future = QtConcurrent::mapped(
+        &m_threadPool,
+        indexedPaths,
+        [](const QPair<int, QUrl> &pair) -> CollageResult {
+            return processVideoExternal(pair.first, pair.second);
+        }
+    );
+
+    m_watcher.setFuture(future);
+}
+
+QString Collage::createCollageSingle(const QUrl &path) {
+    // This is called from CLI mode - does the actual collage work synchronously
+    qDebug() << "Creating collage for:" << path.toString();
+
+    auto meta = collectImages(path);
+    auto collageImage = drawCollage(meta);
+
+    if (collageImage.isNull()) {
+        qDebug() << "Collage image is null for path:" << path.toString();
+        return QString();
+    }
+
+    // Get the source file info
+    QFileInfo sourceFile(path.toLocalFile());
+
+    // Create output filename: originalname_collage.jpg
+    QString outputFilename = sourceFile.completeBaseName() + "_collage.jpg";
+
+    // Get the directory where the source file is located
+    QString outputPath = sourceFile.dir().filePath(outputFilename);
+
+    if (collageImage.save(outputPath, "JPEG", 100)) {
+        qDebug() << "Collage saved to:" << outputPath;
+        return outputPath;
+    }
+
+    qDebug() << "Failed to save collage to:" << outputPath;
+    return QString();
+}
+
+CollageResult Collage::processVideoExternal(int index, const QUrl &path) {
+    // Spawn a separate process to create the collage
+    // This completely isolates the heavy media processing from the main app
+    qDebug() << "Spawning external process for video" << index << ":" << path.toString();
+
+    QString appPath = QCoreApplication::applicationFilePath();
+    QString inputPath = path.toLocalFile();
+
+    QProcess process;
+    process.setProgram(appPath);
+    process.setArguments({"--collage", inputPath});
+
+    process.start();
+
+    // Wait for process to finish (with timeout of 5 minutes per video)
+    if (!process.waitForFinished(300000)) {
+        qDebug() << "Process timeout for video" << index;
+        process.kill();
+        return CollageResult{index, inputPath, QString(), false};
+    }
+
+    int exitCode = process.exitCode();
+    QString stdOut = QString::fromUtf8(process.readAllStandardOutput()).trimmed();
+    QString stdErr = QString::fromUtf8(process.readAllStandardError()).trimmed();
+
+    qDebug() << "Process finished for video" << index << "with exit code" << exitCode;
+    qDebug() << "stdout:" << stdOut;
+    if (!stdErr.isEmpty()) {
+        qDebug() << "stderr:" << stdErr;
+    }
+
+    // Parse output - format is SUCCESS:<path> or FAILED:<path>
+    if (exitCode == 0 && stdOut.startsWith("SUCCESS:")) {
+        QString outputPath = stdOut.mid(8); // Remove "SUCCESS:" prefix
+        return CollageResult{index, inputPath, outputPath, true};
+    }
+
+    return CollageResult{index, inputPath, QString(), false};
+}
+
+void Collage::onFutureFinished() {
     int successCount = 0;
     int failCount = 0;
 
-    for (int index = 0; index < paths.size(); ++index) {
-        const auto &path = paths[index];
-
-        emit collageProgress(index, path.toString());
-
-        auto meta = collectImages(path);
-        if (auto collageImage = drawCollage(meta); !collageImage.isNull()) {
-            // Get the source file info
-            QFileInfo sourceFile(path.toLocalFile());
-
-            // Create output filename: originalname_collage.jpg
-            QString outputFilename = sourceFile.completeBaseName() + "_collage.jpg";
-
-            // Get the directory where the source file is located
-            QString outputPath = sourceFile.dir().filePath(outputFilename);
-
-            if (collageImage.save(outputPath, "JPEG", 100)) {
-                qDebug() << "Collage" << index << "saved to:" << outputPath;
-                emit collageCompleted(index, outputPath, true);
-                successCount++;
-            } else {
-                qDebug() << "Failed to save collage" << index << "to:" << outputPath;
-                emit collageCompleted(index, outputPath, false);
-                failCount++;
-            }
+    // Count results
+    for (int i = 0; i < m_watcher.future().resultCount(); ++i) {
+        if (m_watcher.resultAt(i).success) {
+            successCount++;
         } else {
-            qDebug() << "Collage image is null for path:" << path.toString();
-            emit collageCompleted(index, "", false);
             failCount++;
         }
     }
@@ -379,8 +477,8 @@ QImage Collage::drawCollage(const ImageMeta &meta) {
     QPainter collagePainter(&collageImage);
 
     // Draw description table background
-    const int tableX = marginLeft;
-    const int tableY = marginTop;
+    constexpr int tableX = marginLeft;
+    constexpr int tableY = marginTop;
     const int tableWidth = canvasWidth - marginLeft - marginRight;
 
     collagePainter.setRenderHint(QPainter::Antialiasing);
@@ -393,7 +491,7 @@ QImage Collage::drawCollage(const ImageMeta &meta) {
     collagePainter.setFont(QFont("Arial", 10));
 
     for (int i = 0; i < metaLines.size(); ++i) {
-        const int textX = tableX + tablePadding;
+        constexpr int textX = tableX + tablePadding;
         const int textY = tableY + tablePadding + i * tableRowHeight + tableRowHeight / 2 + 5;
         collagePainter.drawText(textX, textY, metaLines[i]);
     }
