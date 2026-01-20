@@ -130,8 +130,11 @@ int main(int argc, char *argv[]) {
             auto isRunning = std::make_shared<std::atomic<bool> >(true);
             std::thread spinnerThread;
 
-            // Only show spinner if not in verbose mode
-            if (!verbose) {
+            // Check if running as subprocess (spawned by GUI for collage creation)
+            bool isSubprocess = qEnvironmentVariableIsSet("GAV_SUBPROCESS");
+
+            // Only show spinner if not in verbose mode and not a subprocess
+            if (!verbose && !isSubprocess) {
                 spinnerThread = std::thread([isRunning]() {
                     std::vector<std::string> spinner = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
                     int i = 0;
@@ -154,7 +157,7 @@ int main(int argc, char *argv[]) {
             }
 
             // Clear the spinner line
-            if (!verbose) {
+            if (!verbose && !isSubprocess) {
                 std::cout << "\r\033[K";
             }
 

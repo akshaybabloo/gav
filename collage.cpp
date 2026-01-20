@@ -9,6 +9,13 @@
 #include <QFontMetrics>
 #include <QtConcurrent>
 #include <QCoreApplication>
+#include <QMutex>
+#include <atomic>
+
+// Static tracking for running child processes
+static QMutex s_processMutex;
+static QList<QProcess *> s_runningProcesses;
+static std::atomic<bool> s_shuttingDown{false};
 
 Collage::Collage() {
     // Set up thread pool with limited concurrency
@@ -27,7 +34,23 @@ Collage::Collage() {
 }
 
 Collage::~Collage() {
+    // Signal that we're shutting down
+    s_shuttingDown = true;
+
+    // Cancel pending work
     m_watcher.cancel();
+
+    // Terminate all running child processes
+    {
+        QMutexLocker locker(&s_processMutex);
+        for (QProcess *process: s_runningProcesses) {
+            if (process && process->state() != QProcess::NotRunning) {
+                qDebug() << "Terminating child process on shutdown";
+                process->kill();
+            }
+        }
+    }
+
     m_watcher.waitForFinished();
 }
 
@@ -47,7 +70,7 @@ void Collage::toCollage(const QList<QUrl> &paths) {
     }
 
     // Create list of index-path pairs for mapping
-    QList<QPair<int, QUrl>> indexedPaths;
+    QList<QPair<int, QUrl> > indexedPaths;
     for (int i = 0; i < paths.size(); ++i) {
         indexedPaths.append({i, paths[i]});
         emit collageProgress(i, paths[i].toString());
@@ -97,6 +120,11 @@ QString Collage::createCollageSingle(const QUrl &path) {
 }
 
 CollageResult Collage::processVideoExternal(int index, const QUrl &path) {
+    // Check if we're shutting down before starting
+    if (s_shuttingDown) {
+        return CollageResult{index, path.toLocalFile(), QString(), false};
+    }
+
     // Spawn a separate process to create the collage
     // This completely isolates the heavy media processing from the main app
     qDebug() << "Spawning external process for video" << index << ":" << path.toString();
@@ -108,10 +136,34 @@ CollageResult Collage::processVideoExternal(int index, const QUrl &path) {
     process.setProgram(appPath);
     process.setArguments({"--collage", inputPath});
 
+    // Set environment variable to indicate subprocess mode (suppresses spinner output)
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert("GAV_SUBPROCESS", "1");
+    process.setProcessEnvironment(env);
+
+    // Register process for cleanup on shutdown
+    {
+        QMutexLocker locker(&s_processMutex);
+        s_runningProcesses.append(&process);
+    }
+
     process.start();
 
     // Wait for process to finish (with timeout of 5 minutes per video)
-    if (!process.waitForFinished(300000)) {
+    bool finished = process.waitForFinished(300000);
+
+    // Unregister process
+    {
+        QMutexLocker locker(&s_processMutex);
+        s_runningProcesses.removeOne(&process);
+    }
+
+    // Check if we were killed due to shutdown
+    if (s_shuttingDown) {
+        return CollageResult{index, inputPath, QString(), false};
+    }
+
+    if (!finished) {
         qDebug() << "Process timeout for video" << index;
         process.kill();
         return CollageResult{index, inputPath, QString(), false};
