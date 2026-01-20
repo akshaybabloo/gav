@@ -235,14 +235,14 @@ ImageMeta Collage::collectImages(const QUrl &path) {
         .name = player.source().fileName(),
         .duration = data.stringValue(QMediaMetaData::Duration),
         .audioCodec = data.stringValue(QMediaMetaData::AudioCodec),
-        .videoCodes = data.stringValue(QMediaMetaData::VideoCodec),
+        .videoCodec = data.stringValue(QMediaMetaData::VideoCodec),
         .size = fileSize,
         .resolution = data.stringValue(QMediaMetaData::Resolution)
     };
 
     qDebug() << "Collected" << frames.size() << "frames from" << path.toString() << "Name:" << image.name
             << "Duration:" << image.duration << "Audio Codec:" << image.audioCodec
-            << "Video Codec:" << image.videoCodes << "Size:" << image.size
+            << "Video Codec:" << image.videoCodec << "Size:" << image.size
             << "Resolution:" << image.resolution;
 
     return image;
@@ -296,7 +296,7 @@ QImage Collage::drawCollage(const ImageMeta &meta) {
     metaLines << QString("Duration: %1").arg(meta.duration);
     metaLines << QString("Resolution: %1").arg(meta.resolution);
     metaLines << QString("Size: %1").arg(meta.size);
-    metaLines << QString("Video Codec: %1").arg(meta.videoCodes);
+    metaLines << QString("Video Codec: %1").arg(meta.videoCodec);
     metaLines << QString("Audio Codec: %1").arg(meta.audioCodec);
 
     const int tableHeight = metaLines.size() * tableRowHeight + 2 * tablePadding;

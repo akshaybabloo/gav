@@ -15,7 +15,7 @@ struct ImageMeta
     QString name;
     QString duration;
     QString audioCodec;
-    QString videoCodes;
+    QString videoCodec;
     QString size;
     QString resolution;
 };
