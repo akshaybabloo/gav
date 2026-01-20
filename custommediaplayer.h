@@ -25,23 +25,31 @@ public:
   CustomMediaPlayer();
 
   Q_INVOKABLE void play();
+
   Q_INVOKABLE void pause();
+
   Q_INVOKABLE void stop();
+
   Q_INVOKABLE void captureFrame();
 
   QUrl source() const;
+
   void setSource(const QUrl &source);
 
   qreal playbackRate() const;
+
   void setPlaybackRate(qreal rate);
 
   QObject *videoOutput() const;
+
   void setVideoOutput(QObject *videoOutput);
 
   QAudioOutput *audioOutput() const;
+
   void setAudioOutput(QAudioOutput *audioOutput);
 
   QMediaPlayer::PlaybackState playbackState() const;
+
   QMediaPlayer::MediaStatus mediaStatus() const;
 
   bool hasVideo() const;
@@ -49,28 +57,43 @@ public:
   qint64 duration() const;
 
   qint64 position() const;
-  void setPosition(qint64 position);
+
+  void setPosition(qint64 position) const;
 
   bool mediaLoaded() const;
 
 signals:
   void sourceChanged();
+
   void videoOutputChanged();
+
   void audioOutputChanged();
+
   void playbackStateChanged(QMediaPlayer::PlaybackState state);
+
   void mediaStatusChanged();
+
   void hasVideoChanged();
+
   void errorOccurred(QString errorString);
+
   void durationChanged();
+
   void positionChanged();
+
   void mediaLoadedChanged();
+
   void playbackRateChanged();
+
   void videoVisibilityChanged(bool visible);
+
   void frameCaptured(bool success, const QString &path);
 
 private slots:
   void onMediaPlayerError(QMediaPlayer::Error error, const QString &errorString);
+
   void updateHasVideo();
+
   void onStatusChanged(QMediaPlayer::MediaStatus status);
 
 private:

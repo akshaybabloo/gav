@@ -82,7 +82,7 @@ qint64 CustomMediaPlayer::duration() const { return m_mediaPlayer->duration(); }
 
 qint64 CustomMediaPlayer::position() const { return m_mediaPlayer->position(); }
 
-void CustomMediaPlayer::setPosition(qint64 position) {
+void CustomMediaPlayer::setPosition(const qint64 position) const {
   m_mediaPlayer->setPosition(position);
 }
 
@@ -130,8 +130,7 @@ void CustomMediaPlayer::onMediaPlayerError(QMediaPlayer::Error error,
 }
 
 void CustomMediaPlayer::updateHasVideo() {
-  bool hasVideo = !m_mediaPlayer->videoTracks().isEmpty();
-  if (m_hasVideo != hasVideo) {
+  if (const bool hasVideo = !m_mediaPlayer->videoTracks().isEmpty(); m_hasVideo != hasVideo) {
     m_hasVideo = hasVideo;
     emit hasVideoChanged();
   }
@@ -172,19 +171,19 @@ void CustomMediaPlayer::setPlaybackRate(qreal rate) {
 }
 
 void CustomMediaPlayer::captureFrame() {
-  QVideoSink *sink = m_mediaPlayer->videoSink();
+  const QVideoSink *sink = m_mediaPlayer->videoSink();
   if (!sink) {
     emit frameCaptured(false, "No video sink available.");
     return;
   }
 
-  QVideoFrame frame = sink->videoFrame();
+  const QVideoFrame frame = sink->videoFrame();
   if (!frame.isValid()) {
     emit frameCaptured(false, "Invalid video frame.");
     return;
   }
 
-  QImage image = frame.toImage();
+  const QImage image = frame.toImage();
   if (image.isNull()) {
     emit frameCaptured(false, "Failed to convert frame to image.");
     return;
@@ -193,27 +192,25 @@ void CustomMediaPlayer::captureFrame() {
   QString videoName = m_mediaPlayer->source().fileName();
   videoName = videoName.left(videoName.lastIndexOf('.'));
 
-  qint64 pos = m_mediaPlayer->position();
+  const qint64 pos = m_mediaPlayer->position();
   QString timeOfFrame = QDateTime::fromMSecsSinceEpoch(pos).toUTC().toString("hh-mm-ss-zzz");
 
   QString systemTime = QDateTime::currentDateTime().toString("yyyy-MM-dd_hh-mm-ss");
 
-  QString filename = QString("%1_%2_%3.jpeg").arg(videoName, timeOfFrame, systemTime);
+  const QString filename = QString("%1_%2_%3.jpeg").arg(videoName, timeOfFrame, systemTime);
 
-  QString picturesPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+  const QString picturesPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
   if (picturesPath.isEmpty()) {
     emit frameCaptured(false, "Could not determine pictures location.");
     return;
   }
 
-  QDir dir(picturesPath);
+  const QDir dir(picturesPath);
   if (!dir.exists()) {
     dir.mkpath(".");
   }
 
-  QString fullPath = dir.filePath(filename);
-
-  if (image.save(fullPath, "JPEG")) {
+  if (const QString fullPath = dir.filePath(filename); image.save(fullPath, "JPEG")) {
     emit frameCaptured(true, fullPath);
   } else {
     emit frameCaptured(false, "Failed to save image.");
