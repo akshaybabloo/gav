@@ -226,11 +226,10 @@ ApplicationWindow {
     Dialog {
         id: unsupportedFileDialog
 
+        anchors.centerIn: parent
         modal: true
         standardButtons: Dialog.Ok
         title: "Unsupported File"
-        x: (parent.width - width) / 2
-        y: (parent.height - height) / 2
 
         Text {
             color: "white"

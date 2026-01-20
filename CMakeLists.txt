@@ -144,6 +144,16 @@ target_link_libraries(appgav
     PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Qml Qt6::Multimedia Qt6::Widgets spdlog::spdlog fmt::fmt
 )
 
+if(WIN32 AND DEFINED ENV{CLION_IDE})
+    # Deploy Qt dependencies after build for CLion
+    add_custom_command(TARGET appgav POST_BUILD
+            COMMAND "${QT_DIR}/${COMPILER}/bin/windeployqt.exe"
+            --qmldir "${CMAKE_SOURCE_DIR}"
+            "$<TARGET_FILE:appgav>"
+            COMMENT "Running windeployqt to deploy Qt DLLs..."
+    )
+endif()
+
 include(InstallRequiredSystemLibraries)
 include(GNUInstallDirs)
 
