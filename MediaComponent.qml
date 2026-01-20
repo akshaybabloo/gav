@@ -249,8 +249,11 @@ Item {
         }
 
         onWheel: function (wheel) {
+            // Only handle scroll when video is playing or paused (not stopped)
+            var isActive = customMediaPlayer.playbackState !== MediaPlayer.StoppedState
+
             // Ctrl + Scroll = Zoom (Chrome-like multiplicative scaling)
-            if (wheel.modifiers & Qt.ControlModifier && videoOutput.visible) {
+            if (wheel.modifiers & Qt.ControlModifier && videoOutput.visible && isActive) {
                 // Each scroll step multiplies/divides by ~1.25 (Chrome uses similar factor)
                 var zoomFactor = wheel.angleDelta.y > 0 ? 1.25 : 0.8
                 var newZoom = Math.max(1.0, Math.min(5.0, videoOutput.zoomLevel * zoomFactor))
@@ -270,11 +273,11 @@ Item {
                 videoOutput.zoomLevel = newZoom
 
             // Regular Scroll = Volume
-            } else if (wheel.angleDelta.y > 0 && videoOutput.visible) {
+            } else if (wheel.angleDelta.y > 0 && videoOutput.visible && isActive) {
                 audioOutput.volume = Math.min(audioOutput.volume + 0.05, 1.0)
                 volumeColumn.visible = true
                 volumeDisplayTimer.restart()
-            } else if (wheel.angleDelta.y < 0 && videoOutput.visible) {
+            } else if (wheel.angleDelta.y < 0 && videoOutput.visible && isActive) {
                 audioOutput.volume = Math.max(audioOutput.volume - 0.05, 0.0)
                 volumeColumn.visible = true
                 volumeDisplayTimer.restart()
