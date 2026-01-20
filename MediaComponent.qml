@@ -78,6 +78,10 @@ Item {
             color: "white"
             font.pixelSize: 25
             font.bold: true
+            width: 50
+            horizontalAlignment: Text.AlignHCenter
+            style: Text.Outline
+            styleColor: "black"
         }
 
         Rectangle {
