@@ -3,6 +3,9 @@
 #include <QCommandLineParser>
 #include <QDir>
 #include <QFileInfo>
+#include <QProcess>
+#include <QProcessEnvironment>
+#include <QEventLoop>
 #include <iostream>
 #include <thread>
 #include <atomic>
@@ -124,43 +127,13 @@ int main(int argc, char *argv[]) {
         }
 
         bool verbose = parser.isSet(verboseOption);
+        bool isSubprocess = qEnvironmentVariableIsSet("GAV_SUBPROCESS");
 
-        // Process single file synchronously (used by QProcess from GUI)
+        // If running as subprocess, process single file directly and output result
         // Output format: SUCCESS:<output_path> or FAILED:<input_path>
-        if (collagePaths.size() == 1) {
-            auto isRunning = std::make_shared<std::atomic<bool> >(true);
-            std::thread spinnerThread;
-
-            // Check if running as subprocess (spawned by GUI for collage creation)
-            bool isSubprocess = qEnvironmentVariableIsSet("GAV_SUBPROCESS");
-
-            // Only show spinner if not in verbose mode and not a subprocess
-            if (!verbose && !isSubprocess) {
-                spinnerThread = std::thread([isRunning]() {
-                    std::vector<std::string> spinner = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
-                    int i = 0;
-                    while (*isRunning) {
-                        std::cout << "\rCreating collage... " << spinner[i % spinner.size()] << " ";
-                        std::cout.flush();
-                        std::this_thread::sleep_for(std::chrono::milliseconds(80));
-                        i++;
-                    }
-                });
-            }
-
+        if (isSubprocess) {
             QUrl url = QUrl::fromUserInput(collagePaths.first());
             QString result = Collage::createCollageSingle(url);
-
-            // Stop the spinner
-            *isRunning = false;
-            if (spinnerThread.joinable()) {
-                spinnerThread.join();
-            }
-
-            // Clear the spinner line
-            if (!verbose && !isSubprocess) {
-                std::cout << "\r\033[K";
-            }
 
             if (!result.isEmpty()) {
                 std::cout << "SUCCESS:" << result.toStdString() << std::endl;
@@ -171,52 +144,66 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        // Multiple files - process each with progress
+        // Convert paths to URLs
+        QList<QUrl> urls;
+        for (const QString &path : collagePaths) {
+            urls.append(QUrl::fromUserInput(path));
+        }
+
+        // Track results
         int successCount = 0;
         int failCount = 0;
         QStringList successPaths;
         QStringList failPaths;
+        const int total = urls.size();
 
-        for (int i = 0; i < collagePaths.size(); ++i) {
-            const QString &path = collagePaths[i];
+        // Spinner thread
+        auto isRunning = std::make_shared<std::atomic<bool>>(true);
+        auto completedCount = std::make_shared<std::atomic<int>>(0);
+        std::thread spinnerThread;
 
-            auto isRunning = std::make_shared<std::atomic<bool> >(true);
-            std::thread spinnerThread;
-
-            // Only show spinner if not in verbose mode
-            if (!verbose) {
-                spinnerThread = std::thread([isRunning, i, total = collagePaths.size()]() {
-                    std::vector<std::string> spinner = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
-                    int j = 0;
-                    while (*isRunning) {
-                        std::cout << "\rCreating collage [" << (i + 1) << "/" << total << "]... "
-                                << spinner[j % spinner.size()] << " ";
-                        std::cout.flush();
-                        std::this_thread::sleep_for(std::chrono::milliseconds(80));
-                        j++;
-                    }
-                });
-            }
-
-            QUrl url = QUrl::fromUserInput(path);
-            QString result = Collage::createCollageSingle(url);
-
-            // Stop the spinner
-            *isRunning = false;
-            if (spinnerThread.joinable()) {
-                spinnerThread.join();
-            }
-
-            if (!result.isEmpty()) {
-                successCount++;
-                successPaths.append(result);
-            } else {
-                failCount++;
-                failPaths.append(path);
-            }
+        if (!verbose) {
+            spinnerThread = std::thread([isRunning, completedCount, total]() {
+                std::vector<std::string> spinner = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
+                int j = 0;
+                while (*isRunning) {
+                    int done = *completedCount;
+                    std::cout << "\rCreating collages [" << done << "/" << total << "]... "
+                            << spinner[j % spinner.size()] << " ";
+                    std::cout.flush();
+                    std::this_thread::sleep_for(std::chrono::milliseconds(80));
+                    j++;
+                }
+            });
         }
 
-        // Clear the spinner line
+        // Use Collage::toCollage which handles parallel subprocess spawning
+        Collage collage;
+        QEventLoop loop;
+
+        QObject::connect(&collage, &Collage::collageCompleted,
+            [&](int index, const QString &outputPath, bool success) {
+                (*completedCount)++;
+                if (success) {
+                    successCount++;
+                    successPaths.append(outputPath);
+                } else {
+                    failCount++;
+                    failPaths.append(collagePaths[index]);
+                }
+            });
+
+        QObject::connect(&collage, &Collage::collageFinished, &loop, &QEventLoop::quit);
+
+        collage.toCollage(urls);
+        loop.exec();
+
+        // Stop spinner
+        *isRunning = false;
+        if (spinnerThread.joinable()) {
+            spinnerThread.join();
+        }
+
         if (!verbose) {
             std::cout << "\r\033[K";
         }
