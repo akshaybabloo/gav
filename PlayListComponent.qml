@@ -115,6 +115,8 @@ Item {
         clip: true
         model: playList
         visible: playList.count > 0
+        headerPositioning: ListView.OverlayHeader
+        topMargin: 5
 
         ScrollBar.vertical: ScrollBar {
         }
@@ -186,8 +188,9 @@ Item {
         }
         header: Rectangle {
             color: Material.dialogColor
-            height: 70
+            height: 100
             width: parent.width
+            z: 2
 
             ColumnLayout {
                 anchors.fill: parent
