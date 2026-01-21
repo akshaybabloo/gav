@@ -111,17 +111,13 @@ void Collage::toCollage(const QList<QUrl> &paths) {
         indexedPaths.append({i, paths[i]});
     }
 
-    // Capture reference to instance shutdown flag for the lambda
-    std::atomic<bool>& shuttingDown = m_shuttingDown;
-
     // Use QtConcurrent::mapped with custom thread pool
     // Each video is processed in a SEPARATE PROCESS for complete isolation
-    // Note: collageProgress is emitted inside processVideoExternal when processing actually starts
     QFuture<CollageResult> future = QtConcurrent::mapped(
         &m_threadPool,
         indexedPaths,
-        [&shuttingDown](const QPair<int, QUrl> &pair) -> CollageResult {
-            return processVideoExternal(pair.first, pair.second, shuttingDown);
+        [this](const QPair<int, QUrl> &pair) -> CollageResult {
+            return processVideoExternal(pair.first, pair.second);
         }
     );
 
@@ -158,11 +154,14 @@ QString Collage::createCollageSingle(const QUrl &path) {
     return QString();
 }
 
-CollageResult Collage::processVideoExternal(int index, const QUrl &path, std::atomic<bool>& shuttingDown) {
+CollageResult Collage::processVideoExternal(int index, const QUrl &path) {
     // Check if we're shutting down before starting
-    if (shuttingDown || s_shuttingDown) {
+    if (m_shuttingDown || s_shuttingDown) {
         return CollageResult{index, path.toLocalFile(), QString(), false};
     }
+
+    // Emit progress signal (Qt handles cross-thread delivery)
+    emit collageProgress(index, path.toString());
 
     // Spawn a separate process to create the collage
     // This completely isolates the heavy media processing from the main app
@@ -199,7 +198,7 @@ CollageResult Collage::processVideoExternal(int index, const QUrl &path, std::at
     }
 
     // Check if we were killed due to shutdown
-    if (shuttingDown || s_shuttingDown) {
+    if (m_shuttingDown || s_shuttingDown) {
         if (process->state() != QProcess::NotRunning) {
             process->kill();
             process->waitForFinished(1000);

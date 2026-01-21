@@ -66,10 +66,9 @@ private:
      *
      * @param index The index of this video in the batch (for progress tracking)
      * @param path The URL of the video file to process
-     * @param shuttingDown Atomic flag to check if shutdown was requested
      * @return CollageResult containing success status and output path
      */
-    static CollageResult processVideoExternal(int index, const QUrl& path, std::atomic<bool>& shuttingDown);
+    CollageResult processVideoExternal(int index, const QUrl& path);
 
     void onFutureFinished();
 
