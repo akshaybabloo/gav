@@ -4,6 +4,8 @@ import QtMultimedia
 import QtQuick.Layouts
 import QtQuick.Controls.Material
 
+import gavqml
+
 Item {
     required property var audioOutput
     property bool containsMouse: controlMouseArea.containsMouse
@@ -14,19 +16,21 @@ Item {
     required property var player
     required property int playlistCount
     required property int playlistCurrentIndex
-    property real previousVolume: 0.5
+    property real previousVolume: AppConstants.defaultVolume
     property int rewindMultiplier: 1
     required property var videoOutput
+    property int currentSpeedIndex: 3  // Index of 1.0x in playbackSpeeds array
 
     signal nextTrack
     signal previousTrack
 
     function formatTime(ms) {
-        var seconds = Math.floor(ms / 1000);
-        var minutes = Math.floor(seconds / 60);
-        var hours = Math.floor(minutes / 60);
-        seconds = seconds % 60;
-        return Qt.formatTime(new Date(0, 0, hours, 0, minutes, seconds), "hh:mm:ss");
+        var totalSecs = Math.floor(ms / 1000);
+        var h = Math.floor(totalSecs / 3600);
+        var m = Math.floor((totalSecs % 3600) / 60);
+        var s = totalSecs % 60;
+        var pad = function(num) { return String(num).padStart(2, '0'); };
+        return h > 0 ? h + ":" + pad(m) + ":" + pad(s) : pad(m) + ":" + pad(s);
     }
     function stopFastForwarding() {
         if (isFastForwarding) {
@@ -183,15 +187,19 @@ Item {
                         Layout.preferredHeight: 30
                         Layout.preferredWidth: 25
                         Material.roundedScale: Material.NotRounded
-                        ToolTip.delay: 1000
+                        ToolTip.delay: AppConstants.tooltipDelay
                         ToolTip.text: player.playbackState === MediaPlayer.PlayingState ? qsTr("Pause") : qsTr("Play")
-                        ToolTip.timeout: 5000
+                        ToolTip.timeout: AppConstants.tooltipTimeout
                         ToolTip.visible: hovered
                         enabled: mediaLoaded
                         font.family: materialSymbolsOutlined.name
                         hoverEnabled: true
                         scale: 1.5
                         text: player.playbackState === MediaPlayer.PlayingState ? "\ue034" : "\ue037"
+
+                        Accessible.name: player.playbackState === MediaPlayer.PlayingState ? qsTr("Pause") : qsTr("Play")
+                        Accessible.description: qsTr("Play or pause the media")
+                        Accessible.role: Accessible.Button
 
                         onClicked: {
                             if (player.playbackState === MediaPlayer.PlayingState) {
@@ -209,24 +217,47 @@ Item {
                         Layout.preferredHeight: 30
                         Layout.preferredWidth: 25
                         Material.roundedScale: Material.NotRounded
-                        ToolTip.delay: 1000
-                        ToolTip.text: qsTr("Fast rewind")
-                        ToolTip.timeout: 5000
+                        ToolTip.delay: AppConstants.tooltipDelay
+                        ToolTip.text: isFastRewinding ? qsTr("Fast rewind (10x)") : qsTr("Fast rewind")
+                        ToolTip.timeout: AppConstants.tooltipTimeout
                         ToolTip.visible: hovered
                         enabled: player.playbackState !== MediaPlayer.StoppedState
                         font.family: materialSymbolsOutlined.name
                         font.weight: Font.Light
                         hoverEnabled: true
                         scale: 1.5
-                        text: isFastRewinding ? "\ue020" + "<sub>\ue059</sub>" : "\ue020"
+                        text: "\ue020"
 
-                        contentItem: Text {
-                            color: parent.enabled ? "white" : "#a0a0a0"
-                            font: parent.font
-                            horizontalAlignment: Text.AlignHCenter
-                            text: parent.text
-                            textFormat: Text.RichText
-                            verticalAlignment: Text.AlignVCenter
+                        Accessible.name: qsTr("Fast rewind")
+                        Accessible.description: qsTr("Rewind the video. Double-click for 10x speed.")
+                        Accessible.role: Accessible.Button
+
+                        contentItem: Item {
+                            Text {
+                                anchors.centerIn: parent
+                                color: fastRewindButton.enabled ? "white" : "#a0a0a0"
+                                font: fastRewindButton.font
+                                text: "\ue020"
+                            }
+                            Rectangle {
+                                anchors.right: parent.right
+                                anchors.bottom: parent.bottom
+                                anchors.rightMargin: -2
+                                anchors.bottomMargin: 2
+                                width: 14
+                                height: 10
+                                radius: 2
+                                color: "#e53935"
+                                visible: isFastRewinding
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    color: "white"
+                                    font.pixelSize: 8
+                                    font.bold: true
+                                    text: "10x"
+                                }
+                            }
                         }
 
                         onClicked: {
@@ -255,7 +286,7 @@ Item {
 
                             interval: 250
 
-                            onTriggered: player.position = Math.max(player.position - 1000, 0)
+                            onTriggered: player.position = Math.max(player.position - AppConstants.seekStepSmall, 0)
                         }
                     }
                     Button {
@@ -288,24 +319,47 @@ Item {
                         Layout.preferredHeight: 30
                         Layout.preferredWidth: 25
                         Material.roundedScale: Material.NotRounded
-                        ToolTip.delay: 1000
-                        ToolTip.text: qsTr("Fast forward")
-                        ToolTip.timeout: 5000
+                        ToolTip.delay: AppConstants.tooltipDelay
+                        ToolTip.text: isFastForwarding ? qsTr("Fast forward (10x)") : qsTr("Fast forward")
+                        ToolTip.timeout: AppConstants.tooltipTimeout
                         ToolTip.visible: hovered
                         enabled: player.playbackState !== MediaPlayer.StoppedState
                         font.family: materialSymbolsOutlined.name
                         font.weight: Font.Light
                         hoverEnabled: true
                         scale: 1.5
-                        text: isFastForwarding ? "\ue01f" + "<sub>\ue056</sub>" : "\ue01f"
+                        text: "\ue01f"
 
-                        contentItem: Text {
-                            color: parent.enabled ? "white" : "#a0a0a0"
-                            font: parent.font
-                            horizontalAlignment: Text.AlignHCenter
-                            text: parent.text
-                            textFormat: Text.RichText
-                            verticalAlignment: Text.AlignVCenter
+                        Accessible.name: qsTr("Fast forward")
+                        Accessible.description: qsTr("Fast forward the video. Double-click for 10x speed.")
+                        Accessible.role: Accessible.Button
+
+                        contentItem: Item {
+                            Text {
+                                anchors.centerIn: parent
+                                color: fastForwardButton.enabled ? "white" : "#a0a0a0"
+                                font: fastForwardButton.font
+                                text: "\ue01f"
+                            }
+                            Rectangle {
+                                anchors.right: parent.right
+                                anchors.bottom: parent.bottom
+                                anchors.rightMargin: -2
+                                anchors.bottomMargin: 2
+                                width: 14
+                                height: 10
+                                radius: 2
+                                color: "#4caf50"
+                                visible: isFastForwarding
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    color: "white"
+                                    font.pixelSize: 8
+                                    font.bold: true
+                                    text: "10x"
+                                }
+                            }
                         }
 
                         onClicked: {
@@ -334,7 +388,7 @@ Item {
 
                             interval: 250
 
-                            onTriggered: player.position = Math.min(player.position + 1000, player.duration)
+                            onTriggered: player.position = Math.min(player.position + AppConstants.seekStepSmall, player.duration)
                         }
                     }
                     Button {
@@ -350,15 +404,80 @@ Item {
                         scale: 1.5
                         text: "\ue3c7"
 
+                        Accessible.name: qsTr("Toggle playlist")
+                        Accessible.description: qsTr("Show or hide the playlist")
+                        Accessible.role: Accessible.Button
+
                         onClicked: {
                             playlistComponent.visible = !playlistComponent.visible;
                         }
 
                         ToolTip {
-                            delay: 1000
+                            delay: AppConstants.tooltipDelay
                             text: qsTr("Toggle playlist")
-                            timeout: 5000
+                            timeout: AppConstants.tooltipTimeout
                             visible: playListButton.hovered
+                        }
+                    }
+                    Rectangle {
+                        Layout.preferredHeight: parent.height
+                        Layout.preferredWidth: 2
+                        color: "#a0a0a0"
+                        visible: true
+                    }
+
+                    // Playback speed selector
+                    Button {
+                        id: speedButton
+
+                        Layout.preferredHeight: 30
+                        Layout.preferredWidth: 40
+                        Material.roundedScale: Material.NotRounded
+                        enabled: mediaLoaded
+                        hoverEnabled: true
+
+                        Accessible.name: qsTr("Playback speed")
+                        Accessible.description: qsTr("Change playback speed")
+                        Accessible.role: Accessible.Button
+
+                        contentItem: Text {
+                            color: speedButton.enabled ? "white" : "#a0a0a0"
+                            font.pixelSize: 11
+                            font.bold: player.playbackRate !== 1.0
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            text: player.playbackRate.toFixed(2).replace(/\.?0+$/, '') + "x"
+                        }
+
+                        onClicked: speedMenu.open()
+
+                        ToolTip {
+                            delay: AppConstants.tooltipDelay
+                            text: qsTr("Playback speed: ") + player.playbackRate + "x"
+                            timeout: AppConstants.tooltipTimeout
+                            visible: speedButton.hovered
+                        }
+
+                        Menu {
+                            id: speedMenu
+                            y: -height
+
+                            Repeater {
+                                model: AppConstants.playbackSpeeds
+
+                                MenuItem {
+                                    text: modelData + "x"
+                                    checkable: true
+                                    checked: Math.abs(player.playbackRate - modelData) < 0.01
+
+                                    onTriggered: {
+                                        player.playbackRate = modelData;
+                                        stopFastForwarding();
+                                        stopFastRewinding();
+                                        currentSpeedIndex = index;
+                                    }
+                                }
+                            }
                         }
                     }
                     Rectangle {
@@ -557,26 +676,32 @@ Item {
 
                             onWheel: function (wheel) {
                                 if (wheel.angleDelta.y > 0) {
-                                    volumeSlider.value = Math.min(volumeSlider.value + 0.05, 1.0);
+                                    volumeSlider.value = Math.min(volumeSlider.value + AppConstants.volumeStep, 1.0);
                                 } else if (wheel.angleDelta.y < 0) {
-                                    volumeSlider.value = Math.max(volumeSlider.value - 0.05, 0.0);
+                                    volumeSlider.value = Math.max(volumeSlider.value - AppConstants.volumeStep, 0.0);
                                 }
                             }
                         }
                     }
                     Button {
+                        id: fullscreenButton
+
                         Layout.preferredHeight: 30
                         Layout.preferredWidth: 25
                         Material.background: "transparent"
                         Material.roundedScale: Material.NotRounded
-                        ToolTip.delay: 1000
+                        ToolTip.delay: AppConstants.tooltipDelay
                         ToolTip.text: qsTr("Toggle fullscreen")
-                        ToolTip.timeout: 5000
+                        ToolTip.timeout: AppConstants.tooltipTimeout
                         ToolTip.visible: hovered
                         font.family: materialSymbolsOutlined.name
                         hoverEnabled: true
                         scale: 1.5
                         text: mainWindow.visibility === Window.FullScreen ? "\ue5d1" : "\ue5d0"
+
+                        Accessible.name: qsTr("Toggle fullscreen")
+                        Accessible.description: qsTr("Enter or exit fullscreen mode")
+                        Accessible.role: Accessible.Button
 
                         onClicked: {
                             mainWindow.visibility = mainWindow.visibility === Window.FullScreen ? Window.Windowed : Window.FullScreen;
