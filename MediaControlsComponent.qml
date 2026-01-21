@@ -137,6 +137,10 @@ Item {
                 Slider {
                     id: seekSlider
 
+                    property string previewImageUrl: ""
+                    property qint64 previewPosition: 0
+                    property bool previewVisible: false
+
                     Layout.fillWidth: true
                     Layout.preferredHeight: 10
                     enabled: mediaLoaded
@@ -144,6 +148,76 @@ Item {
                     to: player.duration
 
                     onMoved: player.position = value
+
+                    // Seek preview popup
+                    Rectangle {
+                        id: seekPreview
+
+                        property real hoverX: 0
+
+                        visible: seekSlider.previewVisible && mediaLoaded && player.duration > 0
+                        x: Math.max(0, Math.min(hoverX - width / 2, seekSlider.width - width))
+                        y: -height - 10
+                        width: 170
+                        height: previewImage.status === Image.Ready ? 115 : 40
+                        color: "#e0222222"
+                        radius: 6
+                        border.color: "#444"
+                        border.width: 1
+
+                        Behavior on height {
+                            NumberAnimation { duration: 100 }
+                        }
+
+                        Column {
+                            anchors.centerIn: parent
+                            spacing: 4
+
+                            // Thumbnail image
+                            Image {
+                                id: previewImage
+                                width: 160
+                                height: 90
+                                visible: status === Image.Ready
+                                source: seekSlider.previewImageUrl
+                                fillMode: Image.PreserveAspectFit
+
+                                Rectangle {
+                                    anchors.fill: parent
+                                    color: "transparent"
+                                    border.color: "#333"
+                                    border.width: 1
+                                    visible: previewImage.status === Image.Ready
+                                }
+                            }
+
+                            // Loading indicator when no image yet
+                            Rectangle {
+                                width: 160
+                                height: 90
+                                color: "#333"
+                                visible: previewImage.status !== Image.Ready && seekSlider.previewVisible
+                                radius: 4
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    color: "#666"
+                                    font.family: materialSymbolsOutlined.name
+                                    font.pixelSize: 32
+                                    text: "\ue04b"
+                                }
+                            }
+
+                            // Time label
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                color: "white"
+                                font.pixelSize: 12
+                                font.bold: true
+                                text: formatTime(seekSlider.previewPosition)
+                            }
+                        }
+                    }
 
                     // Timer to update the slider position
                     Timer {
@@ -158,6 +232,60 @@ Item {
                             }
                         }
                     }
+
+                    // Preview hover detection
+                    MouseArea {
+                        id: previewMouseArea
+                        anchors.fill: parent
+                        anchors.topMargin: -20
+                        anchors.bottomMargin: -10
+                        acceptedButtons: Qt.NoButton
+                        hoverEnabled: true
+                        propagateComposedEvents: true
+
+                        onPositionChanged: function(mouse) {
+                            if (mediaLoaded && player.duration > 0) {
+                                var ratio = mouse.x / width;
+                                ratio = Math.max(0, Math.min(1, ratio));
+                                var pos = Math.floor(ratio * player.duration);
+                                seekSlider.previewPosition = pos;
+                                seekPreview.hoverX = mouse.x;
+
+                                // Request thumbnail from backend (throttled)
+                                previewRequestTimer.restart();
+                            }
+                        }
+                        onEntered: {
+                            seekSlider.previewVisible = true;
+                        }
+                        onExited: {
+                            seekSlider.previewVisible = false;
+                            seekSlider.previewImageUrl = "";
+                        }
+                    }
+
+                    // Throttle preview requests
+                    Timer {
+                        id: previewRequestTimer
+                        interval: 200
+                        onTriggered: {
+                            if (seekSlider.previewVisible) {
+                                player.requestPreviewAt(seekSlider.previewPosition);
+                            }
+                        }
+                    }
+
+                    // Handle preview ready signal
+                    Connections {
+                        target: player
+                        function onPreviewReady(position, imageDataUrl) {
+                            if (seekSlider.previewVisible && imageDataUrl.length > 0) {
+                                seekSlider.previewImageUrl = imageDataUrl;
+                            }
+                        }
+                    }
+
+                    // Scroll wheel seeking
                     MouseArea {
                         acceptedButtons: Qt.NoButton
                         anchors.fill: parent
@@ -165,7 +293,7 @@ Item {
 
                         onWheel: function (wheel) {
                             if (player.playbackState === MediaPlayer.PlayingState) {
-                                const seekAmount = 1000;  // 1 second
+                                const seekAmount = AppConstants.seekStepSmall;
                                 if (wheel.angleDelta.y > 0) {
                                     player.position = Math.min(player.position + seekAmount, player.duration);
                                 } else if (wheel.angleDelta.y < 0) {

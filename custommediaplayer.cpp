@@ -5,6 +5,8 @@
 #include <QStandardPaths>
 #include <QDateTime>
 #include <QDir>
+#include <QBuffer>
+#include <QTimer>
 
 CustomMediaPlayer::CustomMediaPlayer() {
   m_mediaPlayer = new QMediaPlayer(this);
@@ -218,5 +220,78 @@ void CustomMediaPlayer::captureFrame() {
   } else {
     emit frameCaptured(false, "Failed to save image.");
   }
+}
+
+void CustomMediaPlayer::requestPreviewAt(qint64 position) {
+  if (!m_hasVideo || m_mediaPlayer->source().isEmpty()) {
+    return;
+  }
+
+  // Initialize preview player if needed
+  if (!m_previewPlayer) {
+    m_previewPlayer = new QMediaPlayer(this);
+    m_previewSink = new QVideoSink(this);
+    m_previewPlayer->setVideoSink(m_previewSink);
+
+    connect(m_previewPlayer, &QMediaPlayer::mediaStatusChanged,
+            this, &CustomMediaPlayer::onPreviewPlayerStatusChanged);
+  }
+
+  // Store the position we want to preview
+  m_pendingPreviewPosition = position;
+
+  // Load the same source if different
+  if (m_previewPlayer->source() != m_mediaPlayer->source()) {
+    m_previewPlayer->setSource(m_mediaPlayer->source());
+  } else if (m_previewPlayer->mediaStatus() >= QMediaPlayer::LoadedMedia) {
+    // Source already loaded, seek directly
+    m_previewPlayer->setPosition(position);
+    // Capture after a short delay to allow frame to render
+    QTimer::singleShot(100, this, [this, position]() {
+      capturePreviewFrame(position);
+    });
+  }
+}
+
+void CustomMediaPlayer::onPreviewPlayerStatusChanged(QMediaPlayer::MediaStatus status) {
+  if (status == QMediaPlayer::LoadedMedia && m_pendingPreviewPosition >= 0) {
+    m_previewPlayer->setPosition(m_pendingPreviewPosition);
+    // Capture after a short delay to allow frame to render
+    qint64 pos = m_pendingPreviewPosition;
+    QTimer::singleShot(100, this, [this, pos]() {
+      capturePreviewFrame(pos);
+    });
+  }
+}
+
+void CustomMediaPlayer::capturePreviewFrame(qint64 position) {
+  if (!m_previewSink) {
+    emit previewReady(position, QString());
+    return;
+  }
+
+  QVideoFrame frame = m_previewSink->videoFrame();
+  if (!frame.isValid()) {
+    emit previewReady(position, QString());
+    return;
+  }
+
+  QImage image = frame.toImage();
+  if (image.isNull()) {
+    emit previewReady(position, QString());
+    return;
+  }
+
+  // Scale down for preview (max 160x90 for 16:9)
+  QImage scaled = image.scaled(160, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+
+  // Convert to base64 data URL
+  QByteArray byteArray;
+  QBuffer buffer(&byteArray);
+  buffer.open(QIODevice::WriteOnly);
+  scaled.save(&buffer, "JPEG", 70);
+
+  QString dataUrl = "data:image/jpeg;base64," + QString::fromLatin1(byteArray.toBase64());
+  emit previewReady(position, dataUrl);
 }
 
