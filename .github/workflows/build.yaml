@@ -65,7 +65,7 @@ jobs:
       - name: Install CMake 4+
         uses: akshaybabloo/actions-setup-cmake@v1
         with:
-          cmake-version: "4.1.x"
+          cmake-version: "4.2.x"
 
       - name: Bootstrap vcpkg (Windows)
         if: startsWith(matrix.os, 'windows-')

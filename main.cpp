@@ -1,8 +1,11 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QCommandLineParser>
-#include <QFileInfo>
 #include <QDir>
+#include <QFileInfo>
+#include <QProcess>
+#include <QProcessEnvironment>
+#include <QEventLoop>
 #include <iostream>
 #include <thread>
 #include <atomic>
@@ -119,63 +122,88 @@ int main(int argc, char *argv[]) {
         if (collagePaths.isEmpty() && !sourceValue.isEmpty()) {
             collagePaths.append(sourceValue);
         } else if (collagePaths.isEmpty()) {
-            std::cout << "No input files provided for collage creation." << std::endl;
+            std::cerr << "No input files provided for collage creation." << std::endl;
             return 1;
         }
 
-        QList<QUrl> urls;
-        for (const QString &path: std::as_const(collagePaths)) {
-            urls.append(QUrl::fromUserInput(path));
+        bool verbose = parser.isSet(verboseOption);
+        bool isSubprocess = qEnvironmentVariableIsSet("GAV_SUBPROCESS");
+
+        // If running as subprocess, process single file directly and output result
+        // Output format: SUCCESS:<output_path> or FAILED:<input_path>
+        if (isSubprocess) {
+            QUrl url = QUrl::fromUserInput(collagePaths.first());
+            QString result = Collage::createCollageSingle(url);
+
+            if (!result.isEmpty()) {
+                std::cout << "SUCCESS:" << result.toStdString() << std::endl;
+                return 0;
+            } else {
+                std::cerr << "FAILED:" << collagePaths.first().toStdString() << std::endl;
+                return 1;
+            }
         }
 
-        // Create collage instance
-        Collage collage;
+        // Convert paths to URLs
+        QList<QUrl> urls;
+        for (const QString &path : collagePaths) {
+            urls.append(QUrl::fromUserInput(path));
+        }
 
         // Track results
         int successCount = 0;
         int failCount = 0;
         QStringList successPaths;
         QStringList failPaths;
+        const int total = urls.size();
 
-        // Connect signals to track progress
-        QObject::connect(&collage, &Collage::collageCompleted, [&](int index, const QString &outputPath, bool success) {
-            if (success) {
-                successCount++;
-                successPaths.append(outputPath);
-            } else {
-                failCount++;
-                failPaths.append(outputPath.isEmpty() ? QString("Unknown") : outputPath);
-            }
-        });
-
-        bool verbose = parser.isSet(verboseOption);
+        // Spinner thread
         auto isRunning = std::make_shared<std::atomic<bool>>(true);
+        auto completedCount = std::make_shared<std::atomic<int>>(0);
         std::thread spinnerThread;
 
-        // Only show spinner if not in verbose mode
         if (!verbose) {
-            spinnerThread = std::thread([isRunning]() {
+            spinnerThread = std::thread([isRunning, completedCount, total]() {
                 std::vector<std::string> spinner = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
-                int i = 0;
+                int j = 0;
                 while (*isRunning) {
-                    std::cout << "\rCreating collage... " << spinner[i % spinner.size()] << " ";
+                    int done = *completedCount;
+                    std::cout << "\rCreating collages [" << done << "/" << total << "]... "
+                            << spinner[j % spinner.size()] << " ";
                     std::cout.flush();
                     std::this_thread::sleep_for(std::chrono::milliseconds(80));
-                    i++;
+                    j++;
                 }
             });
         }
 
-        // Call the collage function
-        collage.toCollage(urls);
+        // Use Collage::toCollage which handles parallel subprocess spawning
+        Collage collage;
+        QEventLoop loop;
 
-        // Stop the spinner
+        QObject::connect(&collage, &Collage::collageCompleted,
+            [&](int index, const QString &outputPath, bool success) {
+                (*completedCount)++;
+                if (success) {
+                    successCount++;
+                    successPaths.append(outputPath);
+                } else {
+                    failCount++;
+                    failPaths.append(collagePaths[index]);
+                }
+            });
+
+        QObject::connect(&collage, &Collage::collageFinished, &loop, &QEventLoop::quit);
+
+        collage.toCollage(urls);
+        loop.exec();
+
+        // Stop spinner
         *isRunning = false;
         if (spinnerThread.joinable()) {
             spinnerThread.join();
         }
 
-        // Clear the loading line only if spinner was shown
         if (!verbose) {
             std::cout << "\r\033[K";
         }

@@ -67,7 +67,7 @@ set(SPDLOG_FMT_EXTERNAL ON)
 # Find fmt first, then spdlog
 find_package(fmt CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
-find_package(Qt6 REQUIRED COMPONENTS Core Quick Multimedia Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Quick Multimedia Widgets Concurrent)
 
 qt_standard_project_setup(REQUIRES 6.9)
 
@@ -141,7 +141,7 @@ set_target_properties(appgav PROPERTIES
 set_target_properties(appgav PROPERTIES OUTPUT_NAME "gav")
 
 target_link_libraries(appgav
-    PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Qml Qt6::Multimedia Qt6::Widgets spdlog::spdlog fmt::fmt
+        PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Qml Qt6::Multimedia Qt6::Widgets spdlog::spdlog fmt::fmt Qt6::Concurrent
 )
 
 if(WIN32 AND DEFINED ENV{CLION_IDE})
@@ -191,12 +191,13 @@ if(BUILD_TESTS)
     )
     
     target_link_libraries(gav_tests
-        PRIVATE 
-        GTest::gtest 
+        PRIVATE
+        GTest::gtest
         GTest::gtest_main
         Qt6::Core
         Qt6::Quick
         Qt6::Multimedia
+        Qt6::Concurrent
         spdlog::spdlog
         fmt::fmt
         Qt6::Test
