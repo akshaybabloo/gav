@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Controls.Material
 import QtQuick.Layouts
 
 import gavqml
@@ -16,7 +17,7 @@ Item {
     // Full background
     Rectangle {
         anchors.fill: parent
-        color: "#1a1a1a"
+        color: Material.background
     }
 
     function toPathList(model) {
@@ -68,7 +69,7 @@ Item {
 
         Text {
             Layout.alignment: Qt.AlignHCenter
-            color: "white"
+            color: Material.foreground
             font.family: materialSymbolsOutlined.name
             font.pixelSize: 64
             font.weight: Font.ExtraLight
@@ -94,13 +95,14 @@ Item {
         }
         Text {
             Layout.alignment: Qt.AlignHCenter
-            color: "white"
+            color: Material.foreground
             font.pixelSize: 20
             text: qsTr("No media files")
         }
         Text {
             Layout.alignment: Qt.AlignHCenter
-            color: "#888"
+            color: Material.foreground
+            opacity: 0.5
             font.pixelSize: 14
             text: qsTr("Drag files here or use File > Open")
         }
@@ -128,7 +130,7 @@ Item {
             }
 
             background: Rectangle {
-                color: parent.down ? "#4a4a4e" : (parent.hovered ? "#2a2a2e" : (parent.ListView.isCurrentItem ? "#383838" : "transparent"))
+                color: parent.down ? Material.listHighlightColor : (parent.hovered ? Material.dividerColor : (parent.ListView.isCurrentItem ? Material.highlightedButtonColor : "transparent"))
                 radius: 4
             }
             contentItem: RowLayout {
@@ -136,14 +138,14 @@ Item {
                 spacing: 12
 
                 Text {
-                    color: "white"
+                    color: Material.foreground
                     font.family: materialSymbolsOutlined.name
                     font.pixelSize: 24
                     text: model.icon
                 }
                 Text {
                     Layout.fillWidth: true
-                    color: "white"
+                    color: Material.foreground
                     elide: Text.ElideRight
                     font.pixelSize: 14
                     text: model.name
@@ -183,7 +185,7 @@ Item {
             }
         }
         header: Rectangle {
-            color: "#80000000"
+            color: Material.dialogColor
             height: 70
             width: parent.width
 
@@ -201,16 +203,7 @@ Item {
                         id: searchField
                         Layout.fillWidth: true
                         placeholderText: qsTr("Search playlist...")
-                        placeholderTextColor: "#666"
-                        color: "white"
                         selectByMouse: true
-
-                        background: Rectangle {
-                            color: "#2a2a2a"
-                            radius: 4
-                            border.color: searchField.activeFocus ? "#4a90d9" : "#444"
-                            border.width: 1
-                        }
 
                         onTextChanged: {
                             searchFilter = text;
@@ -242,7 +235,8 @@ Item {
                     spacing: 10
 
                     Text {
-                        color: "#aaa"
+                        color: Material.foreground
+                        opacity: 0.7
                         font.pixelSize: 12
                         text: playList.count + " " + (playList.count === 1 ? qsTr("item") : qsTr("items"))
                     }

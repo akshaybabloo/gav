@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Controls.Material
 import QtQuick.Layouts
 
 import gavqml
@@ -9,6 +10,9 @@ Dialog {
 
     required property var audioOutput
     required property var mediaPlayer
+    required property bool isDarkTheme
+
+    signal themeToggled(bool isDark)
 
     modal: true
     title: qsTr("Settings")
@@ -19,13 +23,60 @@ Dialog {
         width: parent.width
         spacing: 20
 
+        // Appearance section
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 8
+
+            Text {
+                color: Material.foreground
+                font.bold: true
+                font.pixelSize: 14
+                text: qsTr("Appearance")
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+
+                Text {
+                    color: Material.foreground
+                    opacity: 0.7
+                    text: qsTr("Theme:")
+                }
+                Item { Layout.fillWidth: true }
+                Text {
+                    color: Material.foreground
+                    opacity: 0.7
+                    text: qsTr("Light")
+                }
+                Switch {
+                    id: themeSwitch
+                    checked: isDarkTheme
+                    onCheckedChanged: {
+                        themeToggled(checked);
+                    }
+                }
+                Text {
+                    color: Material.foreground
+                    opacity: 0.7
+                    text: qsTr("Dark")
+                }
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 1
+            color: Material.dividerColor
+        }
+
         // Volume section
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 8
 
             Text {
-                color: "white"
+                color: Material.foreground
                 font.bold: true
                 font.pixelSize: 14
                 text: qsTr("Audio")
@@ -35,7 +86,8 @@ Dialog {
                 spacing: 10
 
                 Text {
-                    color: "#aaa"
+                    color: Material.foreground
+                    opacity: 0.7
                     text: qsTr("Default Volume:")
                 }
                 Slider {
@@ -49,7 +101,8 @@ Dialog {
                     }
                 }
                 Text {
-                    color: "#aaa"
+                    color: Material.foreground
+                    opacity: 0.7
                     text: Math.round(defaultVolumeSlider.value * 100) + "%"
                     Layout.preferredWidth: 40
                 }
@@ -59,7 +112,7 @@ Dialog {
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 1
-            color: "#444"
+            color: Material.dividerColor
         }
 
         // Playback section
@@ -68,7 +121,7 @@ Dialog {
             spacing: 8
 
             Text {
-                color: "white"
+                color: Material.foreground
                 font.bold: true
                 font.pixelSize: 14
                 text: qsTr("Playback")
@@ -78,7 +131,8 @@ Dialog {
                 spacing: 10
 
                 Text {
-                    color: "#aaa"
+                    color: Material.foreground
+                    opacity: 0.7
                     text: qsTr("Default Speed:")
                 }
                 ComboBox {
@@ -100,7 +154,7 @@ Dialog {
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 1
-            color: "#444"
+            color: Material.dividerColor
         }
 
         // Interface section
@@ -109,7 +163,7 @@ Dialog {
             spacing: 8
 
             Text {
-                color: "white"
+                color: Material.foreground
                 font.bold: true
                 font.pixelSize: 14
                 text: qsTr("Interface")
@@ -118,16 +172,10 @@ Dialog {
                 id: autoHideControlsCheck
                 text: qsTr("Auto-hide controls during playback")
                 checked: true
-
-                contentItem: Text {
-                    text: parent.text
-                    color: "#aaa"
-                    leftPadding: parent.indicator.width + parent.spacing
-                    verticalAlignment: Text.AlignVCenter
-                }
             }
             Text {
-                color: "#666"
+                color: Material.foreground
+                opacity: 0.5
                 font.pixelSize: 11
                 text: qsTr("Controls hide after ") + (AppConstants.controlsHideDelay / 1000) + qsTr(" seconds of inactivity")
                 leftPadding: 26
@@ -137,7 +185,7 @@ Dialog {
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 1
-            color: "#444"
+            color: Material.dividerColor
         }
 
         // Keyboard shortcuts reference
@@ -146,7 +194,7 @@ Dialog {
             spacing: 8
 
             Text {
-                color: "white"
+                color: Material.foreground
                 font.bold: true
                 font.pixelSize: 14
                 text: qsTr("Keyboard Shortcuts")
@@ -156,20 +204,20 @@ Dialog {
                 columnSpacing: 20
                 rowSpacing: 4
 
-                Text { color: "#888"; text: "Space" }
-                Text { color: "#aaa"; text: qsTr("Play/Pause") }
+                Text { color: Material.foreground; opacity: 0.5; text: "Space" }
+                Text { color: Material.foreground; opacity: 0.7; text: qsTr("Play/Pause") }
 
-                Text { color: "#888"; text: "Left/Right" }
-                Text { color: "#aaa"; text: qsTr("Seek 5 seconds") }
+                Text { color: Material.foreground; opacity: 0.5; text: "Left/Right" }
+                Text { color: Material.foreground; opacity: 0.7; text: qsTr("Seek 5 seconds") }
 
-                Text { color: "#888"; text: "Scroll" }
-                Text { color: "#aaa"; text: qsTr("Volume") }
+                Text { color: Material.foreground; opacity: 0.5; text: "Scroll" }
+                Text { color: Material.foreground; opacity: 0.7; text: qsTr("Volume") }
 
-                Text { color: "#888"; text: "Ctrl+Scroll" }
-                Text { color: "#aaa"; text: qsTr("Zoom") }
+                Text { color: Material.foreground; opacity: 0.5; text: "Ctrl+Scroll" }
+                Text { color: Material.foreground; opacity: 0.7; text: qsTr("Zoom") }
 
-                Text { color: "#888"; text: "Double-click" }
-                Text { color: "#aaa"; text: qsTr("Fullscreen") }
+                Text { color: Material.foreground; opacity: 0.5; text: "Double-click" }
+                Text { color: Material.foreground; opacity: 0.7; text: qsTr("Fullscreen") }
             }
         }
     }

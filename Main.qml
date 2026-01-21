@@ -1,6 +1,7 @@
 import QtCore
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Controls.Material
 import QtQuick.Dialogs
 import QtQuick.Layouts
 
@@ -14,6 +15,10 @@ ApplicationWindow {
     property bool shouldAutoPlay: false
     property url source
     property string lastUnsupportedFile: ""
+    property bool isDarkTheme: true
+
+    // Dynamic theme switching - overrides qtquickcontrols2.conf at runtime
+    Material.theme: isDarkTheme ? Material.Dark : Material.Light
 
     function getMediaInfo(fileUrl) {
         var path = fileUrl.toString();
@@ -332,8 +337,13 @@ ApplicationWindow {
 
         audioOutput: mediaComponent.audioOutput
         mediaPlayer: mediaComponent.mediaPlayer
+        isDarkTheme: mainWindow.isDarkTheme
         x: (parent.width - width) / 2
         y: (parent.height - height) / 2
+
+        onThemeToggled: function(isDark) {
+            mainWindow.isDarkTheme = isDark;
+        }
     }
     DropArea {
         anchors.fill: parent

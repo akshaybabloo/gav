@@ -9,6 +9,8 @@ import gavqml
 Item {
     required property var audioOutput
     property bool containsMouse: controlMouseArea.containsMouse
+    property int currentSpeedIndex: 3  // Index of 1.0x in playbackSpeeds array
+
     property real fastForwardRate: 1.0
     property bool isFastForwarding: false
     property bool isFastRewinding: false
@@ -19,7 +21,6 @@ Item {
     property real previousVolume: AppConstants.defaultVolume
     property int rewindMultiplier: 1
     required property var videoOutput
-    property int currentSpeedIndex: 3  // Index of 1.0x in playbackSpeeds array
 
     signal nextTrack
     signal previousTrack
@@ -29,7 +30,9 @@ Item {
         var h = Math.floor(totalSecs / 3600);
         var m = Math.floor((totalSecs % 3600) / 60);
         var s = totalSecs % 60;
-        var pad = function(num) { return String(num).padStart(2, '0'); };
+        var pad = function (num) {
+            return String(num).padStart(2, '0');
+        };
         return h > 0 ? h + ":" + pad(m) + ":" + pad(s) : pad(m) + ":" + pad(s);
     }
     function stopFastForwarding() {
@@ -138,7 +141,7 @@ Item {
                     id: seekSlider
 
                     property string previewImageUrl: ""
-                    property qint64 previewPosition: 0
+                    property int previewPosition: 0
                     property bool previewVisible: false
 
                     Layout.fillWidth: true
@@ -155,18 +158,20 @@ Item {
 
                         property real hoverX: 0
 
-                        visible: seekSlider.previewVisible && mediaLoaded && player.duration > 0
-                        x: Math.max(0, Math.min(hoverX - width / 2, seekSlider.width - width))
-                        y: -height - 10
-                        width: 170
-                        height: previewImage.status === Image.Ready ? 115 : 40
-                        color: "#e0222222"
-                        radius: 6
                         border.color: "#444"
                         border.width: 1
+                        color: "#e0222222"
+                        height: previewImage.status === Image.Ready ? 115 : 40
+                        radius: 6
+                        visible: seekSlider.previewVisible && mediaLoaded && player.duration > 0
+                        width: 170
+                        x: Math.max(0, Math.min(hoverX - width / 2, seekSlider.width - width))
+                        y: -height - 10
 
                         Behavior on height {
-                            NumberAnimation { duration: 100 }
+                            NumberAnimation {
+                                duration: 100
+                            }
                         }
 
                         Column {
@@ -176,28 +181,29 @@ Item {
                             // Thumbnail image
                             Image {
                                 id: previewImage
-                                width: 160
-                                height: 90
-                                visible: status === Image.Ready
-                                source: seekSlider.previewImageUrl
+
                                 fillMode: Image.PreserveAspectFit
+                                height: 90
+                                source: seekSlider.previewImageUrl
+                                visible: status === Image.Ready
+                                width: 160
 
                                 Rectangle {
                                     anchors.fill: parent
-                                    color: "transparent"
                                     border.color: "#333"
                                     border.width: 1
+                                    color: "transparent"
                                     visible: previewImage.status === Image.Ready
                                 }
                             }
 
                             // Loading indicator when no image yet
                             Rectangle {
-                                width: 160
-                                height: 90
                                 color: "#333"
-                                visible: previewImage.status !== Image.Ready && seekSlider.previewVisible
+                                height: 90
                                 radius: 4
+                                visible: previewImage.status !== Image.Ready && seekSlider.previewVisible
+                                width: 160
 
                                 Text {
                                     anchors.centerIn: parent
@@ -212,8 +218,8 @@ Item {
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 color: "white"
-                                font.pixelSize: 12
                                 font.bold: true
+                                font.pixelSize: 12
                                 text: formatTime(seekSlider.previewPosition)
                             }
                         }
@@ -236,14 +242,22 @@ Item {
                     // Preview hover detection
                     MouseArea {
                         id: previewMouseArea
+
+                        acceptedButtons: Qt.NoButton
+                        anchors.bottomMargin: -10
                         anchors.fill: parent
                         anchors.topMargin: -20
-                        anchors.bottomMargin: -10
-                        acceptedButtons: Qt.NoButton
                         hoverEnabled: true
                         propagateComposedEvents: true
 
-                        onPositionChanged: function(mouse) {
+                        onEntered: {
+                            seekSlider.previewVisible = true;
+                        }
+                        onExited: {
+                            seekSlider.previewVisible = false;
+                            seekSlider.previewImageUrl = "";
+                        }
+                        onPositionChanged: function (mouse) {
                             if (mediaLoaded && player.duration > 0) {
                                 var ratio = mouse.x / width;
                                 ratio = Math.max(0, Math.min(1, ratio));
@@ -255,19 +269,14 @@ Item {
                                 previewRequestTimer.restart();
                             }
                         }
-                        onEntered: {
-                            seekSlider.previewVisible = true;
-                        }
-                        onExited: {
-                            seekSlider.previewVisible = false;
-                            seekSlider.previewImageUrl = "";
-                        }
                     }
 
                     // Throttle preview requests
                     Timer {
                         id: previewRequestTimer
+
                         interval: 200
+
                         onTriggered: {
                             if (seekSlider.previewVisible) {
                                 player.requestPreviewAt(seekSlider.previewPosition);
@@ -277,12 +286,13 @@ Item {
 
                     // Handle preview ready signal
                     Connections {
-                        target: player
                         function onPreviewReady(position, imageDataUrl) {
                             if (seekSlider.previewVisible && imageDataUrl.length > 0) {
                                 seekSlider.previewImageUrl = imageDataUrl;
                             }
                         }
+
+                        target: player
                     }
 
                     // Scroll wheel seeking
@@ -312,6 +322,9 @@ Item {
                     Button {
                         id: playPauseButton
 
+                        Accessible.description: qsTr("Play or pause the media")
+                        Accessible.name: player.playbackState === MediaPlayer.PlayingState ? qsTr("Pause") : qsTr("Play")
+                        Accessible.role: Accessible.Button
                         Layout.preferredHeight: 30
                         Layout.preferredWidth: 25
                         Material.roundedScale: Material.NotRounded
@@ -324,10 +337,6 @@ Item {
                         hoverEnabled: true
                         scale: 1.5
                         text: player.playbackState === MediaPlayer.PlayingState ? "\ue034" : "\ue037"
-
-                        Accessible.name: player.playbackState === MediaPlayer.PlayingState ? qsTr("Pause") : qsTr("Play")
-                        Accessible.description: qsTr("Play or pause the media")
-                        Accessible.role: Accessible.Button
 
                         onClicked: {
                             if (player.playbackState === MediaPlayer.PlayingState) {
@@ -342,6 +351,9 @@ Item {
                     Button {
                         id: fastRewindButton
 
+                        Accessible.description: qsTr("Rewind the video. Double-click for 10x speed.")
+                        Accessible.name: qsTr("Fast rewind")
+                        Accessible.role: Accessible.Button
                         Layout.preferredHeight: 30
                         Layout.preferredWidth: 25
                         Material.roundedScale: Material.NotRounded
@@ -356,10 +368,6 @@ Item {
                         scale: 1.5
                         text: "\ue020"
 
-                        Accessible.name: qsTr("Fast rewind")
-                        Accessible.description: qsTr("Rewind the video. Double-click for 10x speed.")
-                        Accessible.role: Accessible.Button
-
                         contentItem: Item {
                             Text {
                                 anchors.centerIn: parent
@@ -368,21 +376,21 @@ Item {
                                 text: "\ue020"
                             }
                             Rectangle {
-                                anchors.right: parent.right
                                 anchors.bottom: parent.bottom
-                                anchors.rightMargin: -2
                                 anchors.bottomMargin: 2
-                                width: 14
+                                anchors.right: parent.right
+                                anchors.rightMargin: -2
+                                color: "#e53935"
                                 height: 10
                                 radius: 2
-                                color: "#e53935"
                                 visible: isFastRewinding
+                                width: 14
 
                                 Text {
                                     anchors.centerIn: parent
                                     color: "white"
-                                    font.pixelSize: 8
                                     font.bold: true
+                                    font.pixelSize: 8
                                     text: "10x"
                                 }
                             }
@@ -444,6 +452,9 @@ Item {
                     Button {
                         id: fastForwardButton
 
+                        Accessible.description: qsTr("Fast forward the video. Double-click for 10x speed.")
+                        Accessible.name: qsTr("Fast forward")
+                        Accessible.role: Accessible.Button
                         Layout.preferredHeight: 30
                         Layout.preferredWidth: 25
                         Material.roundedScale: Material.NotRounded
@@ -458,10 +469,6 @@ Item {
                         scale: 1.5
                         text: "\ue01f"
 
-                        Accessible.name: qsTr("Fast forward")
-                        Accessible.description: qsTr("Fast forward the video. Double-click for 10x speed.")
-                        Accessible.role: Accessible.Button
-
                         contentItem: Item {
                             Text {
                                 anchors.centerIn: parent
@@ -470,21 +477,21 @@ Item {
                                 text: "\ue01f"
                             }
                             Rectangle {
-                                anchors.right: parent.right
                                 anchors.bottom: parent.bottom
-                                anchors.rightMargin: -2
                                 anchors.bottomMargin: 2
-                                width: 14
+                                anchors.right: parent.right
+                                anchors.rightMargin: -2
+                                color: "#4caf50"
                                 height: 10
                                 radius: 2
-                                color: "#4caf50"
                                 visible: isFastForwarding
+                                width: 14
 
                                 Text {
                                     anchors.centerIn: parent
                                     color: "white"
-                                    font.pixelSize: 8
                                     font.bold: true
+                                    font.pixelSize: 8
                                     text: "10x"
                                 }
                             }
@@ -522,6 +529,9 @@ Item {
                     Button {
                         id: playListButton
 
+                        Accessible.description: qsTr("Show or hide the playlist")
+                        Accessible.name: qsTr("Toggle playlist")
+                        Accessible.role: Accessible.Button
                         Layout.preferredHeight: 30
                         Layout.preferredWidth: 25
                         Material.roundedScale: Material.NotRounded
@@ -531,10 +541,6 @@ Item {
                         hoverEnabled: true
                         scale: 1.5
                         text: "\ue3c7"
-
-                        Accessible.name: qsTr("Toggle playlist")
-                        Accessible.description: qsTr("Show or hide the playlist")
-                        Accessible.role: Accessible.Button
 
                         onClicked: {
                             playlistComponent.visible = !playlistComponent.visible;
@@ -558,23 +564,22 @@ Item {
                     Button {
                         id: speedButton
 
+                        Accessible.description: qsTr("Change playback speed")
+                        Accessible.name: qsTr("Playback speed")
+                        Accessible.role: Accessible.Button
                         Layout.preferredHeight: 30
                         Layout.preferredWidth: 40
                         Material.roundedScale: Material.NotRounded
                         enabled: mediaLoaded
                         hoverEnabled: true
 
-                        Accessible.name: qsTr("Playback speed")
-                        Accessible.description: qsTr("Change playback speed")
-                        Accessible.role: Accessible.Button
-
                         contentItem: Text {
                             color: speedButton.enabled ? "white" : "#a0a0a0"
-                            font.pixelSize: 11
                             font.bold: player.playbackRate !== 1.0
+                            font.pixelSize: 11
                             horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
                             text: player.playbackRate.toFixed(2).replace(/\.?0+$/, '') + "x"
+                            verticalAlignment: Text.AlignVCenter
                         }
 
                         onClicked: speedMenu.open()
@@ -585,18 +590,18 @@ Item {
                             timeout: AppConstants.tooltipTimeout
                             visible: speedButton.hovered
                         }
-
                         Menu {
                             id: speedMenu
+
                             y: -height
 
                             Repeater {
                                 model: AppConstants.playbackSpeeds
 
                                 MenuItem {
-                                    text: modelData + "x"
                                     checkable: true
                                     checked: Math.abs(player.playbackRate - modelData) < 0.01
+                                    text: modelData + "x"
 
                                     onTriggered: {
                                         player.playbackRate = modelData;
@@ -814,6 +819,9 @@ Item {
                     Button {
                         id: fullscreenButton
 
+                        Accessible.description: qsTr("Enter or exit fullscreen mode")
+                        Accessible.name: qsTr("Toggle fullscreen")
+                        Accessible.role: Accessible.Button
                         Layout.preferredHeight: 30
                         Layout.preferredWidth: 25
                         Material.background: "transparent"
@@ -826,10 +834,6 @@ Item {
                         hoverEnabled: true
                         scale: 1.5
                         text: mainWindow.visibility === Window.FullScreen ? "\ue5d1" : "\ue5d0"
-
-                        Accessible.name: qsTr("Toggle fullscreen")
-                        Accessible.description: qsTr("Enter or exit fullscreen mode")
-                        Accessible.role: Accessible.Button
 
                         onClicked: {
                             mainWindow.visibility = mainWindow.visibility === Window.FullScreen ? Window.Windowed : Window.FullScreen;
