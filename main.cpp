@@ -2,6 +2,7 @@
 #include <QQmlApplicationEngine>
 #include <QCommandLineParser>
 #include <QDir>
+#include <QFileInfo>
 #include <iostream>
 #include <thread>
 #include <atomic>

@@ -10,9 +10,33 @@
 #include <QtConcurrent>
 #include <QCoreApplication>
 #include <QMutex>
+#include <QMutexLocker>
+#include <QTimer>
+#include <QDir>
+#include <QFileInfo>
+#include <QProcessEnvironment>
 #include <atomic>
 
+// Timeout for external process completion (5 minutes per video)
+// This allows for processing of large video files on slower systems
+static constexpr int PROCESS_TIMEOUT_MS = 300000;
+
 // Static tracking for running child processes
+//
+// These variables manage the lifecycle of child processes spawned for collage creation.
+// They are shared across all Collage instances in this process.
+//
+// Threading / locking:
+//  - s_processMutex must be held whenever s_runningProcesses is modified or
+//    iterated, to protect against concurrent access from worker threads.
+//  - s_shuttingDown is an atomic flag that can be safely read from any thread.
+//    It is set to true during application shutdown to signal that no new child
+//    processes should be started and existing ones may be terminated.
+//
+// Ownership / lifetime:
+//  - s_runningProcesses contains pointers to heap-allocated QProcess instances.
+//    Each process is removed from the list when it finishes. On shutdown, any
+//    remaining running processes are forcefully killed.
 static QMutex s_processMutex;
 static QList<QProcess *> s_runningProcesses;
 static std::atomic<bool> s_shuttingDown{false};
@@ -31,19 +55,27 @@ Collage::Collage() {
 
     connect(&m_watcher, &QFutureWatcher<CollageResult>::finished,
             this, &Collage::onFutureFinished);
+
+    // Connect to application shutdown for true global shutdown handling
+    connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, this, [this]() {
+        s_shuttingDown = true;
+        m_shuttingDown = true;
+    });
 }
 
 Collage::~Collage() {
-    // Signal that we're shutting down
-    s_shuttingDown = true;
+    // Signal instance-level shutdown (does not affect other instances)
+    m_shuttingDown = true;
 
     // Cancel pending work
     m_watcher.cancel();
 
-    // Terminate all running child processes
+    // Terminate all running child processes to allow quick shutdown
+    // The worker threads are blocked on waitForFinished(), so we need to
+    // kill the processes here to unblock them
     {
         QMutexLocker locker(&s_processMutex);
-        for (QProcess *process: s_runningProcesses) {
+        for (QProcess *process : s_runningProcesses) {
             if (process && process->state() != QProcess::NotRunning) {
                 qDebug() << "Terminating child process on shutdown";
                 process->kill();
@@ -51,6 +83,7 @@ Collage::~Collage() {
         }
     }
 
+    // Wait for our tasks to complete (they will exit quickly now that processes are killed)
     m_watcher.waitForFinished();
 }
 
@@ -60,6 +93,9 @@ void Collage::toCollage(const QList<QUrl> &paths) {
         m_watcher.cancel();
         m_watcher.waitForFinished();
     }
+
+    // Reset shutdown flag for new operation
+    m_shuttingDown = false;
 
     m_currentPaths = paths;
     emit collageStarted(paths.size());
@@ -73,16 +109,19 @@ void Collage::toCollage(const QList<QUrl> &paths) {
     QList<QPair<int, QUrl> > indexedPaths;
     for (int i = 0; i < paths.size(); ++i) {
         indexedPaths.append({i, paths[i]});
-        emit collageProgress(i, paths[i].toString());
     }
+
+    // Capture reference to instance shutdown flag for the lambda
+    std::atomic<bool>& shuttingDown = m_shuttingDown;
 
     // Use QtConcurrent::mapped with custom thread pool
     // Each video is processed in a SEPARATE PROCESS for complete isolation
+    // Note: collageProgress is emitted inside processVideoExternal when processing actually starts
     QFuture<CollageResult> future = QtConcurrent::mapped(
         &m_threadPool,
         indexedPaths,
-        [](const QPair<int, QUrl> &pair) -> CollageResult {
-            return processVideoExternal(pair.first, pair.second);
+        [&shuttingDown](const QPair<int, QUrl> &pair) -> CollageResult {
+            return processVideoExternal(pair.first, pair.second, shuttingDown);
         }
     );
 
@@ -119,9 +158,9 @@ QString Collage::createCollageSingle(const QUrl &path) {
     return QString();
 }
 
-CollageResult Collage::processVideoExternal(int index, const QUrl &path) {
+CollageResult Collage::processVideoExternal(int index, const QUrl &path, std::atomic<bool>& shuttingDown) {
     // Check if we're shutting down before starting
-    if (s_shuttingDown) {
+    if (shuttingDown || s_shuttingDown) {
         return CollageResult{index, path.toLocalFile(), QString(), false};
     }
 
@@ -132,52 +171,62 @@ CollageResult Collage::processVideoExternal(int index, const QUrl &path) {
     QString appPath = QCoreApplication::applicationFilePath();
     QString inputPath = path.toLocalFile();
 
-    QProcess process;
-    process.setProgram(appPath);
-    process.setArguments({"--collage", inputPath});
+    // Use heap-allocated QProcess to ensure valid pointer lifetime while in s_runningProcesses
+    auto process = new QProcess();
+    process->setProgram(appPath);
+    process->setArguments({"--collage", inputPath});
 
     // Set environment variable to indicate subprocess mode (suppresses spinner output)
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     env.insert("GAV_SUBPROCESS", "1");
-    process.setProcessEnvironment(env);
+    process->setProcessEnvironment(env);
 
     // Register process for cleanup on shutdown
     {
         QMutexLocker locker(&s_processMutex);
-        s_runningProcesses.append(&process);
+        s_runningProcesses.append(process);
     }
 
-    process.start();
+    process->start();
 
-    // Wait for process to finish (with timeout of 5 minutes per video)
-    bool finished = process.waitForFinished(300000);
+    // Wait for process to finish
+    bool finished = process->waitForFinished(PROCESS_TIMEOUT_MS);
 
-    // Unregister process
+    // Unregister process from tracking list
     {
         QMutexLocker locker(&s_processMutex);
-        s_runningProcesses.removeOne(&process);
+        s_runningProcesses.removeOne(process);
     }
 
     // Check if we were killed due to shutdown
-    if (s_shuttingDown) {
+    if (shuttingDown || s_shuttingDown) {
+        if (process->state() != QProcess::NotRunning) {
+            process->kill();
+            process->waitForFinished(1000);
+        }
+        delete process;
         return CollageResult{index, inputPath, QString(), false};
     }
 
     if (!finished) {
         qDebug() << "Process timeout for video" << index;
-        process.kill();
+        process->kill();
+        process->waitForFinished(1000);
+        delete process;
         return CollageResult{index, inputPath, QString(), false};
     }
 
-    int exitCode = process.exitCode();
-    QString stdOut = QString::fromUtf8(process.readAllStandardOutput()).trimmed();
-    QString stdErr = QString::fromUtf8(process.readAllStandardError()).trimmed();
+    int exitCode = process->exitCode();
+    QString stdOut = QString::fromUtf8(process->readAllStandardOutput()).trimmed();
+    QString stdErr = QString::fromUtf8(process->readAllStandardError()).trimmed();
 
     qDebug() << "Process finished for video" << index << "with exit code" << exitCode;
     qDebug() << "stdout:" << stdOut;
     if (!stdErr.isEmpty()) {
         qDebug() << "stderr:" << stdErr;
     }
+
+    delete process;
 
     // Parse output - format is SUCCESS:<path> or FAILED:<path>
     if (exitCode == 0 && stdOut.startsWith("SUCCESS:")) {
