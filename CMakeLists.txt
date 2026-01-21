@@ -191,12 +191,13 @@ if(BUILD_TESTS)
     )
     
     target_link_libraries(gav_tests
-        PRIVATE 
-        GTest::gtest 
+        PRIVATE
+        GTest::gtest
         GTest::gtest_main
         Qt6::Core
         Qt6::Quick
         Qt6::Multimedia
+        Qt6::Concurrent
         spdlog::spdlog
         fmt::fmt
         Qt6::Test
