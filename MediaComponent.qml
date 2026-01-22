@@ -14,6 +14,7 @@ Item {
     property alias videoOutput: videoOutput
 
     signal stopped
+    signal fullscreenToggleRequested
 
     height: parent.height
     width: parent.width
@@ -104,7 +105,7 @@ Item {
         Timer {
             id: volumeDisplayTimer
 
-            interval: 2000
+            interval: AppConstants.volumeDisplayDuration
             repeat: false
 
             onTriggered: volumeColumn.visible = false
@@ -144,11 +145,11 @@ Item {
             text: "Zoom: " + Math.round(videoOutput.zoomLevel * 100) + "%"
         }
 
-        // Auto-hide after 2 seconds of no zoom changes
+        // Auto-hide after zoom changes
         Timer {
             id: zoomDisplayTimer
 
-            interval: 2000
+            interval: AppConstants.zoomDisplayDuration
             repeat: false
             running: videoOutput.zoomLevel > 1.0
 
@@ -162,7 +163,7 @@ Item {
     AudioOutput {
         id: audioOutput
 
-        volume: 0.5
+        volume: AppConstants.defaultVolume
     }
     VideoOutput {
         id: videoOutput
@@ -240,7 +241,7 @@ Item {
         onDoubleClicked: function (mouse) {
             // Only toggle fullscreen when video is playing or paused
             if (customMediaPlayer.playbackState !== MediaPlayer.StoppedState) {
-                mainWindow.visibility = mainWindow.visibility === Window.FullScreen ? Window.Windowed : Window.FullScreen;
+                fullscreenToggleRequested();
             }
         }
         onPositionChanged: {
@@ -282,12 +283,12 @@ Item {
 
             // Ctrl + Scroll = Zoom (Chrome-like multiplicative scaling)
             if (wheel.modifiers & Qt.ControlModifier && videoOutput.visible && isActive) {
-                // Each scroll step multiplies/divides by ~1.25 (Chrome uses similar factor)
-                var zoomFactor = wheel.angleDelta.y > 0 ? 1.25 : 0.8;
-                var newZoom = Math.max(1.0, Math.min(5.0, videoOutput.zoomLevel * zoomFactor));
+                // Each scroll step multiplies/divides by zoom factor
+                var zoomFactor = wheel.angleDelta.y > 0 ? AppConstants.zoomFactor : (1 / AppConstants.zoomFactor);
+                var newZoom = Math.max(AppConstants.zoomMin, Math.min(AppConstants.zoomMax, videoOutput.zoomLevel * zoomFactor));
 
-                // Reset when zooming back to 1.0
-                if (newZoom === 1.0) {
+                // Reset when zooming back to minimum
+                if (newZoom === AppConstants.zoomMin) {
                     videoOutput.panX = 0;
                     videoOutput.panY = 0;
                     videoOutput.zoomOriginX = videoOutput.width / 2;
@@ -302,11 +303,11 @@ Item {
 
                 // Regular Scroll = Volume
             } else if (wheel.angleDelta.y > 0 && videoOutput.visible && isActive) {
-                audioOutput.volume = Math.min(audioOutput.volume + 0.05, 1.0);
+                audioOutput.volume = Math.min(audioOutput.volume + AppConstants.volumeStep, 1.0);
                 volumeColumn.visible = true;
                 volumeDisplayTimer.restart();
             } else if (wheel.angleDelta.y < 0 && videoOutput.visible && isActive) {
-                audioOutput.volume = Math.max(audioOutput.volume - 0.05, 0.0);
+                audioOutput.volume = Math.max(audioOutput.volume - AppConstants.volumeStep, 0.0);
                 volumeColumn.visible = true;
                 volumeDisplayTimer.restart();
             }
@@ -315,7 +316,7 @@ Item {
     Timer {
         id: hideControlsTimer
 
-        interval: 3000
+        interval: AppConstants.controlsHideDelay
         repeat: false
 
         onTriggered: {

@@ -1,15 +1,15 @@
 cmake_minimum_required(VERSION 3.16)
 
 # Allow version override from command line
-if(NOT DEFINED GAV_VERSION)
+if (NOT DEFINED GAV_VERSION)
     set(GAV_VERSION "0.0.0-dev")
-endif()
+endif ()
 
 # Extract numeric version for CMake project()
 string(REGEX MATCH "^([0-9]+\\.[0-9]+\\.[0-9]+)" GAV_NUMERIC_VERSION "${GAV_VERSION}")
-if(NOT GAV_NUMERIC_VERSION)
+if (NOT GAV_NUMERIC_VERSION)
     set(GAV_NUMERIC_VERSION "0.0.0")
-endif()
+endif ()
 
 # Set the full version string for use in the app
 set(GAV_FULL_VERSION "${GAV_VERSION}")
@@ -27,13 +27,13 @@ if ($ENV{CLION_IDE})
     set(QT_VERSION "6.10.*")
     message(STATUS "CLion IDE detected. Setting Qt version to ${QT_VERSION}")
 
-    if(WIN32)
+    if (WIN32)
         set(USER_HOME_DIR "C:")
         set(COMPILER "msvc2022_64")
-    else()
+    else ()
         set(USER_HOME_DIR $ENV{HOME})
         set(COMPILER "gcc_64")
-    endif()
+    endif ()
 
     file(GLOB QT_DIRS "${USER_HOME_DIR}/Qt/${QT_VERSION}")
     message(STATUS "Searching for Qt directories in ${USER_HOME_DIR}/Qt/ with pattern ${QT_VERSION}: ${QT_DIRS}")
@@ -46,16 +46,16 @@ if ($ENV{CLION_IDE})
         # List all dirs in QT_DIRS/${COMPILER}/lib/cmake
         file(GLOB QT_CMAKE_DIRS "${QT_DIR}/${COMPILER}/lib/cmake/*")
         message(STATUS "CMake directories in ${QT_DIR}/${COMPILER}/lib/cmake:")
-        foreach(dir ${QT_CMAKE_DIRS})
+        foreach (dir ${QT_CMAKE_DIRS})
             message(STATUS "  - ${dir}")
             # Get the last part of the path
             get_filename_component(dir_name ${dir} NAME)
             message(STATUS "    - Directory name: ${dir_name}")
             set(${dir_name}_DIR ${dir})
-        endforeach()
-    else()
+        endforeach ()
+    else ()
         message(FATAL_ERROR "No Qt directory starting with ${QT_VERSION} found in /home/akshay/Qt/")
-    endif()
+    endif ()
 endif ()
 
 # Enable VCPKG app-local deployment of dependencies
@@ -83,23 +83,23 @@ elseif (APPLE)
     # And the following tells CMake where to find and install the file itself.
     set(app_icon_macos "${CMAKE_CURRENT_SOURCE_DIR}/assets/images/icon.icns")
     set_source_files_properties(${app_icon_macos} PROPERTIES
-           MACOSX_PACKAGE_LOCATION "Resources")
+            MACOSX_PACKAGE_LOCATION "Resources")
 
     qt_add_executable(appgav MACOSX_BUNDLE main.cpp ${app_icon_macos})
-else()
+else ()
     qt_add_executable(appgav
-        main.cpp
+            main.cpp
     )
-endif()
+endif ()
 
-target_compile_definitions(appgav PRIVATE 
-    APP_VERSION="${GAV_FULL_VERSION}"
-    _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING # For https://github.com/fmtlib/fmt/issues/3183
+target_compile_definitions(appgav PRIVATE
+        APP_VERSION="${GAV_FULL_VERSION}"
+        _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING # For https://github.com/fmtlib/fmt/issues/3183
 )
 
 qt_add_resources(appgav "assets"
-    PREFIX "/"
-    FILES
+        PREFIX "/"
+        FILES
         qtquickcontrols2.conf
         assets/fonts/MaterialSymbolsOutlined.ttf
         assets/images/logo.png
@@ -112,30 +112,36 @@ qt_add_resources(appgav "assets"
         assets/images/logo.bmp
 )
 
+set_source_files_properties(AppConstants.qml PROPERTIES
+        QT_QML_SINGLETON_TYPE TRUE
+)
+
 qt_add_qml_module(appgav
-    URI gavqml
-    VERSION 1.0
-    QML_FILES
+        URI gavqml
+        VERSION 1.0
+        QML_FILES
         Main.qml
         MediaComponent.qml
         Debug.qml
         MediaControlsComponent.qml
         PlayListComponent.qml
         CustomSnackbar.qml
+        AppConstants.qml
+        SettingsDialog.qml
         SOURCES
-            custommediaplayer.h custommediaplayer.cpp
-            collage.h collage.cpp
+        custommediaplayer.h custommediaplayer.cpp
+        collage.h collage.cpp
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an
 # explicit, fixed bundle identifier manually though.
 set_target_properties(appgav PROPERTIES
-    MACOSX_BUNDLE_GUI_IDENTIFIER com.gollahalli.gav
-    MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
-    MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}
-    MACOSX_BUNDLE TRUE
-    # WIN32_EXECUTABLE TRUE
+        MACOSX_BUNDLE_GUI_IDENTIFIER com.gollahalli.gav
+        MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
+        MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}
+        MACOSX_BUNDLE TRUE
+        # WIN32_EXECUTABLE TRUE
 )
 
 set_target_properties(appgav PROPERTIES OUTPUT_NAME "gav")
@@ -144,7 +150,7 @@ target_link_libraries(appgav
         PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Qml Qt6::Multimedia Qt6::Widgets spdlog::spdlog fmt::fmt Qt6::Concurrent
 )
 
-if(WIN32 AND DEFINED ENV{CLION_IDE})
+if (WIN32 AND DEFINED ENV{CLION_IDE})
     # Deploy Qt dependencies after build for CLion
     add_custom_command(TARGET appgav POST_BUILD
             COMMAND "${QT_DIR}/${COMPILER}/bin/windeployqt.exe"
@@ -152,19 +158,19 @@ if(WIN32 AND DEFINED ENV{CLION_IDE})
             "$<TARGET_FILE:appgav>"
             COMMENT "Running windeployqt to deploy Qt DLLs..."
     )
-endif()
+endif ()
 
 include(InstallRequiredSystemLibraries)
 include(GNUInstallDirs)
 
 install(TARGETS appgav
-    BUNDLE DESTINATION .
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    COMPONENT GAV
+        BUNDLE DESTINATION .
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        COMPONENT GAV
 )
 
-if(UNIX AND NOT APPLE)
+if (UNIX AND NOT APPLE)
     # For DEB package
     install(FILES assets/images/icon.png
             DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps
@@ -173,23 +179,23 @@ if(UNIX AND NOT APPLE)
     install(FILES support/gav.desktop
             DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
             COMPONENT GAV)
-endif()
+endif ()
 
 # Testing
-if(BUILD_TESTS)
+if (BUILD_TESTS)
     enable_testing()
     find_package(GTest CONFIG REQUIRED)
     find_package(Qt6 REQUIRED COMPONENTS Test)
-    
+
     # Create test executable
     add_executable(gav_tests
-        tests/test_main.cpp
-        tests/test_path_conversion.cpp
-        tests/test_collage.cpp
-        collage.cpp
-        collage.h
+            tests/test_main.cpp
+            tests/test_path_conversion.cpp
+            tests/test_collage.cpp
+            collage.cpp
+            collage.h
     )
-    
+
     target_link_libraries(gav_tests
         PRIVATE
         GTest::gtest
@@ -202,17 +208,17 @@ if(BUILD_TESTS)
         fmt::fmt
         Qt6::Test
     )
-    
-    target_compile_definitions(gav_tests PRIVATE 
-        APP_VERSION="${GAV_FULL_VERSION}"
-        _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+
+    target_compile_definitions(gav_tests PRIVATE
+            APP_VERSION="${GAV_FULL_VERSION}"
+            _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
     )
-    
+
     # Discover tests
     include(GoogleTest)
     gtest_discover_tests(gav_tests)
-    
+
     message(STATUS "Tests enabled. Run with: ctest or ./gav_tests")
-endif()
+endif ()
 
 include(support/cpack.cmake)

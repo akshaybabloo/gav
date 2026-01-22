@@ -4,9 +4,13 @@ import QtMultimedia
 import QtQuick.Layouts
 import QtQuick.Controls.Material
 
+import gavqml
+
 Item {
     required property var audioOutput
     property bool containsMouse: controlMouseArea.containsMouse
+    property int currentSpeedIndex: 3  // Index of 1.0x in playbackSpeeds array
+
     property real fastForwardRate: 1.0
     property bool isFastForwarding: false
     property bool isFastRewinding: false
@@ -14,7 +18,7 @@ Item {
     required property var player
     required property int playlistCount
     required property int playlistCurrentIndex
-    property real previousVolume: 0.5
+    property real previousVolume: AppConstants.defaultVolume
     property int rewindMultiplier: 1
     required property var videoOutput
 
@@ -22,11 +26,14 @@ Item {
     signal previousTrack
 
     function formatTime(ms) {
-        var seconds = Math.floor(ms / 1000);
-        var minutes = Math.floor(seconds / 60);
-        var hours = Math.floor(minutes / 60);
-        seconds = seconds % 60;
-        return Qt.formatTime(new Date(0, 0, hours, 0, minutes, seconds), "hh:mm:ss");
+        var totalSecs = Math.floor(ms / 1000);
+        var h = Math.floor(totalSecs / 3600);
+        var m = Math.floor((totalSecs % 3600) / 60);
+        var s = totalSecs % 60;
+        var pad = function (num) {
+            return String(num).padStart(2, '0');
+        };
+        return h > 0 ? h + ":" + pad(m) + ":" + pad(s) : pad(m) + ":" + pad(s);
     }
     function stopFastForwarding() {
         if (isFastForwarding) {
@@ -105,7 +112,7 @@ Item {
         id: controlBar
 
         anchors.horizontalCenter: parent.horizontalCenter
-        color: "#80000000"
+        color: Material.background.darker(1.2)
         height: parent.height
         width: parent.width
 
@@ -126,12 +133,16 @@ Item {
                 Text {
                     id: timeLabel
 
-                    color: "white"
+                    color: Material.foreground
                     text: formatTime(player.position) + " / " + formatTime(player.duration)
                     verticalAlignment: Text.AlignVCenter
                 }
                 Slider {
                     id: seekSlider
+
+                    property string previewImageUrl: ""
+                    property int previewPosition: 0
+                    property bool previewVisible: false
 
                     Layout.fillWidth: true
                     Layout.preferredHeight: 10
@@ -140,6 +151,118 @@ Item {
                     to: player.duration
 
                     onMoved: player.position = value
+
+                    // Seek preview popup
+                    Rectangle {
+                        id: seekPreview
+
+                        property real hoverX: 0
+
+                        border.color: Material.dividerColor
+                        border.width: 1
+                        color: Qt.rgba(Material.background.r, Material.background.g, Material.background.b, 0.9)
+                        height: 115
+                        radius: 6
+                        visible: seekSlider.previewVisible && mediaLoaded && player.duration > 0
+                        width: 170
+                        x: Math.max(0, Math.min(hoverX - width / 2, seekSlider.width - width))
+                        y: -height - 10
+
+                        Column {
+                            anchors.centerIn: parent
+                            spacing: 4
+
+                            // Thumbnail container - fixed size, shows either image or loading
+                            Item {
+                                height: 90
+                                width: 160
+
+                                // Thumbnail image
+                                Image {
+                                    id: previewImage
+
+                                    anchors.fill: parent
+                                    fillMode: Image.PreserveAspectFit
+                                    source: seekSlider.previewImageUrl
+                                    visible: status === Image.Ready
+
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        border.color: Material.dividerColor
+                                        border.width: 1
+                                        color: "transparent"
+                                        visible: previewImage.status === Image.Ready
+                                    }
+                                }
+
+                                // Loading indicator when no image yet
+                                Rectangle {
+                                    anchors.fill: parent
+                                    color: Material.dividerColor
+                                    radius: 4
+                                    visible: previewImage.status !== Image.Ready
+                                    clip: true
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        anchors.verticalCenterOffset: -8
+                                        color: Material.foreground
+                                        opacity: 0.5
+                                        font.family: materialSymbolsOutlined.name
+                                        font.pixelSize: 32
+                                        text: "\ue04b"
+                                    }
+
+                                    // Animated loading bar at bottom
+                                    Rectangle {
+                                        id: loadingBar
+                                        anchors.bottom: parent.bottom
+                                        anchors.bottomMargin: 8
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        height: 3
+                                        width: parent.width - 20
+                                        color: Qt.rgba(Material.foreground.r, Material.foreground.g, Material.foreground.b, 0.2)
+                                        radius: 1.5
+
+                                        Rectangle {
+                                            id: loadingProgress
+                                            height: parent.height
+                                            width: 40
+                                            radius: 1.5
+                                            color: Material.accent
+
+                                            SequentialAnimation on x {
+                                                loops: Animation.Infinite
+                                                running: previewImage.status !== Image.Ready && seekSlider.previewVisible
+
+                                                NumberAnimation {
+                                                    from: 0
+                                                    to: loadingBar.width - loadingProgress.width
+                                                    duration: 800
+                                                    easing.type: Easing.InOutQuad
+                                                }
+                                                NumberAnimation {
+                                                    from: loadingBar.width - loadingProgress.width
+                                                    to: 0
+                                                    duration: 800
+                                                    easing.type: Easing.InOutQuad
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Time label
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                color: Material.foreground
+                                font.bold: true
+                                font.pixelSize: 12
+                                text: formatTime(seekSlider.previewPosition)
+                            }
+                        }
+                    }
 
                     // Timer to update the slider position
                     Timer {
@@ -154,6 +277,64 @@ Item {
                             }
                         }
                     }
+
+                    // Preview hover detection
+                    MouseArea {
+                        id: previewMouseArea
+
+                        acceptedButtons: Qt.NoButton
+                        anchors.bottomMargin: -10
+                        anchors.fill: parent
+                        anchors.topMargin: -20
+                        hoverEnabled: true
+                        propagateComposedEvents: true
+
+                        onEntered: {
+                            seekSlider.previewVisible = true;
+                        }
+                        onExited: {
+                            seekSlider.previewVisible = false;
+                            seekSlider.previewImageUrl = "";
+                        }
+                        onPositionChanged: function (mouse) {
+                            if (mediaLoaded && player.duration > 0) {
+                                var ratio = mouse.x / width;
+                                ratio = Math.max(0, Math.min(1, ratio));
+                                var pos = Math.floor(ratio * player.duration);
+                                seekSlider.previewPosition = pos;
+                                seekPreview.hoverX = mouse.x;
+
+                                // Request thumbnail from backend (throttled)
+                                previewRequestTimer.restart();
+                            }
+                        }
+                    }
+
+                    // Throttle preview requests
+                    Timer {
+                        id: previewRequestTimer
+
+                        interval: 200
+
+                        onTriggered: {
+                            if (seekSlider.previewVisible) {
+                                player.requestPreviewAt(seekSlider.previewPosition);
+                            }
+                        }
+                    }
+
+                    // Handle preview ready signal
+                    Connections {
+                        function onPreviewReady(position, imageDataUrl) {
+                            if (seekSlider.previewVisible && imageDataUrl.length > 0) {
+                                seekSlider.previewImageUrl = imageDataUrl;
+                            }
+                        }
+
+                        target: player
+                    }
+
+                    // Scroll wheel seeking
                     MouseArea {
                         acceptedButtons: Qt.NoButton
                         anchors.fill: parent
@@ -161,7 +342,7 @@ Item {
 
                         onWheel: function (wheel) {
                             if (player.playbackState === MediaPlayer.PlayingState) {
-                                const seekAmount = 1000;  // 1 second
+                                const seekAmount = AppConstants.seekStepSmall;
                                 if (wheel.angleDelta.y > 0) {
                                     player.position = Math.min(player.position + seekAmount, player.duration);
                                 } else if (wheel.angleDelta.y < 0) {
@@ -180,12 +361,15 @@ Item {
                     Button {
                         id: playPauseButton
 
+                        Accessible.description: qsTr("Play or pause the media")
+                        Accessible.name: player.playbackState === MediaPlayer.PlayingState ? qsTr("Pause") : qsTr("Play")
+                        Accessible.role: Accessible.Button
                         Layout.preferredHeight: 30
                         Layout.preferredWidth: 25
                         Material.roundedScale: Material.NotRounded
-                        ToolTip.delay: 1000
+                        ToolTip.delay: AppConstants.tooltipDelay
                         ToolTip.text: player.playbackState === MediaPlayer.PlayingState ? qsTr("Pause") : qsTr("Play")
-                        ToolTip.timeout: 5000
+                        ToolTip.timeout: AppConstants.tooltipTimeout
                         ToolTip.visible: hovered
                         enabled: mediaLoaded
                         font.family: materialSymbolsOutlined.name
@@ -206,27 +390,50 @@ Item {
                     Button {
                         id: fastRewindButton
 
+                        Accessible.description: qsTr("Rewind the video. Double-click for 10x speed.")
+                        Accessible.name: qsTr("Fast rewind")
+                        Accessible.role: Accessible.Button
                         Layout.preferredHeight: 30
                         Layout.preferredWidth: 25
                         Material.roundedScale: Material.NotRounded
-                        ToolTip.delay: 1000
-                        ToolTip.text: qsTr("Fast rewind")
-                        ToolTip.timeout: 5000
+                        ToolTip.delay: AppConstants.tooltipDelay
+                        ToolTip.text: isFastRewinding ? qsTr("Fast rewind (10x)") : qsTr("Fast rewind")
+                        ToolTip.timeout: AppConstants.tooltipTimeout
                         ToolTip.visible: hovered
                         enabled: player.playbackState !== MediaPlayer.StoppedState
                         font.family: materialSymbolsOutlined.name
                         font.weight: Font.Light
                         hoverEnabled: true
                         scale: 1.5
-                        text: isFastRewinding ? "\ue020" + "<sub>\ue059</sub>" : "\ue020"
+                        text: "\ue020"
 
-                        contentItem: Text {
-                            color: parent.enabled ? "white" : "#a0a0a0"
-                            font: parent.font
-                            horizontalAlignment: Text.AlignHCenter
-                            text: parent.text
-                            textFormat: Text.RichText
-                            verticalAlignment: Text.AlignVCenter
+                        contentItem: Item {
+                            Text {
+                                anchors.centerIn: parent
+                                color: Material.foreground
+                                opacity: fastRewindButton.enabled ? 1.0 : 0.5
+                                font: fastRewindButton.font
+                                text: "\ue020"
+                            }
+                            Rectangle {
+                                anchors.bottom: parent.bottom
+                                anchors.bottomMargin: 2
+                                anchors.right: parent.right
+                                anchors.rightMargin: -2
+                                color: Material.color(Material.Red)
+                                height: 10
+                                radius: 2
+                                visible: isFastRewinding
+                                width: 14
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    color: Material.foreground
+                                    font.bold: true
+                                    font.pixelSize: 8
+                                    text: "10x"
+                                }
+                            }
                         }
 
                         onClicked: {
@@ -255,7 +462,7 @@ Item {
 
                             interval: 250
 
-                            onTriggered: player.position = Math.max(player.position - 1000, 0)
+                            onTriggered: player.position = Math.max(player.position - AppConstants.seekStepSmall, 0)
                         }
                     }
                     Button {
@@ -285,27 +492,50 @@ Item {
                     Button {
                         id: fastForwardButton
 
+                        Accessible.description: qsTr("Fast forward the video. Double-click for 10x speed.")
+                        Accessible.name: qsTr("Fast forward")
+                        Accessible.role: Accessible.Button
                         Layout.preferredHeight: 30
                         Layout.preferredWidth: 25
                         Material.roundedScale: Material.NotRounded
-                        ToolTip.delay: 1000
-                        ToolTip.text: qsTr("Fast forward")
-                        ToolTip.timeout: 5000
+                        ToolTip.delay: AppConstants.tooltipDelay
+                        ToolTip.text: isFastForwarding ? qsTr("Fast forward (10x)") : qsTr("Fast forward")
+                        ToolTip.timeout: AppConstants.tooltipTimeout
                         ToolTip.visible: hovered
                         enabled: player.playbackState !== MediaPlayer.StoppedState
                         font.family: materialSymbolsOutlined.name
                         font.weight: Font.Light
                         hoverEnabled: true
                         scale: 1.5
-                        text: isFastForwarding ? "\ue01f" + "<sub>\ue056</sub>" : "\ue01f"
+                        text: "\ue01f"
 
-                        contentItem: Text {
-                            color: parent.enabled ? "white" : "#a0a0a0"
-                            font: parent.font
-                            horizontalAlignment: Text.AlignHCenter
-                            text: parent.text
-                            textFormat: Text.RichText
-                            verticalAlignment: Text.AlignVCenter
+                        contentItem: Item {
+                            Text {
+                                anchors.centerIn: parent
+                                color: Material.foreground
+                                opacity: fastForwardButton.enabled ? 1.0 : 0.5
+                                font: fastForwardButton.font
+                                text: "\ue01f"
+                            }
+                            Rectangle {
+                                anchors.bottom: parent.bottom
+                                anchors.bottomMargin: 2
+                                anchors.right: parent.right
+                                anchors.rightMargin: -2
+                                color: Material.color(Material.Green)
+                                height: 10
+                                radius: 2
+                                visible: isFastForwarding
+                                width: 14
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    color: Material.foreground
+                                    font.bold: true
+                                    font.pixelSize: 8
+                                    text: "10x"
+                                }
+                            }
                         }
 
                         onClicked: {
@@ -334,12 +564,15 @@ Item {
 
                             interval: 250
 
-                            onTriggered: player.position = Math.min(player.position + 1000, player.duration)
+                            onTriggered: player.position = Math.min(player.position + AppConstants.seekStepSmall, player.duration)
                         }
                     }
                     Button {
                         id: playListButton
 
+                        Accessible.description: qsTr("Show or hide the playlist")
+                        Accessible.name: qsTr("Toggle playlist")
+                        Accessible.role: Accessible.Button
                         Layout.preferredHeight: 30
                         Layout.preferredWidth: 25
                         Material.roundedScale: Material.NotRounded
@@ -355,16 +588,77 @@ Item {
                         }
 
                         ToolTip {
-                            delay: 1000
+                            delay: AppConstants.tooltipDelay
                             text: qsTr("Toggle playlist")
-                            timeout: 5000
+                            timeout: AppConstants.tooltipTimeout
                             visible: playListButton.hovered
                         }
                     }
                     Rectangle {
                         Layout.preferredHeight: parent.height
                         Layout.preferredWidth: 2
-                        color: "#a0a0a0"
+                        color: Material.dividerColor
+                        visible: true
+                    }
+
+                    // Playback speed selector
+                    Button {
+                        id: speedButton
+
+                        Accessible.description: qsTr("Change playback speed")
+                        Accessible.name: qsTr("Playback speed")
+                        Accessible.role: Accessible.Button
+                        Layout.preferredHeight: 30
+                        Layout.preferredWidth: 40
+                        Material.roundedScale: Material.NotRounded
+                        enabled: mediaLoaded
+                        hoverEnabled: true
+
+                        contentItem: Text {
+                            color: Material.foreground
+                            opacity: speedButton.enabled ? 1.0 : 0.5
+                            font.bold: player.playbackRate !== 1.0
+                            font.pixelSize: 11
+                            horizontalAlignment: Text.AlignHCenter
+                            text: player.playbackRate.toFixed(2).replace(/\.?0+$/, '') + "x"
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        onClicked: speedMenu.open()
+
+                        ToolTip {
+                            delay: AppConstants.tooltipDelay
+                            text: qsTr("Playback speed: ") + player.playbackRate + "x"
+                            timeout: AppConstants.tooltipTimeout
+                            visible: speedButton.hovered
+                        }
+                        Menu {
+                            id: speedMenu
+
+                            y: -height
+
+                            Repeater {
+                                model: AppConstants.playbackSpeeds
+
+                                MenuItem {
+                                    checkable: true
+                                    checked: Math.abs(player.playbackRate - modelData) < 0.01
+                                    text: modelData + "x"
+
+                                    onTriggered: {
+                                        player.playbackRate = modelData;
+                                        stopFastForwarding();
+                                        stopFastRewinding();
+                                        currentSpeedIndex = index;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Rectangle {
+                        Layout.preferredHeight: parent.height
+                        Layout.preferredWidth: 2
+                        color: Material.dividerColor
                         visible: true
                     }
                     Button {
@@ -450,7 +744,7 @@ Item {
                     Rectangle {
                         Layout.preferredHeight: parent.height
                         Layout.preferredWidth: 2
-                        color: "#a0a0a0"
+                        color: Material.dividerColor
                         visible: true
                     }
                     Button {
@@ -557,21 +851,26 @@ Item {
 
                             onWheel: function (wheel) {
                                 if (wheel.angleDelta.y > 0) {
-                                    volumeSlider.value = Math.min(volumeSlider.value + 0.05, 1.0);
+                                    volumeSlider.value = Math.min(volumeSlider.value + AppConstants.volumeStep, 1.0);
                                 } else if (wheel.angleDelta.y < 0) {
-                                    volumeSlider.value = Math.max(volumeSlider.value - 0.05, 0.0);
+                                    volumeSlider.value = Math.max(volumeSlider.value - AppConstants.volumeStep, 0.0);
                                 }
                             }
                         }
                     }
                     Button {
+                        id: fullscreenButton
+
+                        Accessible.description: qsTr("Enter or exit fullscreen mode")
+                        Accessible.name: qsTr("Toggle fullscreen")
+                        Accessible.role: Accessible.Button
                         Layout.preferredHeight: 30
                         Layout.preferredWidth: 25
                         Material.background: "transparent"
                         Material.roundedScale: Material.NotRounded
-                        ToolTip.delay: 1000
+                        ToolTip.delay: AppConstants.tooltipDelay
                         ToolTip.text: qsTr("Toggle fullscreen")
-                        ToolTip.timeout: 5000
+                        ToolTip.timeout: AppConstants.tooltipTimeout
                         ToolTip.visible: hovered
                         font.family: materialSymbolsOutlined.name
                         hoverEnabled: true

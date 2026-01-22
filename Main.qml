@@ -1,6 +1,7 @@
 import QtCore
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Controls.Material
 import QtQuick.Dialogs
 import QtQuick.Layouts
 
@@ -13,8 +14,12 @@ ApplicationWindow {
     property bool mediaControlsContainsMouse: false
     property bool shouldAutoPlay: false
     property url source
+    property string lastUnsupportedFile: ""
+    property bool isDarkTheme: true
 
-    // TODO: Maybe use backend to verify
+    // Dynamic theme switching - overrides qtquickcontrols2.conf at runtime
+    Material.theme: isDarkTheme ? Material.Dark : Material.Light
+
     function getMediaInfo(fileUrl) {
         var path = fileUrl.toString();
         // On Windows, fileUrl can start with 'file:///'
@@ -23,17 +28,15 @@ ApplicationWindow {
         }
         var name = path.substring(path.lastIndexOf('/') + 1);
         var extension = name.substring(name.lastIndexOf('.') + 1).toLowerCase();
-        var videoExtensions = ["mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "m4v", "mpg"];
-        var audioExtensions = ["mp3", "wav", "ogg", "flac", "aac", "wma", "m4a"];
 
-        if (videoExtensions.indexOf(extension) !== -1) {
+        if (AppConstants.isVideoExtension(extension)) {
             return {
                 "name": name,
                 "path": fileUrl,
                 "type": "video",
                 "icon": "\ueb87"
             };
-        } else if (audioExtensions.indexOf(extension) !== -1) {
+        } else if (AppConstants.isAudioExtension(extension)) {
             return {
                 "name": name,
                 "path": fileUrl,
@@ -41,14 +44,17 @@ ApplicationWindow {
                 "icon": "\ue405"
             };
         } else {
+            lastUnsupportedFile = name;
             return null;
         }
     }
 
-    height: 768
+    height: Screen.height * 0.75
+    minimumHeight: 480
+    minimumWidth: 640
     title: qsTr("GAV")
     visible: true
-    width: 1024
+    width: Screen.width * 0.7
 
     footer: Loader {
         id: mediaControlsComponentLoader
@@ -109,6 +115,10 @@ ApplicationWindow {
         id: menuBarComponent
 
         MenuBar {
+            background: Rectangle {
+                color: Material.background.darker(1.2)
+            }
+
             Menu {
                 title: qsTr("File")
 
@@ -123,6 +133,14 @@ ApplicationWindow {
                     text: qsTr("Exit")
 
                     onTriggered: Qt.quit()
+                }
+            }
+            Menu {
+                title: qsTr("View")
+
+                Action {
+                    text: qsTr("Settings")
+                    onTriggered: settingsDialog.open()
                 }
             }
             Menu {
@@ -199,25 +217,92 @@ ApplicationWindow {
         y: (parent.height - height) / 2
 
         ColumnLayout {
-            spacing: 5
+            spacing: 10
 
             Image {
                 Layout.alignment: Qt.AlignHCenter
-                Layout.preferredHeight: 200
-                Layout.preferredWidth: 200
+                Layout.preferredHeight: 150
+                Layout.preferredWidth: 150
                 fillMode: Image.PreserveAspectFit
                 smooth: true
                 source: "qrc:/assets/images/logo-bw.png"
             }
             Text {
                 Layout.alignment: Qt.AlignHCenter
-                color: "white"
-                text: "v" + Qt.application.version
+                color: Material.foreground
+                font.pixelSize: 18
+                font.bold: true
+                text: "GAV Media Player"
             }
             Text {
                 Layout.alignment: Qt.AlignHCenter
-                color: "white"
-                text: "GAV - A simple media player built with Qt and FFmpeg"
+                color: Material.foreground
+                opacity: 0.7
+                text: "Version " + Qt.application.version
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                color: Material.dividerColor
+            }
+            Text {
+                Layout.alignment: Qt.AlignHCenter
+                color: Material.foreground
+                text: "A simple audio and video player"
+            }
+            Text {
+                Layout.alignment: Qt.AlignHCenter
+                color: Material.foreground
+                opacity: 0.5
+                font.pixelSize: 12
+                text: "Built with Qt " + Qt.version + " and FFmpeg"
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                color: Material.dividerColor
+            }
+            ColumnLayout {
+                Layout.alignment: Qt.AlignHCenter
+                spacing: 4
+
+                Text {
+                    Layout.alignment: Qt.AlignHCenter
+                    color: Material.foreground
+                    opacity: 0.5
+                    font.pixelSize: 11
+                    text: "Keyboard Shortcuts:"
+                }
+                Text {
+                    color: Material.foreground
+                    opacity: 0.7
+                    font.pixelSize: 11
+                    text: "Space - Play/Pause"
+                }
+                Text {
+                    color: Material.foreground
+                    opacity: 0.7
+                    font.pixelSize: 11
+                    text: "Left/Right - Seek 5 seconds"
+                }
+                Text {
+                    color: Material.foreground
+                    opacity: 0.7
+                    font.pixelSize: 11
+                    text: "Scroll - Volume"
+                }
+                Text {
+                    color: Material.foreground
+                    opacity: 0.7
+                    font.pixelSize: 11
+                    text: "Ctrl+Scroll - Zoom"
+                }
+                Text {
+                    color: Material.foreground
+                    opacity: 0.7
+                    font.pixelSize: 11
+                    text: "Double-click - Fullscreen"
+                }
             }
         }
     }
@@ -231,14 +316,48 @@ ApplicationWindow {
         standardButtons: Dialog.Ok
         title: "Unsupported File"
 
-        Text {
-            color: "white"
-            text: "The dropped file is not a supported video format."
+        ColumnLayout {
+            spacing: 10
+
+            Text {
+                color: Material.foreground
+                text: lastUnsupportedFile ? "'" + lastUnsupportedFile + "' is not a supported format." : "The file is not a supported format."
+                wrapMode: Text.WordWrap
+                Layout.maximumWidth: 400
+            }
+            Text {
+                color: Material.foreground
+                opacity: 0.5
+                font.pixelSize: 12
+                text: "Supported formats:"
+                Layout.topMargin: 5
+            }
+            Text {
+                color: Material.foreground
+                opacity: 0.7
+                font.pixelSize: 11
+                text: AppConstants.getSupportedFormatsString()
+                wrapMode: Text.WordWrap
+                Layout.maximumWidth: 400
+            }
         }
     }
     Collage {
         id: collage
 
+    }
+    SettingsDialog {
+        id: settingsDialog
+
+        audioOutput: mediaComponent.audioOutput
+        mediaPlayer: mediaComponent.mediaPlayer
+        isDarkTheme: mainWindow.isDarkTheme
+        x: (parent.width - width) / 2
+        y: (parent.height - height) / 2
+
+        onThemeToggled: function(isDark) {
+            mainWindow.isDarkTheme = isDark;
+        }
     }
     DropArea {
         anchors.fill: parent
@@ -268,7 +387,7 @@ ApplicationWindow {
         id: fileDialog
 
         currentFolder: StandardPaths.standardLocations(StandardPaths.DownloadLocation)[0]
-        nameFilters: ["Video Files (*.mp4 *.avi *.mkv *.mov *.wmv *.flv *.webm *.m4v *.mpg)", "Audio Files (*.mp3 *.wav *.ogg *.flac *.aac *.wma *m4a)", "All files (*)"]
+        nameFilters: [AppConstants.getVideoExtensionsFilter(), AppConstants.getAudioExtensionsFilter(), "All files (*)"]
 
         onAccepted: {
             var mediaInfo = getMediaInfo(selectedFile);
@@ -291,12 +410,12 @@ ApplicationWindow {
 
         Keys.onPressed: function (event) {
             if (event.key === Qt.Key_Left) {
-                // Seek backward 5 seconds
-                mediaPlayer.position = Math.max(0, mediaPlayer.position - 5000);
+                // Seek backward
+                mediaPlayer.position = Math.max(0, mediaPlayer.position - AppConstants.seekStep);
                 event.accepted = true;
             } else if (event.key === Qt.Key_Right) {
-                // Seek forward 5 seconds
-                mediaPlayer.position = Math.min(mediaPlayer.duration, mediaPlayer.position + 5000);
+                // Seek forward
+                mediaPlayer.position = Math.min(mediaPlayer.duration, mediaPlayer.position + AppConstants.seekStep);
                 event.accepted = true;
             } else if (event.key === Qt.Key_Space) {
                 // Play/Pause
@@ -318,6 +437,9 @@ ApplicationWindow {
             mediaComponent.path = "";
             mainWindow.title = qsTr("GAV");
         }
+        onFullscreenToggleRequested: {
+            mainWindow.visibility = mainWindow.visibility === Window.FullScreen ? Window.Windowed : Window.FullScreen;
+        }
     }
     ListModel {
         id: playList
@@ -329,6 +451,15 @@ ApplicationWindow {
         anchors.fill: parent
         playList: playList
         visible: !mediaComponent.isVideoAndPlaying
+
+        onItemSelected: function(path, name) {
+            mediaComponent.path = path;
+            mainWindow.title = "GAV - " + name;
+            mediaComponent.mediaPlayer.play();
+        }
+        onPlayRequested: {
+            mediaComponent.mediaPlayer.play();
+        }
     }
     Component {
         id: mediaControlsComponent

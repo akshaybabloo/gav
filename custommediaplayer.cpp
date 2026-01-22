@@ -5,6 +5,8 @@
 #include <QStandardPaths>
 #include <QDateTime>
 #include <QDir>
+#include <QBuffer>
+#include <QTimer>
 
 CustomMediaPlayer::CustomMediaPlayer() {
   m_mediaPlayer = new QMediaPlayer(this);
@@ -43,6 +45,8 @@ void CustomMediaPlayer::setSource(const QUrl &source) {
     emit errorOccurred("Source URL is invalid: " + source.toString());
     return;
   }
+  // Reset preview player when source changes
+  resetPreviewPlayer();
   m_mediaPlayer->setSource(source);
 }
 
@@ -217,6 +221,118 @@ void CustomMediaPlayer::captureFrame() {
     emit frameCaptured(true, fullPath);
   } else {
     emit frameCaptured(false, "Failed to save image.");
+  }
+}
+
+void CustomMediaPlayer::requestPreviewAt(qint64 position) {
+  if (!m_hasVideo || m_mediaPlayer->source().isEmpty() || position < 0) {
+    return;
+  }
+
+  // Initialize preview player if needed
+  if (!m_previewPlayer) {
+    m_previewPlayer = new QMediaPlayer(this);
+    m_previewSink = new QVideoSink(this);
+    m_previewPlayer->setVideoSink(m_previewSink);
+    // No audio output - preview is silent
+    m_previewPlayer->setAudioOutput(nullptr);
+
+    connect(m_previewPlayer, &QMediaPlayer::mediaStatusChanged,
+            this, &CustomMediaPlayer::onPreviewPlayerStatusChanged);
+  }
+
+  // Initialize timer if needed
+  if (!m_previewCaptureTimer) {
+    m_previewCaptureTimer = new QTimer(this);
+    m_previewCaptureTimer->setSingleShot(true);
+    m_previewCaptureTimer->setInterval(150);
+    connect(m_previewCaptureTimer, &QTimer::timeout, this, &CustomMediaPlayer::onPreviewCaptureTimeout);
+  }
+
+  // Cancel any pending capture
+  m_previewCaptureTimer->stop();
+
+  // Store the position we want to preview
+  m_pendingPreviewPosition = position;
+
+  // Load the same source if different
+  if (m_previewPlayer->source() != m_mediaPlayer->source()) {
+    m_previewPlayer->setSource(m_mediaPlayer->source());
+  } else if (m_previewPlayer->mediaStatus() >= QMediaPlayer::LoadedMedia) {
+    startPreviewCapture(position);
+  }
+}
+
+void CustomMediaPlayer::startPreviewCapture(qint64 position) {
+  if (!m_previewPlayer || !m_previewCaptureTimer || !m_previewSink) {
+    return;
+  }
+
+  if (position < 0) {
+    return;
+  }
+
+  // Stop any current playback and seek to new position
+  m_previewPlayer->setPosition(position);
+  m_previewPlayer->play();
+
+  // Schedule capture after giving time for frame to decode
+  m_previewCaptureTimer->start(150);
+}
+
+void CustomMediaPlayer::onPreviewPlayerStatusChanged(QMediaPlayer::MediaStatus status) {
+  if (status == QMediaPlayer::LoadedMedia && m_pendingPreviewPosition >= 0) {
+    startPreviewCapture(m_pendingPreviewPosition);
+  }
+}
+
+void CustomMediaPlayer::onPreviewCaptureTimeout() {
+  if (m_pendingPreviewPosition >= 0) {
+    capturePreviewFrame(m_pendingPreviewPosition);
+  }
+}
+
+void CustomMediaPlayer::capturePreviewFrame(qint64 position) {
+  // Pause the preview player
+  if (m_previewPlayer && m_previewPlayer->playbackState() == QMediaPlayer::PlayingState) {
+    m_previewPlayer->pause();
+  }
+
+  if (!m_previewSink) {
+    return;
+  }
+
+  QVideoFrame frame = m_previewSink->videoFrame();
+  if (!frame.isValid()) {
+    return;
+  }
+
+  QImage image = frame.toImage();
+  if (image.isNull()) {
+    return;
+  }
+
+  // Scale down for preview (max 160x90 for 16:9)
+  QImage scaled = image.scaled(160, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+
+  // Convert to base64 data URL
+  QByteArray byteArray;
+  QBuffer buffer(&byteArray);
+  buffer.open(QIODevice::WriteOnly);
+  scaled.save(&buffer, "JPEG", 70);
+
+  QString dataUrl = "data:image/jpeg;base64," + QString::fromLatin1(byteArray.toBase64());
+  emit previewReady(position, dataUrl);
+}
+
+void CustomMediaPlayer::resetPreviewPlayer() {
+  m_pendingPreviewPosition = -1;
+  if (m_previewCaptureTimer) {
+    m_previewCaptureTimer->stop();
+  }
+  if (m_previewPlayer) {
+    m_previewPlayer->stop();
+    m_previewPlayer->setSource(QUrl());
   }
 }
 
