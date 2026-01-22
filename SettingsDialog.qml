@@ -157,37 +157,6 @@ Dialog {
             color: Material.dividerColor
         }
 
-        // Interface section
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 8
-
-            Text {
-                color: Material.foreground
-                font.bold: true
-                font.pixelSize: 14
-                text: qsTr("Interface")
-            }
-            CheckBox {
-                id: autoHideControlsCheck
-                text: qsTr("Auto-hide controls during playback")
-                checked: true
-            }
-            Text {
-                color: Material.foreground
-                opacity: 0.5
-                font.pixelSize: 11
-                text: qsTr("Controls hide after ") + (AppConstants.controlsHideDelay / 1000) + qsTr(" seconds of inactivity")
-                leftPadding: 26
-            }
-        }
-
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 1
-            color: Material.dividerColor
-        }
-
         // Keyboard shortcuts reference
         ColumnLayout {
             Layout.fillWidth: true

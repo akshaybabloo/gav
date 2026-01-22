@@ -112,7 +112,7 @@ Item {
         id: controlBar
 
         anchors.horizontalCenter: parent.horizontalCenter
-        color: "#80000000"
+        color: Material.background.darker(1.2)
         height: parent.height
         width: parent.width
 
@@ -133,7 +133,7 @@ Item {
                 Text {
                     id: timeLabel
 
-                    color: "white"
+                    color: Material.foreground
                     text: formatTime(player.position) + " / " + formatTime(player.duration)
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -158,66 +158,105 @@ Item {
 
                         property real hoverX: 0
 
-                        border.color: "#444"
+                        border.color: Material.dividerColor
                         border.width: 1
-                        color: "#e0222222"
-                        height: previewImage.status === Image.Ready ? 115 : 40
+                        color: Qt.rgba(Material.background.r, Material.background.g, Material.background.b, 0.9)
+                        height: 115
                         radius: 6
                         visible: seekSlider.previewVisible && mediaLoaded && player.duration > 0
                         width: 170
                         x: Math.max(0, Math.min(hoverX - width / 2, seekSlider.width - width))
                         y: -height - 10
 
-                        Behavior on height {
-                            NumberAnimation {
-                                duration: 100
-                            }
-                        }
-
                         Column {
                             anchors.centerIn: parent
                             spacing: 4
 
-                            // Thumbnail image
-                            Image {
-                                id: previewImage
-
-                                fillMode: Image.PreserveAspectFit
+                            // Thumbnail container - fixed size, shows either image or loading
+                            Item {
                                 height: 90
-                                source: seekSlider.previewImageUrl
-                                visible: status === Image.Ready
                                 width: 160
 
+                                // Thumbnail image
+                                Image {
+                                    id: previewImage
+
+                                    anchors.fill: parent
+                                    fillMode: Image.PreserveAspectFit
+                                    source: seekSlider.previewImageUrl
+                                    visible: status === Image.Ready
+
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        border.color: Material.dividerColor
+                                        border.width: 1
+                                        color: "transparent"
+                                        visible: previewImage.status === Image.Ready
+                                    }
+                                }
+
+                                // Loading indicator when no image yet
                                 Rectangle {
                                     anchors.fill: parent
-                                    border.color: "#333"
-                                    border.width: 1
-                                    color: "transparent"
-                                    visible: previewImage.status === Image.Ready
-                                }
-                            }
+                                    color: Material.dividerColor
+                                    radius: 4
+                                    visible: previewImage.status !== Image.Ready
+                                    clip: true
 
-                            // Loading indicator when no image yet
-                            Rectangle {
-                                color: "#333"
-                                height: 90
-                                radius: 4
-                                visible: previewImage.status !== Image.Ready && seekSlider.previewVisible
-                                width: 160
+                                    Text {
+                                        anchors.centerIn: parent
+                                        anchors.verticalCenterOffset: -8
+                                        color: Material.foreground
+                                        opacity: 0.5
+                                        font.family: materialSymbolsOutlined.name
+                                        font.pixelSize: 32
+                                        text: "\ue04b"
+                                    }
 
-                                Text {
-                                    anchors.centerIn: parent
-                                    color: "#666"
-                                    font.family: materialSymbolsOutlined.name
-                                    font.pixelSize: 32
-                                    text: "\ue04b"
+                                    // Animated loading bar at bottom
+                                    Rectangle {
+                                        id: loadingBar
+                                        anchors.bottom: parent.bottom
+                                        anchors.bottomMargin: 8
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        height: 3
+                                        width: parent.width - 20
+                                        color: Qt.rgba(Material.foreground.r, Material.foreground.g, Material.foreground.b, 0.2)
+                                        radius: 1.5
+
+                                        Rectangle {
+                                            id: loadingProgress
+                                            height: parent.height
+                                            width: 40
+                                            radius: 1.5
+                                            color: Material.accent
+
+                                            SequentialAnimation on x {
+                                                loops: Animation.Infinite
+                                                running: previewImage.status !== Image.Ready && seekSlider.previewVisible
+
+                                                NumberAnimation {
+                                                    from: 0
+                                                    to: loadingBar.width - loadingProgress.width
+                                                    duration: 800
+                                                    easing.type: Easing.InOutQuad
+                                                }
+                                                NumberAnimation {
+                                                    from: loadingBar.width - loadingProgress.width
+                                                    to: 0
+                                                    duration: 800
+                                                    easing.type: Easing.InOutQuad
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
 
                             // Time label
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                color: "white"
+                                color: Material.foreground
                                 font.bold: true
                                 font.pixelSize: 12
                                 text: formatTime(seekSlider.previewPosition)
@@ -371,7 +410,8 @@ Item {
                         contentItem: Item {
                             Text {
                                 anchors.centerIn: parent
-                                color: fastRewindButton.enabled ? "white" : "#a0a0a0"
+                                color: Material.foreground
+                                opacity: fastRewindButton.enabled ? 1.0 : 0.5
                                 font: fastRewindButton.font
                                 text: "\ue020"
                             }
@@ -380,7 +420,7 @@ Item {
                                 anchors.bottomMargin: 2
                                 anchors.right: parent.right
                                 anchors.rightMargin: -2
-                                color: "#e53935"
+                                color: Material.color(Material.Red)
                                 height: 10
                                 radius: 2
                                 visible: isFastRewinding
@@ -388,7 +428,7 @@ Item {
 
                                 Text {
                                     anchors.centerIn: parent
-                                    color: "white"
+                                    color: Material.foreground
                                     font.bold: true
                                     font.pixelSize: 8
                                     text: "10x"
@@ -472,7 +512,8 @@ Item {
                         contentItem: Item {
                             Text {
                                 anchors.centerIn: parent
-                                color: fastForwardButton.enabled ? "white" : "#a0a0a0"
+                                color: Material.foreground
+                                opacity: fastForwardButton.enabled ? 1.0 : 0.5
                                 font: fastForwardButton.font
                                 text: "\ue01f"
                             }
@@ -481,7 +522,7 @@ Item {
                                 anchors.bottomMargin: 2
                                 anchors.right: parent.right
                                 anchors.rightMargin: -2
-                                color: "#4caf50"
+                                color: Material.color(Material.Green)
                                 height: 10
                                 radius: 2
                                 visible: isFastForwarding
@@ -489,7 +530,7 @@ Item {
 
                                 Text {
                                     anchors.centerIn: parent
-                                    color: "white"
+                                    color: Material.foreground
                                     font.bold: true
                                     font.pixelSize: 8
                                     text: "10x"
@@ -556,7 +597,7 @@ Item {
                     Rectangle {
                         Layout.preferredHeight: parent.height
                         Layout.preferredWidth: 2
-                        color: "#a0a0a0"
+                        color: Material.dividerColor
                         visible: true
                     }
 
@@ -574,7 +615,8 @@ Item {
                         hoverEnabled: true
 
                         contentItem: Text {
-                            color: speedButton.enabled ? "white" : "#a0a0a0"
+                            color: Material.foreground
+                            opacity: speedButton.enabled ? 1.0 : 0.5
                             font.bold: player.playbackRate !== 1.0
                             font.pixelSize: 11
                             horizontalAlignment: Text.AlignHCenter
@@ -616,7 +658,7 @@ Item {
                     Rectangle {
                         Layout.preferredHeight: parent.height
                         Layout.preferredWidth: 2
-                        color: "#a0a0a0"
+                        color: Material.dividerColor
                         visible: true
                     }
                     Button {
@@ -702,7 +744,7 @@ Item {
                     Rectangle {
                         Layout.preferredHeight: parent.height
                         Layout.preferredWidth: 2
-                        color: "#a0a0a0"
+                        color: Material.dividerColor
                         visible: true
                     }
                     Button {

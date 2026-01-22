@@ -45,6 +45,8 @@ void CustomMediaPlayer::setSource(const QUrl &source) {
     emit errorOccurred("Source URL is invalid: " + source.toString());
     return;
   }
+  // Reset preview player when source changes
+  resetPreviewPlayer();
   m_mediaPlayer->setSource(source);
 }
 
@@ -223,7 +225,7 @@ void CustomMediaPlayer::captureFrame() {
 }
 
 void CustomMediaPlayer::requestPreviewAt(qint64 position) {
-  if (!m_hasVideo || m_mediaPlayer->source().isEmpty()) {
+  if (!m_hasVideo || m_mediaPlayer->source().isEmpty() || position < 0) {
     return;
   }
 
@@ -232,10 +234,23 @@ void CustomMediaPlayer::requestPreviewAt(qint64 position) {
     m_previewPlayer = new QMediaPlayer(this);
     m_previewSink = new QVideoSink(this);
     m_previewPlayer->setVideoSink(m_previewSink);
+    // No audio output - preview is silent
+    m_previewPlayer->setAudioOutput(nullptr);
 
     connect(m_previewPlayer, &QMediaPlayer::mediaStatusChanged,
             this, &CustomMediaPlayer::onPreviewPlayerStatusChanged);
   }
+
+  // Initialize timer if needed
+  if (!m_previewCaptureTimer) {
+    m_previewCaptureTimer = new QTimer(this);
+    m_previewCaptureTimer->setSingleShot(true);
+    m_previewCaptureTimer->setInterval(150);
+    connect(m_previewCaptureTimer, &QTimer::timeout, this, &CustomMediaPlayer::onPreviewCaptureTimeout);
+  }
+
+  // Cancel any pending capture
+  m_previewCaptureTimer->stop();
 
   // Store the position we want to preview
   m_pendingPreviewPosition = position;
@@ -244,41 +259,56 @@ void CustomMediaPlayer::requestPreviewAt(qint64 position) {
   if (m_previewPlayer->source() != m_mediaPlayer->source()) {
     m_previewPlayer->setSource(m_mediaPlayer->source());
   } else if (m_previewPlayer->mediaStatus() >= QMediaPlayer::LoadedMedia) {
-    // Source already loaded, seek directly
-    m_previewPlayer->setPosition(position);
-    // Capture after a short delay to allow frame to render
-    QTimer::singleShot(100, this, [this, position]() {
-      capturePreviewFrame(position);
-    });
+    startPreviewCapture(position);
   }
+}
+
+void CustomMediaPlayer::startPreviewCapture(qint64 position) {
+  if (!m_previewPlayer || !m_previewCaptureTimer || !m_previewSink) {
+    return;
+  }
+
+  if (position < 0) {
+    return;
+  }
+
+  // Stop any current playback and seek to new position
+  m_previewPlayer->setPosition(position);
+  m_previewPlayer->play();
+
+  // Schedule capture after giving time for frame to decode
+  m_previewCaptureTimer->start(150);
 }
 
 void CustomMediaPlayer::onPreviewPlayerStatusChanged(QMediaPlayer::MediaStatus status) {
   if (status == QMediaPlayer::LoadedMedia && m_pendingPreviewPosition >= 0) {
-    m_previewPlayer->setPosition(m_pendingPreviewPosition);
-    // Capture after a short delay to allow frame to render
-    qint64 pos = m_pendingPreviewPosition;
-    QTimer::singleShot(100, this, [this, pos]() {
-      capturePreviewFrame(pos);
-    });
+    startPreviewCapture(m_pendingPreviewPosition);
+  }
+}
+
+void CustomMediaPlayer::onPreviewCaptureTimeout() {
+  if (m_pendingPreviewPosition >= 0) {
+    capturePreviewFrame(m_pendingPreviewPosition);
   }
 }
 
 void CustomMediaPlayer::capturePreviewFrame(qint64 position) {
+  // Pause the preview player
+  if (m_previewPlayer && m_previewPlayer->playbackState() == QMediaPlayer::PlayingState) {
+    m_previewPlayer->pause();
+  }
+
   if (!m_previewSink) {
-    emit previewReady(position, QString());
     return;
   }
 
   QVideoFrame frame = m_previewSink->videoFrame();
   if (!frame.isValid()) {
-    emit previewReady(position, QString());
     return;
   }
 
   QImage image = frame.toImage();
   if (image.isNull()) {
-    emit previewReady(position, QString());
     return;
   }
 
@@ -293,5 +323,16 @@ void CustomMediaPlayer::capturePreviewFrame(qint64 position) {
 
   QString dataUrl = "data:image/jpeg;base64," + QString::fromLatin1(byteArray.toBase64());
   emit previewReady(position, dataUrl);
+}
+
+void CustomMediaPlayer::resetPreviewPlayer() {
+  m_pendingPreviewPosition = -1;
+  if (m_previewCaptureTimer) {
+    m_previewCaptureTimer->stop();
+  }
+  if (m_previewPlayer) {
+    m_previewPlayer->stop();
+    m_previewPlayer->setSource(QUrl());
+  }
 }
 

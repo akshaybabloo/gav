@@ -5,7 +5,9 @@
 #include <QMediaPlayer>
 #include <QMediaMetaData>
 #include <QQuickItem>
+#include <QTimer>
 #include <QUrl>
+#include <QVideoSink>
 
 class CustomMediaPlayer : public QQuickItem {
   Q_OBJECT
@@ -72,16 +74,20 @@ signals:
 
 private slots:
   void onPreviewPlayerStatusChanged(QMediaPlayer::MediaStatus status);
+  void onPreviewCaptureTimeout();
   void onMediaPlayerError(QMediaPlayer::Error error, const QString &errorString);
   void updateHasVideo();
   void onStatusChanged(QMediaPlayer::MediaStatus status);
 
 private:
   void capturePreviewFrame(qint64 position);
+  void resetPreviewPlayer();
+  void startPreviewCapture(qint64 position);
 
   QMediaPlayer *m_mediaPlayer;
   QMediaPlayer *m_previewPlayer = nullptr;
   QVideoSink *m_previewSink = nullptr;
+  QTimer *m_previewCaptureTimer = nullptr;
   qint64 m_pendingPreviewPosition = -1;
   bool m_hasVideo = false;
   bool m_playWhenLoaded = false;

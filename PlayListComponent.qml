@@ -52,7 +52,7 @@ Item {
         standardButtons: Dialog.Yes | Dialog.No
 
         Text {
-            color: "white"
+            color: Material.foreground
             text: qsTr("Are you sure you want to clear the playlist?") + "\n" +
                   qsTr("This will remove all ") + playList.count + qsTr(" items.")
         }
@@ -132,7 +132,7 @@ Item {
             }
 
             background: Rectangle {
-                color: parent.down ? Material.listHighlightColor : (parent.hovered ? Material.dividerColor : (parent.ListView.isCurrentItem ? Material.highlightedButtonColor : "transparent"))
+                color: parent.down ? Material.listHighlightColor : (parent.hovered ? Material.dividerColor : (parent.ListView.isCurrentItem ? Qt.rgba(Material.accent.r, Material.accent.g, Material.accent.b, 0.3) : "transparent"))
                 radius: 4
             }
             contentItem: RowLayout {

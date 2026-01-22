@@ -115,6 +115,10 @@ ApplicationWindow {
         id: menuBarComponent
 
         MenuBar {
+            background: Rectangle {
+                color: Material.background.darker(1.2)
+            }
+
             Menu {
                 title: qsTr("File")
 
@@ -225,36 +229,38 @@ ApplicationWindow {
             }
             Text {
                 Layout.alignment: Qt.AlignHCenter
-                color: "white"
+                color: Material.foreground
                 font.pixelSize: 18
                 font.bold: true
                 text: "GAV Media Player"
             }
             Text {
                 Layout.alignment: Qt.AlignHCenter
-                color: "#aaa"
+                color: Material.foreground
+                opacity: 0.7
                 text: "Version " + Qt.application.version
             }
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 1
-                color: "#444"
+                color: Material.dividerColor
             }
             Text {
                 Layout.alignment: Qt.AlignHCenter
-                color: "white"
+                color: Material.foreground
                 text: "A simple audio and video player"
             }
             Text {
                 Layout.alignment: Qt.AlignHCenter
-                color: "#888"
+                color: Material.foreground
+                opacity: 0.5
                 font.pixelSize: 12
-                text: "Built with Qt " + "6.x" + " and FFmpeg"
+                text: "Built with Qt " + Qt.version + " and FFmpeg"
             }
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 1
-                color: "#444"
+                color: Material.dividerColor
             }
             ColumnLayout {
                 Layout.alignment: Qt.AlignHCenter
@@ -262,32 +268,38 @@ ApplicationWindow {
 
                 Text {
                     Layout.alignment: Qt.AlignHCenter
-                    color: "#888"
+                    color: Material.foreground
+                    opacity: 0.5
                     font.pixelSize: 11
                     text: "Keyboard Shortcuts:"
                 }
                 Text {
-                    color: "#aaa"
+                    color: Material.foreground
+                    opacity: 0.7
                     font.pixelSize: 11
                     text: "Space - Play/Pause"
                 }
                 Text {
-                    color: "#aaa"
+                    color: Material.foreground
+                    opacity: 0.7
                     font.pixelSize: 11
                     text: "Left/Right - Seek 5 seconds"
                 }
                 Text {
-                    color: "#aaa"
+                    color: Material.foreground
+                    opacity: 0.7
                     font.pixelSize: 11
                     text: "Scroll - Volume"
                 }
                 Text {
-                    color: "#aaa"
+                    color: Material.foreground
+                    opacity: 0.7
                     font.pixelSize: 11
                     text: "Ctrl+Scroll - Zoom"
                 }
                 Text {
-                    color: "#aaa"
+                    color: Material.foreground
+                    opacity: 0.7
                     font.pixelSize: 11
                     text: "Double-click - Fullscreen"
                 }
@@ -308,19 +320,21 @@ ApplicationWindow {
             spacing: 10
 
             Text {
-                color: "white"
+                color: Material.foreground
                 text: lastUnsupportedFile ? "'" + lastUnsupportedFile + "' is not a supported format." : "The file is not a supported format."
                 wrapMode: Text.WordWrap
                 Layout.maximumWidth: 400
             }
             Text {
-                color: "#888"
+                color: Material.foreground
+                opacity: 0.5
                 font.pixelSize: 12
                 text: "Supported formats:"
                 Layout.topMargin: 5
             }
             Text {
-                color: "#aaa"
+                color: Material.foreground
+                opacity: 0.7
                 font.pixelSize: 11
                 text: AppConstants.getSupportedFormatsString()
                 wrapMode: Text.WordWrap
