@@ -465,6 +465,11 @@ ApplicationWindow {
             mediaComponent.mediaPlayer.play();
         }
         onPlayRequested: {
+            if (mediaComponent.path === "" && playlistComponent.playListView.currentIndex !== -1) {
+                var item = playList.get(playlistComponent.playListView.currentIndex);
+                mediaComponent.path = item.path;
+                mainWindow.title = "GAV - " + item.name;
+            }
             mediaComponent.mediaPlayer.play();
         }
     }
