@@ -177,6 +177,10 @@ if (UNIX AND NOT APPLE)
             DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps
             RENAME gav.png
             COMPONENT GAV)
+    install(FILES assets/images/icon.png
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/pixmaps
+            RENAME gav.png
+            COMPONENT GAV)
     install(FILES support/gav.desktop
             DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
             COMPONENT GAV)
