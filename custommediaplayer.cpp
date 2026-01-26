@@ -1,4 +1,5 @@
 #include "custommediaplayer.h"
+#include "previewimageprovider.h"
 #include <QVideoSink>
 #include <QVideoFrame>
 #include <QImage>
@@ -108,6 +109,7 @@ void CustomMediaPlayer::pause() {
 
 void CustomMediaPlayer::stop() {
   m_playWhenLoaded = false;
+  resetPreviewPlayer();
   m_mediaPlayer->stop();
   m_mediaPlayer->setSource(QUrl());
   m_mediaPlayer->setPosition(0);
@@ -124,14 +126,6 @@ void CustomMediaPlayer::stop() {
   emit videoVisibilityChanged(false);
   emit durationChanged();
   emit positionChanged();
-}
-
-void CustomMediaPlayer::onMediaPlayerError(QMediaPlayer::Error error,
-                                           const QString &errorString) {
-  if (error != QMediaPlayer::NoError) {
-    qWarning() << "MediaPlayer Error:" << error << errorString;
-    emit errorOccurred(errorString);
-  }
 }
 
 void CustomMediaPlayer::updateHasVideo() {
@@ -243,18 +237,10 @@ void CustomMediaPlayer::requestPreviewAt(qint64 position) {
 
     connect(m_previewPlayer, &QMediaPlayer::mediaStatusChanged,
             this, &CustomMediaPlayer::onPreviewPlayerStatusChanged);
-  }
 
-  // Initialize timer if needed
-  if (!m_previewCaptureTimer) {
-    m_previewCaptureTimer = new QTimer(this);
-    m_previewCaptureTimer->setSingleShot(true);
-    m_previewCaptureTimer->setInterval(150);
-    connect(m_previewCaptureTimer, &QTimer::timeout, this, &CustomMediaPlayer::onPreviewCaptureTimeout);
+    connect(m_previewSink, &QVideoSink::videoFrameChanged,
+            this, &CustomMediaPlayer::onPreviewFrameChanged);
   }
-
-  // Cancel any pending capture
-  m_previewCaptureTimer->stop();
 
   // Store the position we want to preview
   m_pendingPreviewPosition = position;
@@ -268,7 +254,7 @@ void CustomMediaPlayer::requestPreviewAt(qint64 position) {
 }
 
 void CustomMediaPlayer::startPreviewCapture(qint64 position) {
-  if (!m_previewPlayer || !m_previewCaptureTimer || !m_previewSink) {
+  if (!m_previewPlayer || !m_previewSink) {
     return;
   }
 
@@ -276,12 +262,16 @@ void CustomMediaPlayer::startPreviewCapture(qint64 position) {
     return;
   }
 
-  // Stop any current playback and seek to new position
+  m_waitingForPreview = true;
   m_previewPlayer->setPosition(position);
-  m_previewPlayer->play();
+  m_previewPlayer->pause();
+}
 
-  // Schedule capture after giving time for frame to decode
-  m_previewCaptureTimer->start(150);
+void CustomMediaPlayer::onPreviewFrameChanged() {
+    if (m_waitingForPreview && m_pendingPreviewPosition >= 0) {
+        m_waitingForPreview = false;
+        capturePreviewFrame();
+    }
 }
 
 void CustomMediaPlayer::onPreviewPlayerStatusChanged(QMediaPlayer::MediaStatus status) {
@@ -290,18 +280,16 @@ void CustomMediaPlayer::onPreviewPlayerStatusChanged(QMediaPlayer::MediaStatus s
   }
 }
 
-void CustomMediaPlayer::onPreviewCaptureTimeout() {
-  if (m_pendingPreviewPosition >= 0) {
-    capturePreviewFrame(m_pendingPreviewPosition);
+// Removed timer logic
+void CustomMediaPlayer::onMediaPlayerError(QMediaPlayer::Error error,
+                                           const QString &errorString) {
+  if (error != QMediaPlayer::NoError) {
+    qWarning() << "MediaPlayer Error:" << error << errorString;
+    emit errorOccurred(errorString);
   }
 }
 
-void CustomMediaPlayer::capturePreviewFrame(qint64 position) {
-  // Pause the preview player
-  if (m_previewPlayer && m_previewPlayer->playbackState() == QMediaPlayer::PlayingState) {
-    m_previewPlayer->pause();
-  }
-
+void CustomMediaPlayer::capturePreviewFrame() {
   if (!m_previewSink) {
     return;
   }
@@ -319,21 +307,18 @@ void CustomMediaPlayer::capturePreviewFrame(qint64 position) {
   // Scale down for preview (max 160x90 for 16:9)
   QImage scaled = image.scaled(160, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 
-  // Convert to base64 data URL
-  QByteArray byteArray;
-  QBuffer buffer(&byteArray);
-  buffer.open(QIODevice::WriteOnly);
-  scaled.save(&buffer, "JPEG", 70);
+  QString imageId = QString("preview_%1").arg(QDateTime::currentMSecsSinceEpoch());
 
-  QString dataUrl = "data:image/jpeg;base64," + QString::fromLatin1(byteArray.toBase64());
-  emit previewReady(position, dataUrl);
+  if (auto provider = PreviewImageProvider::instance()) {
+      provider->storeImage(imageId, scaled);
+      QString imageUrl = "image://preview/" + imageId;
+      emit previewReady(m_pendingPreviewPosition, imageUrl);
+  }
 }
 
 void CustomMediaPlayer::resetPreviewPlayer() {
   m_pendingPreviewPosition = -1;
-  if (m_previewCaptureTimer) {
-    m_previewCaptureTimer->stop();
-  }
+  m_waitingForPreview = false;
   if (m_previewPlayer) {
     m_previewPlayer->stop();
     m_previewPlayer->setSource(QUrl());

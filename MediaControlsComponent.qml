@@ -314,7 +314,7 @@ Item {
                     Timer {
                         id: previewRequestTimer
 
-                        interval: 200
+                        interval: 50
 
                         onTriggered: {
                             if (seekSlider.previewVisible) {

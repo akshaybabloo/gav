@@ -74,24 +74,24 @@ signals:
 
 private slots:
   void onPreviewPlayerStatusChanged(QMediaPlayer::MediaStatus status);
-  void onPreviewCaptureTimeout();
+  void onPreviewFrameChanged();
   void onMediaPlayerError(QMediaPlayer::Error error, const QString &errorString);
   void updateHasVideo();
   void onStatusChanged(QMediaPlayer::MediaStatus status);
 
 private:
-  void capturePreviewFrame(qint64 position);
+  void capturePreviewFrame();
   void resetPreviewPlayer();
   void startPreviewCapture(qint64 position);
 
   QMediaPlayer *m_mediaPlayer;
   QMediaPlayer *m_previewPlayer = nullptr;
   QVideoSink *m_previewSink = nullptr;
-  QTimer *m_previewCaptureTimer = nullptr;
   qint64 m_pendingPreviewPosition = -1;
   bool m_hasVideo = false;
   bool m_playWhenLoaded = false;
   bool m_mediaLoaded = false;
+  bool m_waitingForPreview = false;
 };
 
 #endif // CUSTOMMEDIAPLAYER_H

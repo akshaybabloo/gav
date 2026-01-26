@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "collage.h"
+#include "previewimageprovider.h"
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -231,6 +232,8 @@ int main(int argc, char *argv[]) {
     }
 
     QQmlApplicationEngine engine;
+    engine.addImageProvider("preview", new PreviewImageProvider());
+    
     if (!sourceValue.isEmpty()) {
         // Check if the path is relative or absolute
         QFileInfo fileInfo(sourceValue);
