@@ -18,6 +18,7 @@ CustomMediaPlayer::CustomMediaPlayer() {
           &CustomMediaPlayer::playbackStateChanged);
   connect(m_mediaPlayer, &QMediaPlayer::mediaStatusChanged, this,
           &CustomMediaPlayer::mediaStatusChanged);
+  connect(m_mediaPlayer, &QMediaPlayer::tracksChanged, this, &CustomMediaPlayer::updateHasVideo);
   connect(m_mediaPlayer, &QMediaPlayer::playbackRateChanged, this, &CustomMediaPlayer::playbackRateChanged);
 
 
@@ -138,6 +139,9 @@ void CustomMediaPlayer::updateHasVideo() {
   if (m_hasVideo != hasVideo) {
     m_hasVideo = hasVideo;
     emit hasVideoChanged();
+    if (m_mediaLoaded) {
+        emit videoVisibilityChanged(m_hasVideo);
+    }
   }
 }
 
