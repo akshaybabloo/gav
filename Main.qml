@@ -4,6 +4,7 @@ import QtQuick.Controls
 import QtQuick.Controls.Material
 import QtQuick.Dialogs
 import QtQuick.Layouts
+import QtMultimedia
 
 import gavqml
 
@@ -408,23 +409,29 @@ ApplicationWindow {
         focus: true
         path: ""
 
-        Keys.onPressed: function (event) {
-            if (event.key === Qt.Key_Left) {
-                // Seek backward
-                mediaPlayer.position = Math.max(0, mediaPlayer.position - AppConstants.seekStep);
-                event.accepted = true;
-            } else if (event.key === Qt.Key_Right) {
-                // Seek forward
-                mediaPlayer.position = Math.min(mediaPlayer.duration, mediaPlayer.position + AppConstants.seekStep);
-                event.accepted = true;
-            } else if (event.key === Qt.Key_Space) {
+        Shortcut {
+            sequence: "Space"
+            onActivated: {
                 // Play/Pause
-                if (mediaPlayer.playbackState === MediaPlayer.PlayingState) {
-                    mediaPlayer.pause();
+                if (mediaComponent.mediaPlayer.playbackState === MediaPlayer.PlayingState) {
+                    mediaComponent.mediaPlayer.pause();
                 } else {
-                    mediaPlayer.play();
+                    mediaComponent.mediaPlayer.play();
                 }
-                event.accepted = true;
+            }
+        }
+        Shortcut {
+            sequence: "Left"
+            onActivated: {
+                // Seek backward
+                mediaComponent.mediaPlayer.position = Math.max(0, mediaComponent.mediaPlayer.position - AppConstants.seekStep);
+            }
+        }
+        Shortcut {
+            sequence: "Right"
+            onActivated: {
+                // Seek forward
+                mediaComponent.mediaPlayer.position = Math.min(mediaComponent.mediaPlayer.duration, mediaComponent.mediaPlayer.position + AppConstants.seekStep);
             }
         }
         onMediaLoadedChanged: {
