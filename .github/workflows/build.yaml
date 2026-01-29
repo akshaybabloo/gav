@@ -52,6 +52,13 @@ jobs:
         with:
           nsis-version: '3.11'
 
+      - name: Install system dependencies (Linux)
+        if: startsWith(matrix.os, 'ubuntu-')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libtiff6 libtiff-dev dpkg-dev
+        shell: bash
+
       - name: Install Qt
         uses: akshaybabloo/actions-setup-qt@v1
         with:

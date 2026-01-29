@@ -12,6 +12,14 @@ message("qt_deploy_support: ${QT_DEPLOY_SUPPORT}")
 # Deploy Qt dependencies
 install(SCRIPT ${deploy_script})
 
+# Remove problematic Qt plugins after deployment (before packaging)
+if(UNIX AND NOT APPLE)
+    install(CODE "
+        file(REMOVE_RECURSE \"\${CMAKE_INSTALL_PREFIX}/plugins/imageformats/libqtiff.so\")
+        message(STATUS \"Removed TIFF plugin to avoid libtiff5 dependency issue\")
+    ")
+endif()
+
 # Enable support for packing using CPack
 if(UNIX AND NOT APPLE) # Linux
     set(CPACK_GENERATOR "TGZ;DEB;RPM")
@@ -90,6 +98,9 @@ set(CPACK_DEBIAN_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CMA
 set(CPACK_DEBIAN_PACKAGE_SECTION "video")
 set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+# Tell dpkg-shlibdeps to ignore missing info for Qt bundled libraries
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_BINARY_DIR}/_CPack_Packages/Linux/DEB/${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}/usr/lib")
+set(CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS ON)
 set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://gav.gollahalli.com")
 
 # RPM settings
