@@ -24,6 +24,15 @@ QtObject {
     readonly property real zoomMax: 5.0
     readonly property real zoomFactor: 1.25
 
+    // Brightness and contrast constants
+    readonly property real defaultBrightness: 0.0
+    readonly property real defaultContrast: 0.0
+    readonly property real brightnessMin: -1.0
+    readonly property real brightnessMax: 1.0
+    readonly property real contrastMin: -1.0
+    readonly property real contrastMax: 1.0
+    readonly property real brightnessContrastStep: 0.01
+
     // Seek constants (in milliseconds)
     readonly property int seekStep: 5000
     readonly property int seekStepSmall: 1000
