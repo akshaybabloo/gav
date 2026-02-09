@@ -793,17 +793,17 @@ Item {
                                         font.pixelSize: 18
                                         text: "\ue518"
 
-                                        ToolTip {
-                                            delay: AppConstants.tooltipDelay
-                                            text: qsTr("Brightness")
-                                            timeout: AppConstants.tooltipTimeout
-                                            visible: brightnessLabel.containsMouse
-                                        }
                                         MouseArea {
                                             id: brightnessLabel
                                             anchors.fill: parent
                                             hoverEnabled: true
                                             acceptedButtons: Qt.NoButton
+                                        }
+                                        ToolTip {
+                                            delay: AppConstants.tooltipDelay
+                                            text: qsTr("Brightness")
+                                            timeout: AppConstants.tooltipTimeout
+                                            visible: brightnessLabel.containsMouse
                                         }
                                     }
                                     Slider {
@@ -836,17 +836,17 @@ Item {
                                         font.pixelSize: 18
                                         text: "\ue3a5"
 
-                                        ToolTip {
-                                            delay: AppConstants.tooltipDelay
-                                            text: qsTr("Contrast")
-                                            timeout: AppConstants.tooltipTimeout
-                                            visible: contrastLabel.containsMouse
-                                        }
                                         MouseArea {
                                             id: contrastLabel
                                             anchors.fill: parent
                                             hoverEnabled: true
                                             acceptedButtons: Qt.NoButton
+                                        }
+                                        ToolTip {
+                                            delay: AppConstants.tooltipDelay
+                                            text: qsTr("Contrast")
+                                            timeout: AppConstants.tooltipTimeout
+                                            visible: contrastLabel.containsMouse
                                         }
                                     }
                                     Slider {

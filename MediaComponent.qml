@@ -191,7 +191,7 @@ Item {
         visible: false
 
         // Apply brightness/contrast effect via layer
-        layer.enabled: brightnessLevel !== 0.0 || contrastLevel !== 0.0
+        layer.enabled: brightnessLevel !== AppConstants.defaultBrightness || contrastLevel !== AppConstants.defaultContrast
         layer.effect: MultiEffect {
             brightness: videoOutput.brightnessLevel
             contrast: videoOutput.contrastLevel
