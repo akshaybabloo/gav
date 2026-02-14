@@ -127,6 +127,44 @@ int main(int argc, char *argv[]) {
             return 1;
         }
 
+        // Expand directories to video files
+        QStringList expandedPaths;
+        QStringList videoExtensions = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "m4v", "mpg"};
+        
+        for (const QString &path : collagePaths) {
+            QFileInfo pathInfo(path);
+            
+            if (pathInfo.isDir()) {
+                // Get all files in directory
+                QDir dir(path);
+                QFileInfoList files = dir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
+                
+                for (const QFileInfo &fileInfo : files) {
+                    QString ext = fileInfo.suffix().toLower();
+                    if (videoExtensions.contains(ext)) {
+                        expandedPaths.append(fileInfo.absoluteFilePath());
+                    }
+                }
+                
+                if (parser.isSet(verboseOption)) {
+                    logger->debug("Expanded directory '{}' to {} video file(s)", 
+                                path.toStdString(), 
+                                files.size());
+                }
+            } else {
+                // Regular file, add as-is
+                expandedPaths.append(path);
+            }
+        }
+        
+        if (expandedPaths.isEmpty()) {
+            std::cerr << "No video files found in provided path(s)." << std::endl;
+            return 1;
+        }
+        
+        // Replace collagePaths with expanded list
+        collagePaths = expandedPaths;
+
         bool verbose = parser.isSet(verboseOption);
         bool isSubprocess = qEnvironmentVariableIsSet("GAV_SUBPROCESS");
 
