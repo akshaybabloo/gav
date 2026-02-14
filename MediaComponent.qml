@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import QtMultimedia
 import gavqml
 
@@ -48,6 +49,10 @@ Item {
                 videoOutput.panY = 0;
                 videoOutput.zoomOriginX = videoOutput.width / 2;
                 videoOutput.zoomOriginY = videoOutput.height / 2;
+
+                // Reset brightness and contrast
+                videoOutput.brightnessLevel = AppConstants.defaultBrightness;
+                videoOutput.contrastLevel = AppConstants.defaultContrast;
 
                 // Notify parent to reset path and title
                 stopped();
@@ -168,6 +173,10 @@ Item {
     VideoOutput {
         id: videoOutput
 
+        // Brightness and contrast properties
+        property real brightnessLevel: AppConstants.defaultBrightness
+        property real contrastLevel: AppConstants.defaultContrast
+
         property real panX: 0
         property real panY: 0
 
@@ -180,6 +189,13 @@ Item {
 
         anchors.fill: parent
         visible: false
+
+        // Apply brightness/contrast effect via layer
+        layer.enabled: brightnessLevel !== AppConstants.defaultBrightness || contrastLevel !== AppConstants.defaultContrast
+        layer.effect: MultiEffect {
+            brightness: videoOutput.brightnessLevel
+            contrast: videoOutput.contrastLevel
+        }
 
         Behavior on panX {
             NumberAnimation {
