@@ -139,17 +139,19 @@ int main(int argc, char *argv[]) {
                 QDir dir(path);
                 QFileInfoList files = dir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
                 
+                int videoCount = 0;
                 for (const QFileInfo &fileInfo : files) {
                     QString ext = fileInfo.suffix().toLower();
                     if (videoExtensions.contains(ext)) {
                         expandedPaths.append(fileInfo.absoluteFilePath());
+                        videoCount++;
                     }
                 }
                 
                 if (parser.isSet(verboseOption)) {
                     logger->debug("Expanded directory '{}' to {} video file(s)", 
                                 path.toStdString(), 
-                                files.size());
+                                videoCount);
                 }
             } else {
                 // Regular file, add as-is
