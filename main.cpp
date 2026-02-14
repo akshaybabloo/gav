@@ -23,6 +23,11 @@
 
 std::shared_ptr<spdlog::logger> logger;
 
+// Supported video file extensions for collage creation
+static const QStringList SUPPORTED_VIDEO_EXTENSIONS = {
+    "mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "m4v", "mpg"
+};
+
 void initLogging() {
     // Create a console sink (stdout)
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
@@ -129,29 +134,29 @@ int main(int argc, char *argv[]) {
 
         // Expand directories to video files
         QStringList expandedPaths;
-        QStringList videoExtensions = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "m4v", "mpg"};
         
         for (const QString &path : collagePaths) {
             QFileInfo pathInfo(path);
             
             if (pathInfo.isDir()) {
-                // Get all files in directory
+                // Get all video files in directory using name filters for efficiency
                 QDir dir(path);
-                QFileInfoList files = dir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
+                QStringList nameFilters;
+                for (const QString &ext : SUPPORTED_VIDEO_EXTENSIONS) {
+                    nameFilters << QString("*.%1").arg(ext);
+                }
+                dir.setNameFilters(nameFilters);
                 
-                int videoCount = 0;
-                for (const QFileInfo &fileInfo : files) {
-                    QString ext = fileInfo.suffix().toLower();
-                    if (videoExtensions.contains(ext)) {
-                        expandedPaths.append(fileInfo.absoluteFilePath());
-                        videoCount++;
-                    }
+                QFileInfoList videoFiles = dir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
+                
+                for (const QFileInfo &fileInfo : videoFiles) {
+                    expandedPaths.append(fileInfo.absoluteFilePath());
                 }
                 
                 if (parser.isSet(verboseOption)) {
                     logger->debug("Expanded directory '{}' to {} video file(s)", 
                                 path.toStdString(), 
-                                videoCount);
+                                videoFiles.size());
                 }
             } else {
                 // Regular file, add as-is
