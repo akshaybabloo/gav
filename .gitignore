@@ -108,3 +108,6 @@ vcpkg_installed/
 *.log
 CTestTestfile.cmake
 gav_tests*
+_codeql_detected_source_root
+
+release/

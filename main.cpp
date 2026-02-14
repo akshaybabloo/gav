@@ -23,6 +23,11 @@
 
 std::shared_ptr<spdlog::logger> logger;
 
+// Supported video file extensions for collage creation
+static const QStringList SUPPORTED_VIDEO_EXTENSIONS = {
+    "mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "m4v", "mpg"
+};
+
 void initLogging() {
     // Create a console sink (stdout)
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
@@ -126,6 +131,46 @@ int main(int argc, char *argv[]) {
             std::cerr << "No input files provided for collage creation." << std::endl;
             return 1;
         }
+
+        // Expand directories to video files
+        QStringList expandedPaths;
+        
+        for (const QString &path : collagePaths) {
+            QFileInfo pathInfo(path);
+            
+            if (pathInfo.isDir()) {
+                // Get all video files in directory using name filters for efficiency
+                QDir dir(path);
+                QStringList nameFilters;
+                for (const QString &ext : SUPPORTED_VIDEO_EXTENSIONS) {
+                    nameFilters << QString("*.%1").arg(ext);
+                }
+                dir.setNameFilters(nameFilters);
+                
+                QFileInfoList videoFiles = dir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
+                
+                for (const QFileInfo &fileInfo : videoFiles) {
+                    expandedPaths.append(fileInfo.absoluteFilePath());
+                }
+                
+                if (parser.isSet(verboseOption)) {
+                    logger->debug("Expanded directory '{}' to {} video file(s)", 
+                                path.toStdString(), 
+                                videoFiles.size());
+                }
+            } else {
+                // Regular file, add as-is
+                expandedPaths.append(path);
+            }
+        }
+        
+        if (expandedPaths.isEmpty()) {
+            std::cerr << "No video files found in provided path(s)." << std::endl;
+            return 1;
+        }
+        
+        // Replace collagePaths with expanded list
+        collagePaths = expandedPaths;
 
         bool verbose = parser.isSet(verboseOption);
         bool isSubprocess = qEnvironmentVariableIsSet("GAV_SUBPROCESS");
