@@ -336,9 +336,8 @@ void CustomMediaPlayer::resetPreviewPlayer() {
   if (m_previewPlayer) {
     m_previewPlayer->stop();
     m_previewPlayer->setSource(QUrl());
-    m_previewPlayer->setVideoSink(nullptr);
     
-    // Delete the preview player and sink to release video frames and memory
+    // Delete player first, then sink to ensure proper cleanup order
     delete m_previewPlayer;
     m_previewPlayer = nullptr;
     delete m_previewSink;
