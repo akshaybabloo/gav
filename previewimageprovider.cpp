@@ -58,3 +58,8 @@ void PreviewImageProvider::storeImage(const QString &id, const QImage &image) {
         m_images.insert(id, image); // Keep the new one
     }
 }
+
+void PreviewImageProvider::clearImages() {
+    QMutexLocker locker(&m_mutex);
+    m_images.clear();
+}

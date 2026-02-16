@@ -15,6 +15,9 @@ public:
     // Store image with a specific ID and return the string to be used in QML
     void storeImage(const QString &id, const QImage &image);
     
+    // Clear all stored preview images to free memory
+    void clearImages();
+    
     static PreviewImageProvider *instance();
 
 private:

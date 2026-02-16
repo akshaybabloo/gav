@@ -319,9 +319,23 @@ void CustomMediaPlayer::capturePreviewFrame() {
 void CustomMediaPlayer::resetPreviewPlayer() {
   m_pendingPreviewPosition = -1;
   m_waitingForPreview = false;
+  
+  // Properly cleanup preview player and sink to release memory
   if (m_previewPlayer) {
     m_previewPlayer->stop();
     m_previewPlayer->setSource(QUrl());
+    m_previewPlayer->setVideoSink(nullptr);
+    
+    // Delete the preview player and sink to release video frames and memory
+    delete m_previewPlayer;
+    m_previewPlayer = nullptr;
+    delete m_previewSink;
+    m_previewSink = nullptr;
+  }
+  
+  // Clear all cached preview images from the provider
+  if (auto provider = PreviewImageProvider::instance()) {
+    provider->clearImages();
   }
 }
 
