@@ -47,6 +47,12 @@ void CustomMediaPlayer::setSource(const QUrl &source) {
     emit errorOccurred("Source URL is invalid: " + source.toString());
     return;
   }
+  
+  // Clear video frame from previous source to release memory
+  if (QVideoSink *sink = m_mediaPlayer->videoSink()) {
+    sink->setVideoFrame(QVideoFrame());
+  }
+  
   // Reset preview player when source changes
   resetPreviewPlayer();
   m_mediaPlayer->setSource(source);
@@ -113,6 +119,12 @@ void CustomMediaPlayer::stop() {
   m_mediaPlayer->stop();
   m_mediaPlayer->setSource(QUrl());
   m_mediaPlayer->setPosition(0);
+  
+  // Explicitly clear the video sink to release video frames
+  if (QVideoSink *sink = m_mediaPlayer->videoSink()) {
+    // Setting a null frame helps release the current frame from memory
+    sink->setVideoFrame(QVideoFrame());
+  }
 
   // Reset internal state
   if (m_hasVideo) {
