@@ -83,6 +83,7 @@ private:
   void capturePreviewFrame();
   void resetPreviewPlayer();
   void startPreviewCapture(qint64 position);
+  void clearMainVideoFrame();
 
   QMediaPlayer *m_mediaPlayer;
   QMediaPlayer *m_previewPlayer = nullptr;

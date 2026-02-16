@@ -49,9 +49,7 @@ void CustomMediaPlayer::setSource(const QUrl &source) {
   }
   
   // Clear video frame from previous source to release memory
-  if (QVideoSink *sink = m_mediaPlayer->videoSink()) {
-    sink->setVideoFrame(QVideoFrame());
-  }
+  clearMainVideoFrame();
   
   // Reset preview player when source changes
   resetPreviewPlayer();
@@ -121,10 +119,7 @@ void CustomMediaPlayer::stop() {
   m_mediaPlayer->setPosition(0);
   
   // Explicitly clear the video sink to release video frames
-  if (QVideoSink *sink = m_mediaPlayer->videoSink()) {
-    // Setting a null frame helps release the current frame from memory
-    sink->setVideoFrame(QVideoFrame());
-  }
+  clearMainVideoFrame();
 
   // Reset internal state
   if (m_hasVideo) {
@@ -336,8 +331,10 @@ void CustomMediaPlayer::resetPreviewPlayer() {
   if (m_previewPlayer) {
     m_previewPlayer->stop();
     m_previewPlayer->setSource(QUrl());
+    // Disassociate sink from player before deletion
+    m_previewPlayer->setVideoSink(nullptr);
     
-    // Delete player first, then sink to ensure proper cleanup order
+    // Delete player and sink to release video frames and memory
     delete m_previewPlayer;
     m_previewPlayer = nullptr;
     delete m_previewSink;
@@ -347,6 +344,13 @@ void CustomMediaPlayer::resetPreviewPlayer() {
   // Clear all cached preview images from the provider
   if (auto provider = PreviewImageProvider::instance()) {
     provider->clearImages();
+  }
+}
+
+void CustomMediaPlayer::clearMainVideoFrame() {
+  // Clear video frame from main player's sink to release memory
+  if (QVideoSink *sink = m_mediaPlayer->videoSink()) {
+    sink->setVideoFrame(QVideoFrame());
   }
 }
 
