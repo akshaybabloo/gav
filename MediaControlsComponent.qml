@@ -333,6 +333,7 @@ Item {
 
                         function onSourceChanged() {
                             // Clear preview when source changes
+                            seekSlider.previewVisible = false;
                             seekSlider.previewImageUrl = "";
                         }
 
