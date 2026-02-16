@@ -331,6 +331,12 @@ Item {
                             }
                         }
 
+                        function onSourceChanged() {
+                            // Clear preview when source changes
+                            seekSlider.previewVisible = false;
+                            seekSlider.previewImageUrl = "";
+                        }
+
                         target: player
                     }
 
@@ -485,6 +491,8 @@ Item {
                         onClicked: {
                             player.stop();
                             seekSlider.value = 0;
+                            seekSlider.previewVisible = false;
+                            seekSlider.previewImageUrl = "";
                             stopFastForwarding();
                             stopFastRewinding();
                         }

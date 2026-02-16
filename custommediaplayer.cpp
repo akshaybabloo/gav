@@ -47,6 +47,10 @@ void CustomMediaPlayer::setSource(const QUrl &source) {
     emit errorOccurred("Source URL is invalid: " + source.toString());
     return;
   }
+  
+  // Clear video frame from previous source to release memory
+  clearMainVideoFrame();
+  
   // Reset preview player when source changes
   resetPreviewPlayer();
   m_mediaPlayer->setSource(source);
@@ -113,6 +117,9 @@ void CustomMediaPlayer::stop() {
   m_mediaPlayer->stop();
   m_mediaPlayer->setSource(QUrl());
   m_mediaPlayer->setPosition(0);
+  
+  // Explicitly clear the video sink to release video frames
+  clearMainVideoFrame();
 
   // Reset internal state
   if (m_hasVideo) {
@@ -319,9 +326,31 @@ void CustomMediaPlayer::capturePreviewFrame() {
 void CustomMediaPlayer::resetPreviewPlayer() {
   m_pendingPreviewPosition = -1;
   m_waitingForPreview = false;
+  
+  // Properly cleanup preview player and sink to release memory
   if (m_previewPlayer) {
     m_previewPlayer->stop();
     m_previewPlayer->setSource(QUrl());
+    // Disassociate sink from player before deletion
+    m_previewPlayer->setVideoSink(nullptr);
+    
+    // Delete player and sink to release video frames and memory
+    delete m_previewPlayer;
+    m_previewPlayer = nullptr;
+    delete m_previewSink;
+    m_previewSink = nullptr;
+  }
+  
+  // Clear all cached preview images from the provider
+  if (auto provider = PreviewImageProvider::instance()) {
+    provider->clearImages();
+  }
+}
+
+void CustomMediaPlayer::clearMainVideoFrame() {
+  // Clear video frame from main player's sink to release memory
+  if (QVideoSink *sink = m_mediaPlayer->videoSink()) {
+    sink->setVideoFrame(QVideoFrame());
   }
 }
 
