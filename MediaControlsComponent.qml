@@ -103,22 +103,14 @@ Item {
             }
         }
     }
-    Timer {
-        id: repeatRangeMonitor
-
-        interval: 250
-        repeat: true
-        running: repeatMode === 3 && player.playbackState === MediaPlayer.PlayingState
-
-        onTriggered: {
-            if (rangeSlider.second.value > rangeSlider.first.value && player.position >= rangeSlider.second.value) {
-                player.position = rangeSlider.first.value;
-            }
-        }
-    }
     Connections {
         target: player
 
+        function onPositionChanged() {
+            if (repeatMode === 3 && rangeSlider.second.value > rangeSlider.first.value && player.position >= rangeSlider.second.value) {
+                player.position = rangeSlider.first.value;
+            }
+        }
         function onMediaStatusChanged(status) {
             if (status === MediaPlayer.EndOfMedia) {
                 if (repeatMode === 1) {
@@ -408,6 +400,8 @@ Item {
                     from: 0
                     to: player.duration > 0 ? player.duration : 1
                     visible: repeatMode === 3
+
+                    first.onMoved: player.position = first.value
                 }
             }
             RowLayout {
@@ -668,7 +662,7 @@ Item {
                         font.weight: Font.Light
                         hoverEnabled: true
                         scale: 1.5
-                        text: repeatMode === 1 ? "\ue041" : "\ue040"
+                        text: repeatMode === 1 ? "\ue9d7" : (repeatMode >= 2 ? "\ue9d6" : "\ue040")
 
                         contentItem: Item {
                             Text {
@@ -676,7 +670,7 @@ Item {
                                 color: repeatMode > 0 ? Material.accent : Material.foreground
                                 opacity: repeatMode === 0 ? 0.5 : 1.0
                                 font: repeatButton.font
-                                text: repeatMode === 1 ? "\ue041" : "\ue040"
+                                text: repeatMode === 1 ? "\ue9d7" : (repeatMode >= 2 ? "\ue9d6" : "\ue040")
                             }
                             Rectangle {
                                 anchors.bottom: parent.bottom
@@ -691,7 +685,7 @@ Item {
 
                                 Text {
                                     anchors.centerIn: parent
-                                    color: "white"
+                                    color: Material.foreground
                                     font.bold: true
                                     font.pixelSize: 8
                                     text: "RNG"
