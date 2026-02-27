@@ -20,6 +20,7 @@ Item {
     required property int playlistCurrentIndex
     property real previousVolume: AppConstants.defaultVolume
     property int rewindMultiplier: 1
+    property int repeatMode: 0  // 0=none, 1=once, 2=loop, 3=range
     required property var videoOutput
 
     signal nextTrack
@@ -102,6 +103,35 @@ Item {
             }
         }
     }
+    Connections {
+        target: player
+
+        function onPositionChanged() {
+            if (repeatMode === 3 && rangeSlider.second.value > rangeSlider.first.value && player.position >= rangeSlider.second.value) {
+                player.position = rangeSlider.first.value;
+            }
+        }
+        function onMediaStatusChanged(status) {
+            if (status === MediaPlayer.EndOfMedia) {
+                if (repeatMode === 1) {
+                    player.position = 0;
+                    player.play();
+                    repeatMode = 0;
+                } else if (repeatMode === 2) {
+                    player.position = 0;
+                    player.play();
+                } else if (repeatMode === 3) {
+                    player.position = rangeSlider.first.value;
+                    player.play();
+                }
+            }
+        }
+        function onDurationChanged() {
+            if (repeatMode === 3 && player.duration > 0) {
+                rangeSlider.setValues(0, player.duration);
+            }
+        }
+    }
     MouseArea {
         id: controlMouseArea
 
@@ -134,7 +164,9 @@ Item {
                     id: timeLabel
 
                     color: Material.foreground
-                    text: formatTime(player.position) + " / " + formatTime(player.duration)
+                    text: repeatMode === 3
+                        ? formatTime(Math.round(rangeSlider.first.value)) + " \u2500 " + formatTime(Math.round(rangeSlider.second.value))
+                        : formatTime(player.position) + " / " + formatTime(player.duration)
                     verticalAlignment: Text.AlignVCenter
                 }
                 Slider {
@@ -149,6 +181,7 @@ Item {
                     enabled: mediaLoaded
                     from: 0
                     to: player.duration
+                    visible: repeatMode !== 3
 
                     onMoved: player.position = value
 
@@ -358,6 +391,18 @@ Item {
                         }
                     }
                 }
+                RangeSlider {
+                    id: rangeSlider
+
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 10
+                    enabled: mediaLoaded
+                    from: 0
+                    to: player.duration > 0 ? player.duration : 1
+                    visible: repeatMode === 3
+
+                    first.onMoved: player.position = first.value
+                }
             }
             RowLayout {
                 // Play/pause buttons
@@ -495,6 +540,7 @@ Item {
                             seekSlider.previewImageUrl = "";
                             stopFastForwarding();
                             stopFastRewinding();
+                            repeatMode = 0;
                         }
                     }
                     Button {
@@ -600,6 +646,70 @@ Item {
                             text: qsTr("Toggle playlist")
                             timeout: AppConstants.tooltipTimeout
                             visible: playListButton.hovered
+                        }
+                    }
+                    Button {
+                        id: repeatButton
+
+                        Accessible.description: qsTr("Toggle repeat mode")
+                        Accessible.name: qsTr("Repeat")
+                        Accessible.role: Accessible.Button
+                        Layout.preferredHeight: 30
+                        Layout.preferredWidth: 25
+                        Material.roundedScale: Material.NotRounded
+                        enabled: mediaLoaded
+                        font.family: materialSymbolsOutlined.name
+                        font.weight: Font.Light
+                        hoverEnabled: true
+                        scale: 1.5
+                        text: repeatMode === 1 ? "\ue9d7" : (repeatMode >= 2 ? "\ue9d6" : "\ue040")
+
+                        contentItem: Item {
+                            Text {
+                                anchors.centerIn: parent
+                                color: repeatMode > 0 ? Material.accent : Material.foreground
+                                opacity: repeatMode === 0 ? 0.5 : 1.0
+                                font: repeatButton.font
+                                text: repeatMode === 1 ? "\ue9d7" : (repeatMode >= 2 ? "\ue9d6" : "\ue040")
+                            }
+                            Rectangle {
+                                anchors.bottom: parent.bottom
+                                anchors.bottomMargin: 2
+                                anchors.right: parent.right
+                                anchors.rightMargin: -2
+                                color: Material.accent
+                                height: 10
+                                radius: 2
+                                visible: repeatMode === 3
+                                width: 20
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    color: Material.foreground
+                                    font.bold: true
+                                    font.pixelSize: 8
+                                    text: "RNG"
+                                }
+                            }
+                        }
+
+                        onClicked: {
+                            repeatMode = (repeatMode + 1) % 4;
+                            if (repeatMode === 3 && player.duration > 0) {
+                                rangeSlider.setValues(0, player.duration);
+                            }
+                        }
+
+                        ToolTip {
+                            delay: AppConstants.tooltipDelay
+                            text: {
+                                if (repeatMode === 0) return qsTr("Repeat: Off");
+                                if (repeatMode === 1) return qsTr("Repeat: Once");
+                                if (repeatMode === 2) return qsTr("Repeat: Loop");
+                                return qsTr("Repeat: Range");
+                            }
+                            timeout: AppConstants.tooltipTimeout
+                            visible: repeatButton.hovered
                         }
                     }
                     Rectangle {
