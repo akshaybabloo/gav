@@ -29,7 +29,7 @@ Item {
 
         onErrorOccurred: function (errorString) {
             console.log("MediaPlayer error:", errorString);
-            unsupportedFileDialog.open();
+            playbackErrorDialog.open();
         }
         onPlaybackStateChanged: function (state) {
             if (state === MediaPlayer.PlayingState) {
