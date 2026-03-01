@@ -111,3 +111,5 @@ gav_tests*
 _codeql_detected_source_root
 
 release/
+
+CLAUDE.md

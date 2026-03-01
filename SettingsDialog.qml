@@ -13,6 +13,7 @@ Dialog {
     required property bool isDarkTheme
 
     signal themeToggled(bool isDark)
+    signal defaultSpeedChanged(real speed)
 
     modal: true
     title: qsTr("Settings")
@@ -142,10 +143,9 @@ Dialog {
                     currentIndex: AppConstants.playbackSpeeds.indexOf(mediaPlayer.playbackRate) >= 0
                                   ? AppConstants.playbackSpeeds.indexOf(mediaPlayer.playbackRate)
                                   : 3
-                    onCurrentIndexChanged: {
-                        if (currentIndex >= 0) {
-                            mediaPlayer.playbackRate = AppConstants.playbackSpeeds[currentIndex];
-                        }
+                    onActivated: function(index) {
+                        mediaPlayer.playbackRate = AppConstants.playbackSpeeds[index];
+                        defaultSpeedChanged(AppConstants.playbackSpeeds[index]);
                     }
                 }
             }

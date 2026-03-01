@@ -92,8 +92,8 @@ int main(int argc, char *argv[]) {
     QCoreApplication::setApplicationVersion(QString("dev"));
 #endif
 
-    QCoreApplication::setApplicationName(QCoreApplication::translate("gav",
-                                                                     "GAV is a simple audio and video player, backed by FFmpeg and Qt6"));
+    QCoreApplication::setOrganizationName("gav");
+    QCoreApplication::setApplicationName("gav");
 
     QCommandLineParser parser;
     parser.setApplicationDescription("GAV is a simple audio and video player, backed by FFmpeg and Qt6");
