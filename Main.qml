@@ -480,9 +480,12 @@ ApplicationWindow {
             }
         }
         onMediaLoadedChanged: {
-            if (mediaLoaded && shouldAutoPlay) {
-                mediaPlayer.play();
-                shouldAutoPlay = false;
+            if (mediaLoaded) {
+                mediaPlayer.playbackRate = appSettings.playbackRate;
+                if (shouldAutoPlay) {
+                    mediaPlayer.play();
+                    shouldAutoPlay = false;
+                }
             }
         }
         onStopped: {

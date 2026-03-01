@@ -143,11 +143,9 @@ Dialog {
                     currentIndex: AppConstants.playbackSpeeds.indexOf(mediaPlayer.playbackRate) >= 0
                                   ? AppConstants.playbackSpeeds.indexOf(mediaPlayer.playbackRate)
                                   : 3
-                    onCurrentIndexChanged: {
-                        if (currentIndex >= 0) {
-                            mediaPlayer.playbackRate = AppConstants.playbackSpeeds[currentIndex];
-                            defaultSpeedChanged(AppConstants.playbackSpeeds[currentIndex]);
-                        }
+                    onActivated: function(index) {
+                        mediaPlayer.playbackRate = AppConstants.playbackSpeeds[index];
+                        defaultSpeedChanged(AppConstants.playbackSpeeds[index]);
                     }
                 }
             }
