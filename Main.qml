@@ -15,8 +15,7 @@ ApplicationWindow {
     property bool mediaControlsContainsMouse: false
     property bool shouldAutoPlay: false
     property url source
-    property string lastUnsupportedFile: ""
-    property bool isDarkTheme: true
+property bool isDarkTheme: true
 
     // Dynamic theme switching - overrides qtquickcontrols2.conf at runtime
     Material.theme: isDarkTheme ? Material.Dark : Material.Light
@@ -30,24 +29,22 @@ ApplicationWindow {
         var name = path.substring(path.lastIndexOf('/') + 1);
         var extension = name.substring(name.lastIndexOf('.') + 1).toLowerCase();
 
-        if (AppConstants.isVideoExtension(extension)) {
-            return {
-                "name": name,
-                "path": fileUrl,
-                "type": "video",
-                "icon": "\ueb87"
-            };
-        } else if (AppConstants.isAudioExtension(extension)) {
+        if (AppConstants.isAudioExtension(extension)) {
             return {
                 "name": name,
                 "path": fileUrl,
                 "type": "audio",
                 "icon": "\ue405"
             };
-        } else {
-            lastUnsupportedFile = name;
-            return null;
         }
+        // Treat everything else (including unknown formats) as video;
+        // the media player will report an error if it can't play it.
+        return {
+            "name": name,
+            "path": fileUrl,
+            "type": "video",
+            "icon": "\ueb87"
+        };
     }
 
     function exitMiniPlayer() {
@@ -111,15 +108,11 @@ ApplicationWindow {
         }
 
         const mediaInfo = getMediaInfo(source);
-        if (mediaInfo) {
-            playList.append(mediaInfo);
-            mediaComponent.path = mediaInfo.path;
-            mainWindow.title = "GAV - " + mediaInfo.name;
-            playlistComponent.playListView.currentIndex = playList.count - 1;
-            shouldAutoPlay = true;
-        } else {
-            unsupportedFileDialog.open();
-        }
+        playList.append(mediaInfo);
+        mediaComponent.path = mediaInfo.path;
+        mainWindow.title = "GAV - " + mediaInfo.name;
+        playlistComponent.playListView.currentIndex = playList.count - 1;
+        shouldAutoPlay = true;
     }
 
     // --- Reusable MenuBar definition ---
@@ -326,29 +319,14 @@ ApplicationWindow {
         anchors.centerIn: parent
         modal: true
         standardButtons: Dialog.Ok
-        title: "Unsupported File"
+        title: "Playback Error"
 
         ColumnLayout {
             spacing: 10
 
             Text {
                 color: Material.foreground
-                text: lastUnsupportedFile ? "'" + lastUnsupportedFile + "' is not a supported format." : "The file is not a supported format."
-                wrapMode: Text.WordWrap
-                Layout.maximumWidth: 400
-            }
-            Text {
-                color: Material.foreground
-                opacity: 0.5
-                font.pixelSize: 12
-                text: "Supported formats:"
-                Layout.topMargin: 5
-            }
-            Text {
-                color: Material.foreground
-                opacity: 0.7
-                font.pixelSize: 11
-                text: AppConstants.getSupportedFormatsString()
+                text: "Unable to play this file. The format may not be supported."
                 wrapMode: Text.WordWrap
                 Layout.maximumWidth: 400
             }
@@ -380,16 +358,12 @@ ApplicationWindow {
                 for (var i = 0; i < drop.urls.length; i++) {
                     var mediaInfo = getMediaInfo(drop.urls[i]);
                     console.debug("Media info for dropped file:", JSON.stringify(mediaInfo));
-                    if (mediaInfo) {
-                        playList.append(mediaInfo);
-                        if (!firstFileSet) {
-                            mediaComponent.path = mediaInfo.path;
-                            mainWindow.title = "GAV - " + mediaInfo.name;
-                            playlistComponent.playListView.currentIndex = playList.count - 1;
-                            firstFileSet = true;
-                        }
-                    } else {
-                        unsupportedFileDialog.open();
+                    playList.append(mediaInfo);
+                    if (!firstFileSet) {
+                        mediaComponent.path = mediaInfo.path;
+                        mainWindow.title = "GAV - " + mediaInfo.name;
+                        playlistComponent.playListView.currentIndex = playList.count - 1;
+                        firstFileSet = true;
                     }
                 }
             }
@@ -399,18 +373,14 @@ ApplicationWindow {
         id: fileDialog
 
         currentFolder: StandardPaths.standardLocations(StandardPaths.DownloadLocation)[0]
-        nameFilters: [AppConstants.getVideoExtensionsFilter(), AppConstants.getAudioExtensionsFilter(), "All files (*)"]
+        nameFilters: ["All files (*)"]
 
         onAccepted: {
             var mediaInfo = getMediaInfo(selectedFile);
-            if (mediaInfo) {
-                playList.append(mediaInfo);
-                mediaComponent.path = mediaInfo.path;
-                mainWindow.title = "GAV - " + mediaInfo.name;
-                playlistComponent.playListView.currentIndex = playList.count - 1;
-            } else {
-                unsupportedFileDialog.open();
-            }
+            playList.append(mediaInfo);
+            mediaComponent.path = mediaInfo.path;
+            mainWindow.title = "GAV - " + mediaInfo.name;
+            playlistComponent.playListView.currentIndex = playList.count - 1;
         }
     }
     MediaComponent {
