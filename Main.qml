@@ -15,7 +15,7 @@ ApplicationWindow {
     property bool mediaControlsContainsMouse: false
     property bool shouldAutoPlay: false
     property url source
-property bool isDarkTheme: true
+    property bool isDarkTheme: true
 
     // Dynamic theme switching - overrides qtquickcontrols2.conf at runtime
     Material.theme: isDarkTheme ? Material.Dark : Material.Light
@@ -26,7 +26,21 @@ property bool isDarkTheme: true
         if (path.startsWith('file:///')) {
             path = path.substring(8);
         }
+        // Strip trailing slashes (e.g. directory URLs)
+        while (path.endsWith('/'))
+            path = path.substring(0, path.length - 1);
         var name = path.substring(path.lastIndexOf('/') + 1);
+        // Strip query ('?') and fragment ('#') parts from the file name
+        var queryIndex = name.indexOf("?");
+        var fragmentIndex = name.indexOf("#");
+        var cutIndex = name.length;
+        if (queryIndex !== -1 && queryIndex < cutIndex)
+            cutIndex = queryIndex;
+        if (fragmentIndex !== -1 && fragmentIndex < cutIndex)
+            cutIndex = fragmentIndex;
+        name = name.substring(0, cutIndex);
+        if (!name)
+            return null;
         var extension = name.substring(name.lastIndexOf('.') + 1).toLowerCase();
 
         if (AppConstants.isAudioExtension(extension)) {
@@ -108,6 +122,8 @@ property bool isDarkTheme: true
         }
 
         const mediaInfo = getMediaInfo(source);
+        if (!mediaInfo)
+            return;
         playList.append(mediaInfo);
         mediaComponent.path = mediaInfo.path;
         mainWindow.title = "GAV - " + mediaInfo.name;
@@ -314,7 +330,7 @@ property bool isDarkTheme: true
 
     // If an error occurs with the video/audio
     Dialog {
-        id: unsupportedFileDialog
+        id: playbackErrorDialog
 
         anchors.centerIn: parent
         modal: true
@@ -327,6 +343,23 @@ property bool isDarkTheme: true
             Text {
                 color: Material.foreground
                 text: "Unable to play this file. The format may not be supported."
+                wrapMode: Text.WordWrap
+                Layout.maximumWidth: 400
+            }
+            Text {
+                color: Material.foreground
+                opacity: 0.7
+                font.pixelSize: 12
+                text: "File: " + mediaComponent.path
+                wrapMode: Text.WordWrap
+                Layout.maximumWidth: 400
+            }
+            Text {
+                color: Material.foreground
+                opacity: 0.5
+                font.pixelSize: 11
+                visible: mediaComponent.mediaPlayer && mediaComponent.mediaPlayer.errorString !== ""
+                text: "Error: " + (mediaComponent.mediaPlayer ? mediaComponent.mediaPlayer.errorString : "")
                 wrapMode: Text.WordWrap
                 Layout.maximumWidth: 400
             }
@@ -358,6 +391,8 @@ property bool isDarkTheme: true
                 for (var i = 0; i < drop.urls.length; i++) {
                     var mediaInfo = getMediaInfo(drop.urls[i]);
                     console.debug("Media info for dropped file:", JSON.stringify(mediaInfo));
+                    if (!mediaInfo)
+                        continue;
                     playList.append(mediaInfo);
                     if (!firstFileSet) {
                         mediaComponent.path = mediaInfo.path;
@@ -377,6 +412,8 @@ property bool isDarkTheme: true
 
         onAccepted: {
             var mediaInfo = getMediaInfo(selectedFile);
+            if (!mediaInfo)
+                return;
             playList.append(mediaInfo);
             mediaComponent.path = mediaInfo.path;
             mainWindow.title = "GAV - " + mediaInfo.name;
