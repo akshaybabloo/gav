@@ -23,6 +23,8 @@ Item {
     property int repeatMode: 0  // 0=none, 1=once, 2=loop, 3=range
     required property var videoOutput
 
+    property bool miniPlayerActive: false
+
     signal miniPlayerRequested
     signal nextTrack
     signal previousTrack
@@ -1126,21 +1128,23 @@ Item {
                     Button {
                         id: miniPlayerButton
 
-                        Accessible.description: qsTr("Open mini player")
+                        Accessible.description: miniPlayerActive ? qsTr("Mini player is active") : qsTr("Open mini player")
                         Accessible.name: qsTr("Mini player")
                         Accessible.role: Accessible.Button
-                        Layout.preferredHeight: 30
-                        Layout.preferredWidth: 25
+                        Layout.preferredHeight: 36
+                        Layout.preferredWidth: 36
                         Material.background: "transparent"
+                        Material.foreground: miniPlayerActive ? Material.accent : undefined
                         Material.roundedScale: Material.NotRounded
                         ToolTip.delay: AppConstants.tooltipDelay
-                        ToolTip.text: qsTr("Open mini player")
+                        ToolTip.text: miniPlayerActive ? qsTr("Mini player is active") : qsTr("Open mini player")
                         ToolTip.timeout: AppConstants.tooltipTimeout
                         ToolTip.visible: hovered
-                        enabled: mediaLoaded
+                        enabled: mediaLoaded && !miniPlayerActive
                         font.family: materialSymbolsOutlined.name
+                        font.pixelSize: 22
                         hoverEnabled: true
-                        scale: 1.5
+                        padding: 0
                         text: "\ue911"
 
                         onClicked: miniPlayerRequested()
@@ -1151,8 +1155,8 @@ Item {
                         Accessible.description: qsTr("Enter or exit fullscreen mode")
                         Accessible.name: qsTr("Toggle fullscreen")
                         Accessible.role: Accessible.Button
-                        Layout.preferredHeight: 30
-                        Layout.preferredWidth: 25
+                        Layout.preferredHeight: 36
+                        Layout.preferredWidth: 36
                         Material.background: "transparent"
                         Material.roundedScale: Material.NotRounded
                         ToolTip.delay: AppConstants.tooltipDelay
@@ -1160,8 +1164,9 @@ Item {
                         ToolTip.timeout: AppConstants.tooltipTimeout
                         ToolTip.visible: hovered
                         font.family: materialSymbolsOutlined.name
+                        font.pixelSize: 22
                         hoverEnabled: true
-                        scale: 1.5
+                        padding: 0
                         text: mainWindow.visibility === Window.FullScreen ? "\ue5d1" : "\ue5d0"
 
                         onClicked: {

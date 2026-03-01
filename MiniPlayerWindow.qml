@@ -9,6 +9,7 @@ Window {
     id: miniPlayerWindow
 
     property alias miniVideoOutput: miniVideoOutput
+    required property var audioOutput
     required property var mediaPlayer
 
     signal closeRequested
@@ -74,7 +75,7 @@ Window {
         anchors.centerIn: parent
         color: Qt.rgba(0, 0, 0, 0.55)
         height: 48
-        opacity: hoverArea.containsMouse ? 1.0 : 0.0
+        opacity: hoverArea.containsMouse || restoreButton.hovered || muteButton.hovered || closeButton.hovered ? 1.0 : 0.0
         radius: 24
         width: 48
         z: 10
@@ -110,7 +111,7 @@ Window {
         }
     }
 
-    // Top control bar
+    // Top control bar (visible on hover)
     Rectangle {
         id: topBar
 
@@ -119,7 +120,14 @@ Window {
         anchors.top: parent.top
         color: Qt.rgba(0, 0, 0, 0.65)
         height: 30
+        opacity: hoverArea.containsMouse || restoreButton.hovered || muteButton.hovered || closeButton.hovered ? 1.0 : 0.0
         z: 15
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: 200
+            }
+        }
 
         Row {
             anchors.right: parent.right
@@ -144,22 +152,22 @@ Window {
                 font.pixelSize: 16
                 height: 26
                 padding: 0
-                text: "\ue8c8"
+                text: "\ue5d0"
                 width: 26
 
                 onClicked: miniPlayerWindow.restoreRequested()
             }
 
-            // Minimize
+            // Mute toggle
             Button {
-                id: minimizeButton
+                id: muteButton
 
-                Accessible.description: qsTr("Minimize mini player")
-                Accessible.name: qsTr("Minimize")
+                Accessible.description: miniPlayerWindow.audioOutput.muted ? qsTr("Unmute audio") : qsTr("Mute audio")
+                Accessible.name: qsTr("Mute")
                 Accessible.role: Accessible.Button
                 Material.roundedScale: Material.NotRounded
                 ToolTip.delay: AppConstants.tooltipDelay
-                ToolTip.text: qsTr("Minimize")
+                ToolTip.text: miniPlayerWindow.audioOutput.muted ? qsTr("Unmute") : qsTr("Mute")
                 ToolTip.timeout: AppConstants.tooltipTimeout
                 ToolTip.visible: hovered
                 flat: true
@@ -167,10 +175,10 @@ Window {
                 font.pixelSize: 16
                 height: 26
                 padding: 0
-                text: "\uf849"
+                text: miniPlayerWindow.audioOutput.muted ? "\ue02b" : "\ue029"
                 width: 26
 
-                onClicked: miniPlayerWindow.showMinimized()
+                onClicked: miniPlayerWindow.audioOutput.muted = !miniPlayerWindow.audioOutput.muted
             }
 
             // Close
@@ -199,7 +207,7 @@ Window {
     }
 
     onClosing: function (close) {
-        close.accepted = false;
-        miniPlayerWindow.closeRequested();
+        close.accepted = true;
+        Qt.quit();
     }
 }
