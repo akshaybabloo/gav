@@ -79,6 +79,22 @@ ApplicationWindow {
     visible: true
     width: Screen.width * 0.7
 
+    Settings {
+        id: appSettings
+
+        property bool isDarkTheme: true
+        property real volume: AppConstants.defaultVolume
+        property real playbackRate: 1.0
+    }
+
+    Component.onCompleted: {
+        isDarkTheme = appSettings.isDarkTheme;
+        if (mediaComponent.audioOutput)
+            mediaComponent.audioOutput.volume = appSettings.volume;
+        if (mediaComponent.mediaPlayer)
+            mediaComponent.mediaPlayer.playbackRate = appSettings.playbackRate;
+    }
+
     footer: Loader {
         id: mediaControlsComponentLoader
 
@@ -380,6 +396,17 @@ ApplicationWindow {
 
         onThemeToggled: function(isDark) {
             mainWindow.isDarkTheme = isDark;
+            appSettings.isDarkTheme = isDark;
+        }
+        onDefaultSpeedChanged: function(speed) {
+            appSettings.playbackRate = speed;
+        }
+    }
+    Connections {
+        target: mediaComponent.audioOutput
+
+        function onVolumeChanged() {
+            appSettings.volume = mediaComponent.audioOutput.volume;
         }
     }
     DropArea {
