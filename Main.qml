@@ -50,6 +50,14 @@ ApplicationWindow {
         }
     }
 
+    function exitMiniPlayer() {
+        mediaComponent.mediaPlayer.videoOutput = mediaComponent.videoOutput;
+        miniPlayerWindow.visible = false;
+        mainWindow.showNormal();
+        mainWindow.raise();
+        mainWindow.requestActivate();
+    }
+
     height: Screen.height * 0.75
     minimumHeight: 480
     minimumWidth: 640
@@ -488,9 +496,25 @@ ApplicationWindow {
             videoOutput: mediaComponent.videoOutput
 
             onContainsMouseChanged: mainWindow.mediaControlsContainsMouse = containsMouse
+            onMiniPlayerRequested: {
+                miniPlayerWindow.x = mainWindow.x + mainWindow.width - miniPlayerWindow.width - 20;
+                miniPlayerWindow.y = mainWindow.y + mainWindow.height - miniPlayerWindow.height - 60;
+                miniPlayerWindow.visible = true;
+                mediaComponent.mediaPlayer.videoOutput = miniPlayerWindow.miniVideoOutput;
+                mainWindow.showMinimized();
+            }
             onNextTrack: playlistComponent.playListView.currentIndex++
             onPreviousTrack: playlistComponent.playListView.currentIndex--
         }
+    }
+
+    MiniPlayerWindow {
+        id: miniPlayerWindow
+
+        mediaPlayer: mediaComponent.mediaPlayer
+
+        onCloseRequested: mainWindow.exitMiniPlayer()
+        onRestoreRequested: mainWindow.exitMiniPlayer()
     }
 
     // --- Loader for FULLSCREEN mode ---

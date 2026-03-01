@@ -23,6 +23,7 @@ Item {
     property int repeatMode: 0  // 0=none, 1=once, 2=loop, 3=range
     required property var videoOutput
 
+    signal miniPlayerRequested
     signal nextTrack
     signal previousTrack
 
@@ -1121,6 +1122,28 @@ Item {
                                 }
                             }
                         }
+                    }
+                    Button {
+                        id: miniPlayerButton
+
+                        Accessible.description: qsTr("Open mini player")
+                        Accessible.name: qsTr("Mini player")
+                        Accessible.role: Accessible.Button
+                        Layout.preferredHeight: 30
+                        Layout.preferredWidth: 25
+                        Material.background: "transparent"
+                        Material.roundedScale: Material.NotRounded
+                        ToolTip.delay: AppConstants.tooltipDelay
+                        ToolTip.text: qsTr("Open mini player")
+                        ToolTip.timeout: AppConstants.tooltipTimeout
+                        ToolTip.visible: hovered
+                        enabled: mediaLoaded
+                        font.family: materialSymbolsOutlined.name
+                        hoverEnabled: true
+                        scale: 1.5
+                        text: "\ue911"
+
+                        onClicked: miniPlayerRequested()
                     }
                     Button {
                         id: fullscreenButton
