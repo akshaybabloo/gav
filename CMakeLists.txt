@@ -128,6 +128,7 @@ qt_add_qml_module(appgav
         CustomSnackbar.qml
         AppConstants.qml
         SettingsDialog.qml
+        MiniPlayerWindow.qml
         SOURCES
         custommediaplayer.h custommediaplayer.cpp
         collage.h collage.cpp

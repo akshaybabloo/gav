@@ -50,6 +50,17 @@ ApplicationWindow {
         }
     }
 
+    function exitMiniPlayer() {
+        if (!miniPlayerWindow.visible)
+            return;
+        mediaComponent.mediaPlayer.videoOutput = mediaComponent.videoOutput;
+        miniPlayerWindow.visible = false;
+        mainWindow.show();
+        mainWindow.showNormal();
+        mainWindow.raise();
+        mainWindow.requestActivate();
+    }
+
     height: Screen.height * 0.75
     minimumHeight: 480
     minimumWidth: 640
@@ -482,15 +493,35 @@ ApplicationWindow {
             audioOutput: mediaComponent.audioOutput
             implicitHeight: 60
             mediaLoaded: mediaComponent.mediaLoaded
+            miniPlayerActive: miniPlayerWindow.visible
             player: mediaComponent.mediaPlayer
             playlistCount: playList.count
             playlistCurrentIndex: playlistComponent.playListView.currentIndex
             videoOutput: mediaComponent.videoOutput
 
             onContainsMouseChanged: mainWindow.mediaControlsContainsMouse = containsMouse
+            onMiniPlayerRequested: {
+                var px = mainWindow.x + mainWindow.width - miniPlayerWindow.width - 20;
+                var py = mainWindow.y + mainWindow.height - miniPlayerWindow.height - 60;
+                miniPlayerWindow.x = Math.max(0, Math.min(px, Screen.width - miniPlayerWindow.width));
+                miniPlayerWindow.y = Math.max(0, Math.min(py, Screen.height - miniPlayerWindow.height));
+                miniPlayerWindow.visible = true;
+                mediaComponent.mediaPlayer.videoOutput = miniPlayerWindow.miniVideoOutput;
+                mainWindow.hide();
+            }
             onNextTrack: playlistComponent.playListView.currentIndex++
             onPreviousTrack: playlistComponent.playListView.currentIndex--
         }
+    }
+
+    MiniPlayerWindow {
+        id: miniPlayerWindow
+
+        audioOutput: mediaComponent.audioOutput
+        mediaPlayer: mediaComponent.mediaPlayer
+
+        onCloseRequested: Qt.quit()
+        onRestoreRequested: mainWindow.exitMiniPlayer()
     }
 
     // --- Loader for FULLSCREEN mode ---
