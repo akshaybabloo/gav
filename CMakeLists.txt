@@ -24,7 +24,7 @@ option(BUILD_TESTS "Build tests" ON)
 
 # Check if in CLion
 if ($ENV{CLION_IDE})
-    set(QT_VERSION "6.10.*")
+    set(QT_VERSION "6.11.*")
     message(STATUS "CLion IDE detected. Setting Qt version to ${QT_VERSION}")
 
     if (WIN32)
