@@ -125,7 +125,7 @@ jobs:
           ninja package
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: artifacts-${{ matrix.os }}
           path: build/packages/*
@@ -136,7 +136,7 @@ jobs:
     if: github.ref_type == 'tag' && contains(github.ref_name, '-')
     steps:
       - name: Download all build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: artifacts-*
           merge-multiple: true
@@ -163,7 +163,7 @@ jobs:
     if: github.ref_type == 'tag' && !contains(github.ref_name, '-')
     steps:
       - name: Download all build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: artifacts-*
           merge-multiple: true
