@@ -33,11 +33,11 @@ jobs:
             modules: 'qt.qt6.6110.addons.qt5compat qt.qt6.6110.addons.qtimageformats qt.qt6.6110.addons.qtmultimedia'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           lfs: true
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           repository: microsoft/vcpkg
           path: vcpkg
