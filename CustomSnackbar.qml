@@ -2,6 +2,8 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
+import gavqml
+
 Popup {
     id: root
 
@@ -58,7 +60,7 @@ Popup {
     Timer {
         id: hideTimer
 
-        interval: 3000
+        interval: AppConstants.snackbarDuration
 
         onTriggered: root.close()
     }

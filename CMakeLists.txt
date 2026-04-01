@@ -129,6 +129,11 @@ qt_add_qml_module(appgav
         AppConstants.qml
         SettingsDialog.qml
         MiniPlayerWindow.qml
+        SeekBarComponent.qml
+        VolumeControlComponent.qml
+        BrightnessContrastPopup.qml
+        PlaybackSpeedMenu.qml
+        CollageButton.qml
         SOURCES
         custommediaplayer.h custommediaplayer.cpp
         collage.h collage.cpp

@@ -504,6 +504,7 @@ ApplicationWindow {
         id: playlistComponent
 
         anchors.fill: parent
+        collageTarget: collage
         playList: playList
         visible: !mediaComponent.isVideoAndPlaying
 
@@ -528,6 +529,7 @@ ApplicationWindow {
             id: controlBar
 
             audioOutput: mediaComponent.audioOutput
+            collageTarget: collage
             implicitHeight: 60
             mediaLoaded: mediaComponent.mediaLoaded
             miniPlayerActive: miniPlayerWindow.visible
@@ -537,6 +539,7 @@ ApplicationWindow {
             videoOutput: mediaComponent.videoOutput
 
             onContainsMouseChanged: mainWindow.mediaControlsContainsMouse = containsMouse
+            onPlaylistToggleRequested: playlistComponent.visible = !playlistComponent.visible
             onMiniPlayerRequested: {
                 var px = mainWindow.x + mainWindow.width - miniPlayerWindow.width - 20;
                 var py = mainWindow.y + mainWindow.height - miniPlayerWindow.height - 60;
