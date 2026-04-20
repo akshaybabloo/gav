@@ -11,9 +11,11 @@ Dialog {
     required property var audioOutput
     required property var mediaPlayer
     required property bool isDarkTheme
+    required property bool checkUpdatesOnStartup
 
     signal themeToggled(bool isDark)
     signal defaultSpeedChanged(real speed)
+    signal checkUpdatesOnStartupToggled(bool enabled)
 
     modal: true
     title: qsTr("Settings")
@@ -147,6 +149,41 @@ Dialog {
                         mediaPlayer.playbackRate = AppConstants.playbackSpeeds[index];
                         defaultSpeedChanged(AppConstants.playbackSpeeds[index]);
                     }
+                }
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 1
+            color: Material.dividerColor
+        }
+
+        // Updates section
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 8
+
+            Text {
+                color: Material.foreground
+                font.bold: true
+                font.pixelSize: 14
+                text: qsTr("Updates")
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+
+                Text {
+                    color: Material.foreground
+                    opacity: 0.7
+                    text: qsTr("Check for updates on startup")
+                }
+                Item { Layout.fillWidth: true }
+                Switch {
+                    id: checkUpdatesSwitch
+                    checked: root.checkUpdatesOnStartup
+                    onCheckedChanged: root.checkUpdatesOnStartupToggled(checked)
                 }
             }
         }

@@ -67,7 +67,7 @@ set(SPDLOG_FMT_EXTERNAL ON)
 # Find fmt first, then spdlog
 find_package(fmt CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
-find_package(Qt6 REQUIRED COMPONENTS Core Quick Multimedia Widgets Concurrent)
+find_package(Qt6 REQUIRED COMPONENTS Core Quick Multimedia Widgets Concurrent Network)
 
 qt_standard_project_setup(REQUIRES 6.9)
 
@@ -139,6 +139,7 @@ qt_add_qml_module(appgav
         custommediaplayer.h custommediaplayer.cpp
         collage.h collage.cpp
         previewimageprovider.h previewimageprovider.cpp
+        SOURCES updates.h updates.cpp
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
@@ -155,7 +156,7 @@ set_target_properties(appgav PROPERTIES
 set_target_properties(appgav PROPERTIES OUTPUT_NAME "gav")
 
 target_link_libraries(appgav
-        PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Qml Qt6::Multimedia Qt6::Widgets spdlog::spdlog fmt::fmt Qt6::Concurrent
+        PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Qml Qt6::Multimedia Qt6::Widgets spdlog::spdlog fmt::fmt Qt6::Concurrent Qt6::Network
 )
 
 if (WIN32 AND DEFINED ENV{CLION_IDE})
