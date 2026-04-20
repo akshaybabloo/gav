@@ -20,6 +20,7 @@ ApplicationWindow {
 
     // Dynamic theme switching - overrides qtquickcontrols2.conf at runtime
     Material.theme: isDarkTheme ? Material.Dark : Material.Light
+    flags: Qt.Window | Qt.FramelessWindowHint
 
     function getMediaInfo(fileUrl) {
         var path = fileUrl.toString();
@@ -112,23 +113,31 @@ ApplicationWindow {
             item.anchors.fill = mediaControlsComponentLoader
     }
 
-    // --- Loader for WINDOWED mode ---
-    menuBar: Loader {
-        id: windowedMenuBarLoader
+    TitleBar {
+        id: titleBar
 
-        active: mainWindow.visibility !== Window.FullScreen
+        readonly property bool isFullScreen: mainWindow.visibility === Window.FullScreen
 
-        // Make the Loader span the window width
         anchors.left: parent.left
         anchors.right: parent.right
+        anchors.top: parent.top
+        enabled: opacity > 0
+        height: 40
+        opacity: isFullScreen ? (controlsVisibleAlias ? 1 : 0) : 1
+        targetWindow: mainWindow
+        windowTitle: mainWindow.title
+        z: 100
 
-        // Collapse space when inactive
-        height: active && item ? item.implicitHeight : 0
-        sourceComponent: active ? menuBarComponent : null
+        Behavior on opacity {
+            NumberAnimation {
+                duration: 300
+            }
+        }
 
-        // Let the loaded MenuBar fill the Loader
-        onLoaded: if (item)
-            item.anchors.fill = windowedMenuBarLoader
+        onOpenFileRequested: fileDialog.open()
+        onExitRequested: Qt.quit()
+        onSettingsRequested: settingsDialog.open()
+        onAboutRequested: aboutDialog.open()
     }
 
     onSourceChanged: {
@@ -148,69 +157,96 @@ ApplicationWindow {
         shouldAutoPlay = true;
     }
 
-    // --- Reusable MenuBar definition ---
-    Component {
-        id: menuBarComponent
+    // Resize grips (frameless window) — only active when windowed.
+    // Edges
+    MouseArea {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        cursorShape: Qt.SizeVerCursor
+        enabled: mainWindow.visibility === Window.Windowed
+        height: 4
+        z: 102
 
-        MenuBar {
-            background: Rectangle {
-                color: Material.background.darker(1.2)
-            }
-
-            Menu {
-                title: qsTr("File")
-
-                Action {
-                    text: qsTr("Open")
-
-                    onTriggered: fileDialog.open()
-                }
-                MenuSeparator {
-                }
-                Action {
-                    text: qsTr("Exit")
-
-                    onTriggered: Qt.quit()
-                }
-            }
-            Menu {
-                title: qsTr("View")
-
-                Action {
-                    text: qsTr("Settings")
-                    onTriggered: settingsDialog.open()
-                }
-            }
-            Menu {
-                title: qsTr("Help")
-
-                Action {
-                    text: qsTr("About")
-
-                    onTriggered: aboutDialog.open()
-                }
-            }
-        }
+        onPressed: mainWindow.startSystemResize(Qt.TopEdge)
     }
-
-    // --- Loader for FULLSCREEN mode ---
-    Loader {
-        id: fullscreenMenuBarLoader
-
-        active: mainWindow.visibility === Window.FullScreen
-        enabled: opacity > 0
-        height: item ? item.implicitHeight : 0
-        opacity: !controlsVisibleAlias ? 0 : 1
-        sourceComponent: menuBarComponent
-        width: parent.width
-        y: 0
+    MouseArea {
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        cursorShape: Qt.SizeVerCursor
+        enabled: mainWindow.visibility === Window.Windowed
+        height: 4
         z: 100
 
-        Behavior on opacity {
-            NumberAnimation {
-                duration: 300
-            }
-        }
+        onPressed: mainWindow.startSystemResize(Qt.BottomEdge)
+    }
+    MouseArea {
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.top: parent.top
+        cursorShape: Qt.SizeHorCursor
+        enabled: mainWindow.visibility === Window.Windowed
+        width: 4
+        z: 100
+
+        onPressed: mainWindow.startSystemResize(Qt.LeftEdge)
+    }
+    MouseArea {
+        anchors.bottom: parent.bottom
+        anchors.right: parent.right
+        anchors.top: parent.top
+        cursorShape: Qt.SizeHorCursor
+        enabled: mainWindow.visibility === Window.Windowed
+        width: 4
+        z: 100
+
+        onPressed: mainWindow.startSystemResize(Qt.RightEdge)
+    }
+    // Corners (drawn above edges)
+    MouseArea {
+        anchors.left: parent.left
+        anchors.top: parent.top
+        cursorShape: Qt.SizeFDiagCursor
+        enabled: mainWindow.visibility === Window.Windowed
+        height: 8
+        width: 8
+        z: 101
+
+        onPressed: mainWindow.startSystemResize(Qt.LeftEdge | Qt.TopEdge)
+    }
+    MouseArea {
+        anchors.right: parent.right
+        anchors.top: parent.top
+        cursorShape: Qt.SizeBDiagCursor
+        enabled: mainWindow.visibility === Window.Windowed
+        height: 8
+        width: 8
+        z: 101
+
+        onPressed: mainWindow.startSystemResize(Qt.RightEdge | Qt.TopEdge)
+    }
+    MouseArea {
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        cursorShape: Qt.SizeBDiagCursor
+        enabled: mainWindow.visibility === Window.Windowed
+        height: 8
+        width: 8
+        z: 101
+
+        onPressed: mainWindow.startSystemResize(Qt.LeftEdge | Qt.BottomEdge)
+    }
+    MouseArea {
+        anchors.bottom: parent.bottom
+        anchors.right: parent.right
+        cursorShape: Qt.SizeFDiagCursor
+        enabled: mainWindow.visibility === Window.Windowed
+        height: 8
+        width: 8
+        z: 101
+
+        onPressed: mainWindow.startSystemResize(Qt.RightEdge | Qt.BottomEdge)
     }
     CustomSnackbar {
         id: captureSnackbar
@@ -451,7 +487,10 @@ ApplicationWindow {
     MediaComponent {
         id: mediaComponent
 
-        anchors.fill: parent
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: mainWindow.visibility === Window.FullScreen ? parent.top : titleBar.bottom
         focus: true
         path: ""
 
@@ -504,7 +543,10 @@ ApplicationWindow {
     PlayListComponent {
         id: playlistComponent
 
-        anchors.fill: parent
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: mainWindow.visibility === Window.FullScreen ? parent.top : titleBar.bottom
         collageTarget: collage
         playList: playList
         visible: !mediaComponent.isVideoAndPlaying || mainWindow.playlistManualVisible
