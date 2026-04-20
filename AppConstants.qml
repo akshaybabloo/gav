@@ -37,10 +37,38 @@ QtObject {
     readonly property int seekStep: 5000
     readonly property int seekStepSmall: 1000
 
+    // Timer intervals (in milliseconds)
+    readonly property int holdTimerInterval: 200
+    readonly property int rewindSeekInterval: 100
+    readonly property int seekSliderUpdateInterval: 500
+    readonly property int previewRequestInterval: 50
+    readonly property int singleClickDelay: 250
+    readonly property int rewindSeekMultiplier: 100
+    readonly property int fastSpeedMultiplier: 10
+
+    // Overlay colors
+    readonly property color overlayTextColor: "white"
+    readonly property color overlayOutlineColor: "black"
+    readonly property color overlayBackgroundColor: "#2a2a2a"
+    readonly property color volumeBarColor: "#4CAF50"
+
     // Playback speed options
     readonly property var playbackSpeeds: [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
 
     // Helper functions
+    function formatTime(ms) {
+        var value = Number(ms);
+        if (!isFinite(value) || value < 0)
+            value = 0;
+        var totalSecs = Math.floor(value / 1000);
+        var h = Math.floor(totalSecs / 3600);
+        var m = Math.floor((totalSecs % 3600) / 60);
+        var s = totalSecs % 60;
+        var pad = function (num) {
+            return String(num).padStart(2, '0');
+        };
+        return h > 0 ? h + ":" + pad(m) + ":" + pad(s) : pad(m) + ":" + pad(s);
+    }
     function getVideoExtensionsFilter(): string {
         return "Video Files (*." + videoExtensions.join(" *.") + ")";
     }

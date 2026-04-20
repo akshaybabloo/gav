@@ -78,22 +78,22 @@ Item {
         Text {
             id: volumeText
 
-            color: "white"
+            color: AppConstants.overlayTextColor
             font.bold: true
             font.pixelSize: 25
             horizontalAlignment: Text.AlignHCenter
             style: Text.Outline
-            styleColor: "black"
+            styleColor: AppConstants.overlayOutlineColor
             text: Math.round(audioOutput.volume * 100) + "%"
             width: 50
         }
         Rectangle {
             id: volumeViz
 
-            border.color: "white"
+            border.color: AppConstants.overlayTextColor
             border.width: 2
             clip: true
-            color: "#2a2a2a"
+            color: AppConstants.overlayBackgroundColor
             height: 250
             radius: 5
             width: 50
@@ -102,7 +102,7 @@ Item {
                 anchors.bottom: parent.bottom
                 anchors.left: parent.left
                 anchors.right: parent.right
-                color: "#4CAF50"
+                color: AppConstants.volumeBarColor
                 height: parent.height * audioOutput.volume
                 radius: 5
             }
@@ -124,9 +124,9 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         anchors.topMargin: 20
-        border.color: "white"
+        border.color: AppConstants.overlayTextColor
         border.width: 2
-        color: "#2a2a2a"
+        color: AppConstants.overlayBackgroundColor
         height: zoomText.height + 20
         opacity: 0.8
         radius: 8
@@ -144,7 +144,7 @@ Item {
             id: zoomText
 
             anchors.centerIn: parent
-            color: "white"
+            color: AppConstants.overlayTextColor
             font.bold: true
             font.pixelSize: 18
             text: "Zoom: " + Math.round(videoOutput.zoomLevel * 100) + "%"

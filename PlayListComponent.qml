@@ -6,6 +6,9 @@ import QtQuick.Layouts
 import gavqml
 
 Item {
+    id: root
+
+    required property var collageTarget
     required property ListModel playList
     property alias playListView: playListView
     property string searchFilter: ""
@@ -274,50 +277,9 @@ Item {
                             visible: clearButton.hovered
                         }
                     }
-                    Button {
-                        id: collageButton
-
-                        property bool isLoading: false
-
-                        Layout.preferredHeight: 30
-                        Layout.preferredWidth: 25
-                        Material.roundedScale: Material.NotRounded
-                        enabled: !collageButton.isLoading && playList.count > 0
-                        font.family: materialSymbolsOutlined.name
-                        font.weight: Font.Light
-                        hoverEnabled: true
-                        scale: 1.5
-                        text: collageButton.isLoading ? "" : "\uefb2"
-
-                        Accessible.name: qsTr("Create collages")
-                        Accessible.description: qsTr("Create collages for all videos in the playlist")
-                        Accessible.role: Accessible.Button
-
-                        onClicked: {
-                            collageButton.isLoading = true;
-                            collage.toCollage(toPathList(playList));
-                        }
-
-                        BusyIndicator {
-                            anchors.centerIn: parent
-                            height: parent.height * 0.8
-                            running: collageButton.isLoading
-                            visible: collageButton.isLoading
-                            width: parent.width * 0.8
-                        }
-                        ToolTip {
-                            delay: AppConstants.tooltipDelay
-                            text: collageButton.isLoading ? qsTr("Creating collages...") : qsTr("Create collages for all videos")
-                            timeout: AppConstants.tooltipTimeout
-                            visible: collageButton.hovered
-                        }
-                        Connections {
-                            function onCollageFinished(successCount, failCount) {
-                                collageButton.isLoading = false;
-                            }
-
-                            target: collage
-                        }
+                    CollageButton {
+                        collageTarget: root.collageTarget
+                        sourceUrls: playList.count > 0 ? toPathList(playList) : []
                     }
                 }
             }
