@@ -16,6 +16,7 @@ ApplicationWindow {
     property bool shouldAutoPlay: false
     property url source
     property bool isDarkTheme: true
+    property bool playlistManualVisible: false
 
     // Dynamic theme switching - overrides qtquickcontrols2.conf at runtime
     Material.theme: isDarkTheme ? Material.Dark : Material.Light
@@ -506,7 +507,7 @@ ApplicationWindow {
         anchors.fill: parent
         collageTarget: collage
         playList: playList
-        visible: !mediaComponent.isVideoAndPlaying
+        visible: !mediaComponent.isVideoAndPlaying || mainWindow.playlistManualVisible
 
         onItemSelected: function(path, name) {
             mediaComponent.path = path;
@@ -539,7 +540,7 @@ ApplicationWindow {
             videoOutput: mediaComponent.videoOutput
 
             onContainsMouseChanged: mainWindow.mediaControlsContainsMouse = containsMouse
-            onPlaylistToggleRequested: playlistComponent.visible = !playlistComponent.visible
+            onPlaylistToggleRequested: mainWindow.playlistManualVisible = !mainWindow.playlistManualVisible
             onMiniPlayerRequested: {
                 var px = mainWindow.x + mainWindow.width - miniPlayerWindow.width - 20;
                 var py = mainWindow.y + mainWindow.height - miniPlayerWindow.height - 60;

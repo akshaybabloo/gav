@@ -76,6 +76,8 @@ Button {
                 Slider {
                     id: brightnessSlider
 
+                    Accessible.name: qsTr("Brightness")
+                    Accessible.description: qsTr("Brightness slider, adjusts video brightness")
                     Layout.preferredWidth: 150
                     from: AppConstants.brightnessMin
                     to: AppConstants.brightnessMax
@@ -119,6 +121,8 @@ Button {
                 Slider {
                     id: contrastSlider
 
+                    Accessible.name: qsTr("Contrast")
+                    Accessible.description: qsTr("Contrast slider, adjusts video contrast")
                     Layout.preferredWidth: 150
                     from: AppConstants.contrastMin
                     to: AppConstants.contrastMax

@@ -26,6 +26,12 @@ RowLayout {
         }
     }
 
+    function applyVolume(newValue) {
+        audioOutput.volume = newValue;
+        audioOutput.muted = newValue <= 0;
+        updateVolumeIcon();
+    }
+
     ToolButton {
         id: volumeButton
 
@@ -61,19 +67,16 @@ RowLayout {
         to: 1.0
         value: audioOutput.volume
 
-        onMoved: {
-            audioOutput.volume = value;
-            if (value > 0) {
-                audioOutput.muted = false;
-            }
-            updateVolumeIcon();
-        }
+        onMoved: applyVolume(value)
 
-        // Sync icon when volume changes from external sources (e.g. scroll wheel, settings)
+        // Sync icon when volume or mute changes from external sources (settings, shortcuts, etc.)
         Connections {
             target: audioOutput
             function onVolumeChanged() {
                 volumeSlider.value = audioOutput.volume;
+                updateVolumeIcon();
+            }
+            function onMutedChanged() {
                 updateVolumeIcon();
             }
         }
@@ -84,11 +87,16 @@ RowLayout {
             propagateComposedEvents: true
 
             onWheel: function (wheel) {
+                var newValue = volumeSlider.value;
                 if (wheel.angleDelta.y > 0) {
-                    volumeSlider.value = Math.min(volumeSlider.value + AppConstants.volumeStep, 1.0);
+                    newValue = Math.min(volumeSlider.value + AppConstants.volumeStep, 1.0);
                 } else if (wheel.angleDelta.y < 0) {
-                    volumeSlider.value = Math.max(volumeSlider.value - AppConstants.volumeStep, 0.0);
+                    newValue = Math.max(volumeSlider.value - AppConstants.volumeStep, 0.0);
+                } else {
+                    return;
                 }
+                volumeSlider.value = newValue;
+                applyVolume(newValue);
             }
         }
     }

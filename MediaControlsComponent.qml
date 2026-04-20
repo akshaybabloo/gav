@@ -34,9 +34,12 @@ Item {
 
     function stopFastForwarding() {
         if (isFastForwarding) {
-            player.playbackRate = 1.0;
+            var restoreRate = (currentSpeedIndex >= 0 && currentSpeedIndex < AppConstants.playbackSpeeds.length)
+                ? AppConstants.playbackSpeeds[currentSpeedIndex]
+                : 1.0;
+            player.playbackRate = restoreRate;
             isFastForwarding = false;
-            fastForwardRate = 1.0;
+            fastForwardRate = restoreRate;
             return true;
         }
         return false;
@@ -349,8 +352,11 @@ Item {
                                 fastForwardRate = 10.0;
                                 player.playbackRate = fastForwardRate;
                             } else {
-                                fastForwardRate = 1.0;
-                                player.playbackRate = 1.0;
+                                var restoreRate = (currentSpeedIndex >= 0 && currentSpeedIndex < AppConstants.playbackSpeeds.length)
+                                    ? AppConstants.playbackSpeeds[currentSpeedIndex]
+                                    : 1.0;
+                                fastForwardRate = restoreRate;
+                                player.playbackRate = restoreRate;
                             }
                         }
                         onPressAndHold: forwardHoldTimer.start()

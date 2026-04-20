@@ -57,7 +57,10 @@ QtObject {
 
     // Helper functions
     function formatTime(ms) {
-        var totalSecs = Math.floor(ms / 1000);
+        var value = Number(ms);
+        if (!isFinite(value) || value < 0)
+            value = 0;
+        var totalSecs = Math.floor(value / 1000);
         var h = Math.floor(totalSecs / 3600);
         var m = Math.floor((totalSecs % 3600) / 60);
         var s = totalSecs % 60;

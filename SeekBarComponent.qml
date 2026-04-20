@@ -30,6 +30,7 @@ RowLayout {
 
         property string previewImageUrl: ""
         property int previewPosition: 0
+        property int requestedPreviewPosition: -1
         property bool previewVisible: false
 
         Layout.fillWidth: true
@@ -153,13 +154,23 @@ RowLayout {
             }
         }
 
-        // Timer to update the slider position
+        // Timer to update the slider position during playback
         Timer {
             interval: AppConstants.seekSliderUpdateInterval
             repeat: true
             running: player.playbackState === MediaPlayer.PlayingState
 
             onTriggered: {
+                if (!seekSlider.pressed) {
+                    seekSlider.value = player.position;
+                }
+            }
+        }
+
+        // Also sync on programmatic / paused seeks
+        Connections {
+            target: player
+            function onPositionChanged() {
                 if (!seekSlider.pressed) {
                     seekSlider.value = player.position;
                 }
@@ -216,6 +227,7 @@ RowLayout {
 
             onTriggered: {
                 if (seekSlider.previewVisible) {
+                    seekSlider.requestedPreviewPosition = seekSlider.previewPosition;
                     player.requestPreviewAt(seekSlider.previewPosition);
                 }
             }
@@ -224,7 +236,9 @@ RowLayout {
         // Handle preview ready signal
         Connections {
             function onPreviewReady(position, imageDataUrl) {
-                if (seekSlider.previewVisible && imageDataUrl.length > 0) {
+                if (seekSlider.previewVisible
+                    && imageDataUrl.length > 0
+                    && position === seekSlider.requestedPreviewPosition) {
                     seekSlider.previewImageUrl = imageDataUrl;
                 }
             }
@@ -232,6 +246,7 @@ RowLayout {
             function onSourceChanged() {
                 seekSlider.previewVisible = false;
                 seekSlider.previewImageUrl = "";
+                seekSlider.requestedPreviewPosition = -1;
             }
 
             target: player
