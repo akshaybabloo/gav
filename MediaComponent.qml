@@ -17,9 +17,6 @@ Item {
     signal stopped
     signal fullscreenToggleRequested
 
-    height: parent.height
-    width: parent.width
-
     CustomMediaPlayer {
         id: customMediaPlayer
 

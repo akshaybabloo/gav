@@ -134,6 +134,7 @@ qt_add_qml_module(appgav
         BrightnessContrastPopup.qml
         PlaybackSpeedMenu.qml
         CollageButton.qml
+        TitleBar.qml
         SOURCES
         custommediaplayer.h custommediaplayer.cpp
         collage.h collage.cpp
