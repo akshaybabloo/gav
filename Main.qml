@@ -674,7 +674,7 @@ ApplicationWindow {
 
             audioOutput: mediaComponent.audioOutput
             collageTarget: collage
-            implicitHeight: 60
+            implicitHeight: 90
             mediaLoaded: mediaComponent.mediaLoaded
             miniPlayerActive: miniPlayerWindow.visible
             player: mediaComponent.mediaPlayer

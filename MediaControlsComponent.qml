@@ -54,7 +54,7 @@ Item {
         return false;
     }
 
-    height: 60
+    height: 90
     width: parent.width
 
     Timer {
@@ -134,13 +134,11 @@ Item {
         width: parent.width
 
         ColumnLayout {
-            anchors.left: parent.left
-            anchors.margins: {
-                left: 10;
-                right: 10;
-            }
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.fill: parent
+            anchors.leftMargin: 10
+            anchors.rightMargin: 10
+            anchors.topMargin: 8
+            anchors.bottomMargin: 8
             spacing: 15
 
             // Seek row
