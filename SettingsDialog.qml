@@ -17,14 +17,72 @@ Dialog {
     signal defaultSpeedChanged(real speed)
     signal checkUpdatesOnStartupToggled(bool enabled)
 
+    anchors.centerIn: parent
+    bottomPadding: 20
+    leftPadding: 24
     modal: true
-    title: qsTr("Settings")
-    standardButtons: Dialog.Close
-    width: 400
+    rightPadding: 24
+    topPadding: 20
+    width: 440
+
+    background: Rectangle {
+        border.color: Material.dividerColor
+        border.width: 1
+        color: Material.background
+        radius: 10
+    }
+
+    header: Item {
+        implicitHeight: 52
+
+        Text {
+            anchors.left: parent.left
+            anchors.leftMargin: 24
+            anchors.right: parent.right
+            anchors.rightMargin: 24
+            anchors.verticalCenter: parent.verticalCenter
+            color: Material.foreground
+            font.pixelSize: 16
+            font.weight: Font.DemiBold
+            text: qsTr("Settings")
+        }
+        Rectangle {
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            color: Material.dividerColor
+            height: 1
+        }
+    }
+
+    footer: Item {
+        implicitHeight: 60
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            color: Material.dividerColor
+            height: 1
+        }
+        Button {
+            id: settingsCloseButton
+
+            anchors.right: parent.right
+            anchors.rightMargin: 20
+            anchors.verticalCenter: parent.verticalCenter
+            Material.background: Material.accent
+            Material.foreground: Material.theme === Material.Dark ? "#000000" : "#FFFFFF"
+            Material.roundedScale: Material.SmallScale
+            text: qsTr("Close")
+
+            onClicked: root.close()
+        }
+    }
 
     ColumnLayout {
+        spacing: 18
         width: parent.width
-        spacing: 20
 
         // Appearance section
         ColumnLayout {

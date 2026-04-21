@@ -12,16 +12,22 @@ ApplicationWindow {
     id: mainWindow
 
     property bool controlsVisibleAlias: mediaComponent.controlsAreVisible
+    property bool isDarkTheme: true
     property bool mediaControlsContainsMouse: false
+    property bool playlistManualVisible: false
     property bool shouldAutoPlay: false
     property url source
-    property bool isDarkTheme: true
-    property bool playlistManualVisible: false
 
-    // Dynamic theme switching - overrides qtquickcontrols2.conf at runtime
-    Material.theme: isDarkTheme ? Material.Dark : Material.Light
-    flags: Qt.Window | Qt.FramelessWindowHint
-
+    function exitMiniPlayer() {
+        if (!miniPlayerWindow.visible)
+            return;
+        mediaComponent.mediaPlayer.videoOutput = mediaComponent.videoOutput;
+        miniPlayerWindow.visible = false;
+        mainWindow.show();
+        mainWindow.showNormal();
+        mainWindow.raise();
+        mainWindow.requestActivate();
+    }
     function getMediaInfo(fileUrl) {
         var path = fileUrl.toString();
         // On Windows, fileUrl can start with 'file:///'
@@ -63,44 +69,15 @@ ApplicationWindow {
         };
     }
 
-    function exitMiniPlayer() {
-        if (!miniPlayerWindow.visible)
-            return;
-        mediaComponent.mediaPlayer.videoOutput = mediaComponent.videoOutput;
-        miniPlayerWindow.visible = false;
-        mainWindow.show();
-        mainWindow.showNormal();
-        mainWindow.raise();
-        mainWindow.requestActivate();
-    }
-
+    // Dynamic theme switching - overrides qtquickcontrols2.conf at runtime
+    Material.theme: isDarkTheme ? Material.Dark : Material.Light
+    flags: Qt.Window | Qt.FramelessWindowHint
     height: Screen.height * 0.75
     minimumHeight: 480
     minimumWidth: 640
     title: qsTr("GAV")
     visible: true
     width: Screen.width * 0.7
-
-    Settings {
-        id: appSettings
-
-        property bool isDarkTheme: true
-        property real volume: AppConstants.defaultVolume
-        property real playbackRate: 1.0
-        property bool checkUpdatesOnStartup: true
-    }
-
-    Component.onCompleted: {
-        isDarkTheme = appSettings.isDarkTheme;
-        if (mediaComponent.audioOutput)
-            mediaComponent.audioOutput.volume = appSettings.volume;
-        if (mediaComponent.mediaPlayer)
-            mediaComponent.mediaPlayer.playbackRate = appSettings.playbackRate;
-        if (appSettings.checkUpdatesOnStartup) {
-            updateDialog.manualCheck = false;
-            updates.checkUpdates();
-        }
-    }
 
     footer: Loader {
         id: mediaControlsComponentLoader
@@ -118,6 +95,42 @@ ApplicationWindow {
             item.anchors.fill = mediaControlsComponentLoader
     }
 
+    Component.onCompleted: {
+        isDarkTheme = appSettings.isDarkTheme;
+        if (mediaComponent.audioOutput)
+            mediaComponent.audioOutput.volume = appSettings.volume;
+        if (mediaComponent.mediaPlayer)
+            mediaComponent.mediaPlayer.playbackRate = appSettings.playbackRate;
+        if (appSettings.checkUpdatesOnStartup) {
+            updateDialog.manualCheck = false;
+            updates.checkUpdates();
+        }
+    }
+    onSourceChanged: {
+        const s = "" + source;
+        if (!s) {
+            console.log("No source provided");
+            return;
+        }
+
+        const mediaInfo = getMediaInfo(source);
+        if (!mediaInfo)
+            return;
+        playList.append(mediaInfo);
+        mediaComponent.path = mediaInfo.path;
+        mainWindow.title = "GAV - " + mediaInfo.name;
+        playlistComponent.playListView.currentIndex = playList.count - 1;
+        shouldAutoPlay = true;
+    }
+
+    Settings {
+        id: appSettings
+
+        property bool checkUpdatesOnStartup: true
+        property bool isDarkTheme: true
+        property real playbackRate: 1.0
+        property real volume: AppConstants.defaultVolume
+    }
     TitleBar {
         id: titleBar
 
@@ -139,31 +152,14 @@ ApplicationWindow {
             }
         }
 
-        onOpenFileRequested: fileDialog.open()
-        onExitRequested: Qt.quit()
-        onSettingsRequested: settingsDialog.open()
         onAboutRequested: aboutDialog.open()
         onCheckUpdatesRequested: {
             updateDialog.manualCheck = true;
             updates.checkUpdates();
         }
-    }
-
-    onSourceChanged: {
-        const s = "" + source;
-        if (!s) {
-            console.log("No source provided");
-            return;
-        }
-
-        const mediaInfo = getMediaInfo(source);
-        if (!mediaInfo)
-            return;
-        playList.append(mediaInfo);
-        mediaComponent.path = mediaInfo.path;
-        mainWindow.title = "GAV - " + mediaInfo.name;
-        playlistComponent.playListView.currentIndex = playList.count - 1;
-        shouldAutoPlay = true;
+        onExitRequested: Qt.quit()
+        onOpenFileRequested: fileDialog.open()
+        onSettingsRequested: settingsDialog.open()
     }
 
     // Resize grips (frameless window) — only active when windowed.
@@ -259,11 +255,9 @@ ApplicationWindow {
     }
     CustomSnackbar {
         id: captureSnackbar
-
     }
     CustomSnackbar {
         id: collageSnackbar
-
     }
     Connections {
         function onFrameCaptured(success, path) {
@@ -294,98 +288,112 @@ ApplicationWindow {
     Dialog {
         id: aboutDialog
 
+        anchors.centerIn: parent
+        bottomPadding: 20
+        leftPadding: 28
         modal: true
-        standardButtons: Dialog.Ok
-        x: (parent.width - width) / 2
-        y: (parent.height - height) / 2
+        rightPadding: 28
+        topPadding: 20
+        width: 420
+
+        background: Rectangle {
+            border.color: Material.dividerColor
+            border.width: 1
+            color: Material.background
+            radius: 10
+        }
+        footer: Item {
+            implicitHeight: 60
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                color: Material.dividerColor
+                height: 1
+            }
+            Button {
+                id: aboutCloseButton
+
+                Material.background: Material.accent
+                Material.foreground: Material.theme === Material.Dark ? "#000000" : "#FFFFFF"
+                Material.roundedScale: Material.SmallScale
+                anchors.right: parent.right
+                anchors.rightMargin: 20
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("Close")
+
+                onClicked: aboutDialog.close()
+            }
+        }
+        header: Item {
+            implicitHeight: 52
+
+            Text {
+                anchors.left: parent.left
+                anchors.leftMargin: 28
+                anchors.right: parent.right
+                anchors.rightMargin: 28
+                anchors.verticalCenter: parent.verticalCenter
+                color: Material.foreground
+                font.pixelSize: 16
+                font.weight: Font.DemiBold
+                text: qsTr("About")
+            }
+            Rectangle {
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                color: Material.dividerColor
+                height: 1
+            }
+        }
 
         ColumnLayout {
-            spacing: 10
+            spacing: 8
+            width: parent.width
 
             Image {
                 Layout.alignment: Qt.AlignHCenter
-                Layout.preferredHeight: 150
-                Layout.preferredWidth: 150
+                Layout.preferredHeight: 72
+                Layout.preferredWidth: 72
+                Layout.topMargin: 4
                 fillMode: Image.PreserveAspectFit
                 smooth: true
                 source: "qrc:/assets/images/logo-bw.png"
             }
             Text {
                 Layout.alignment: Qt.AlignHCenter
+                Layout.topMargin: 4
                 color: Material.foreground
-                font.pixelSize: 18
-                font.bold: true
+                font.pixelSize: 20
+                font.weight: Font.DemiBold
                 text: "GAV Media Player"
             }
             Text {
                 Layout.alignment: Qt.AlignHCenter
                 color: Material.foreground
-                opacity: 0.7
-                text: "Version " + Qt.application.version
-            }
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 1
-                color: Material.dividerColor
-            }
-            Text {
-                Layout.alignment: Qt.AlignHCenter
-                color: Material.foreground
-                text: "A simple audio and video player"
-            }
-            Text {
-                Layout.alignment: Qt.AlignHCenter
-                color: Material.foreground
-                opacity: 0.5
                 font.pixelSize: 12
-                text: "Built with Qt " + Qt.version + " and FFmpeg"
+                opacity: 0.6
+                text: qsTr("Version %1").arg(Qt.application.version)
             }
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 1
-                color: Material.dividerColor
-            }
-            ColumnLayout {
+            Text {
                 Layout.alignment: Qt.AlignHCenter
-                spacing: 4
-
-                Text {
-                    Layout.alignment: Qt.AlignHCenter
-                    color: Material.foreground
-                    opacity: 0.5
-                    font.pixelSize: 11
-                    text: "Keyboard Shortcuts:"
-                }
-                Text {
-                    color: Material.foreground
-                    opacity: 0.7
-                    font.pixelSize: 11
-                    text: "Space - Play/Pause"
-                }
-                Text {
-                    color: Material.foreground
-                    opacity: 0.7
-                    font.pixelSize: 11
-                    text: "Left/Right - Seek 5 seconds"
-                }
-                Text {
-                    color: Material.foreground
-                    opacity: 0.7
-                    font.pixelSize: 11
-                    text: "Scroll - Volume"
-                }
-                Text {
-                    color: Material.foreground
-                    opacity: 0.7
-                    font.pixelSize: 11
-                    text: "Ctrl+Scroll - Zoom"
-                }
-                Text {
-                    color: Material.foreground
-                    opacity: 0.7
-                    font.pixelSize: 11
-                    text: "Double-click - Fullscreen"
-                }
+                Layout.fillWidth: true
+                Layout.topMargin: 12
+                color: Material.foreground
+                font.pixelSize: 13
+                horizontalAlignment: Text.AlignHCenter
+                opacity: 0.85
+                text: qsTr("A simple audio and video player")
+                wrapMode: Text.WordWrap
+            }
+            Text {
+                Layout.alignment: Qt.AlignHCenter
+                color: Material.foreground
+                font.pixelSize: 11
+                opacity: 0.5
+                text: qsTr("Built with Qt %1 and FFmpeg").arg(Qt.version)
             }
         }
     }
@@ -395,63 +403,132 @@ ApplicationWindow {
         id: playbackErrorDialog
 
         anchors.centerIn: parent
+        bottomPadding: 20
+        leftPadding: 24
         modal: true
-        standardButtons: Dialog.Ok
-        title: "Playback Error"
+        rightPadding: 24
+        topPadding: 20
+        width: 460
 
-        ColumnLayout {
-            spacing: 10
+        background: Rectangle {
+            border.color: Material.dividerColor
+            border.width: 1
+            color: Material.background
+            radius: 10
+        }
+        footer: Item {
+            implicitHeight: 60
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                color: Material.dividerColor
+                height: 1
+            }
+            Button {
+                id: playbackCloseButton
+
+                Material.background: Material.accent
+                Material.foreground: Material.theme === Material.Dark ? "#000000" : "#FFFFFF"
+                Material.roundedScale: Material.SmallScale
+                anchors.right: parent.right
+                anchors.rightMargin: 20
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("Close")
+
+                onClicked: playbackErrorDialog.close()
+            }
+        }
+        header: Item {
+            implicitHeight: 52
 
             Text {
+                anchors.left: parent.left
+                anchors.leftMargin: 24
+                anchors.right: parent.right
+                anchors.rightMargin: 24
+                anchors.verticalCenter: parent.verticalCenter
                 color: Material.foreground
-                text: "Unable to play this file. The format may not be supported."
-                wrapMode: Text.WordWrap
-                Layout.maximumWidth: 400
+                font.pixelSize: 16
+                font.weight: Font.DemiBold
+                text: qsTr("Playback Error")
             }
-            Text {
-                color: Material.foreground
-                opacity: 0.7
-                font.pixelSize: 12
-                text: "File: " + mediaComponent.path
-                wrapMode: Text.WordWrap
-                Layout.maximumWidth: 400
+            Rectangle {
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                color: Material.dividerColor
+                height: 1
             }
+        }
+
+        RowLayout {
+            spacing: 16
+            width: parent.width
+
             Text {
-                color: Material.foreground
-                opacity: 0.5
-                font.pixelSize: 11
-                visible: mediaComponent.mediaPlayer && mediaComponent.mediaPlayer.errorString !== ""
-                text: "Error: " + (mediaComponent.mediaPlayer ? mediaComponent.mediaPlayer.errorString : "")
-                wrapMode: Text.WordWrap
-                Layout.maximumWidth: 400
+                Layout.alignment: Qt.AlignTop
+                color: Material.color(Material.Red)
+                font.family: materialSymbolsOutlined.name
+                font.pixelSize: 36
+                text: ""
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 6
+
+                Text {
+                    Layout.fillWidth: true
+                    color: Material.foreground
+                    font.pixelSize: 14
+                    text: qsTr("Unable to play this file.")
+                    wrapMode: Text.WordWrap
+                }
+                Text {
+                    Layout.fillWidth: true
+                    color: Material.foreground
+                    font.pixelSize: 12
+                    opacity: 0.7
+                    text: qsTr("The format may not be supported.")
+                    wrapMode: Text.WordWrap
+                }
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 1
+                    Layout.topMargin: 6
+                    color: Material.dividerColor
+                    opacity: 0.5
+                }
+                Text {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 2
+                    color: Material.foreground
+                    elide: Text.ElideMiddle
+                    font.family: "monospace"
+                    font.pixelSize: 11
+                    opacity: 0.7
+                    text: mediaComponent.path
+                }
+                Text {
+                    Layout.fillWidth: true
+                    color: Material.color(Material.Red)
+                    font.pixelSize: 11
+                    opacity: 0.85
+                    text: (mediaComponent.mediaPlayer && mediaComponent.mediaPlayer.errorString) || ""
+                    visible: mediaComponent.mediaPlayer && mediaComponent.mediaPlayer.errorString !== ""
+                    wrapMode: Text.WordWrap
+                }
             }
         }
     }
     Collage {
         id: collage
     }
-
     Updates {
         id: updates
 
-        onUpdateAvailable: function(currentVersion, latestVersion, releaseUrl) {
-            updateDialog.currentVersion = currentVersion;
-            updateDialog.latestVersion = latestVersion;
-            updateDialog.releaseUrl = releaseUrl;
-            updateDialog.checkState = "available";
-            updateDialog.open();
-            updateDialog.manualCheck = false;
-        }
-        onUpToDate: function(currentVersion) {
-            const wasManual = updateDialog.manualCheck;
-            updateDialog.manualCheck = false;
-            if (!wasManual)
-                return;
-            updateDialog.currentVersion = currentVersion;
-            updateDialog.checkState = "upToDate";
-            updateDialog.open();
-        }
-        onCheckFailed: function(errorMessage) {
+        onCheckFailed: function (errorMessage) {
             const wasManual = updateDialog.manualCheck;
             updateDialog.manualCheck = false;
             if (!wasManual)
@@ -460,8 +537,24 @@ ApplicationWindow {
             updateDialog.checkState = "failed";
             updateDialog.open();
         }
+        onUpToDate: function (currentVersion) {
+            const wasManual = updateDialog.manualCheck;
+            updateDialog.manualCheck = false;
+            if (!wasManual)
+                return;
+            updateDialog.currentVersion = currentVersion;
+            updateDialog.checkState = "upToDate";
+            updateDialog.open();
+        }
+        onUpdateAvailable: function (currentVersion, latestVersion, releaseUrl) {
+            updateDialog.currentVersion = currentVersion;
+            updateDialog.latestVersion = latestVersion;
+            updateDialog.releaseUrl = releaseUrl;
+            updateDialog.checkState = "available";
+            updateDialog.open();
+            updateDialog.manualCheck = false;
+        }
     }
-
     Dialog {
         id: updateDialog
 
@@ -473,79 +566,213 @@ ApplicationWindow {
         property url releaseUrl
 
         anchors.centerIn: parent
+        bottomPadding: 20
+        leftPadding: 24
         modal: true
-        standardButtons: checkState === "available" ? (Dialog.Ok | Dialog.Cancel) : Dialog.Ok
-        title: {
-            if (checkState === "available")
-                return qsTr("Update Available");
-            if (checkState === "upToDate")
-                return qsTr("No Updates");
-            return qsTr("Update Check Failed");
+        rightPadding: 24
+        topPadding: 20
+        width: 460
+
+        background: Rectangle {
+            border.color: Material.dividerColor
+            border.width: 1
+            color: Material.background
+            radius: 10
         }
-        width: 400
+        footer: Item {
+            implicitHeight: 60
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                color: Material.dividerColor
+                height: 1
+            }
+            Row {
+                anchors.right: parent.right
+                anchors.rightMargin: 20
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 8
+
+                Button {
+                    Material.roundedScale: Material.SmallScale
+                    text: qsTr("Later")
+                    visible: updateDialog.checkState === "available"
+
+                    onClicked: updateDialog.reject()
+                }
+                Button {
+                    id: updatePrimaryButton
+
+                    Material.background: Material.accent
+                    Material.foreground: Material.theme === Material.Dark ? "#000000" : "#FFFFFF"
+                    Material.roundedScale: Material.SmallScale
+                    text: updateDialog.checkState === "available" ? qsTr("View Release") : qsTr("Close")
+
+                    onClicked: {
+                        if (updateDialog.checkState === "available") {
+                            updateDialog.accept();
+                        } else {
+                            updateDialog.close();
+                        }
+                    }
+                }
+            }
+        }
+        header: Item {
+            implicitHeight: 52
+
+            Text {
+                anchors.left: parent.left
+                anchors.leftMargin: 24
+                anchors.right: parent.right
+                anchors.rightMargin: 24
+                anchors.verticalCenter: parent.verticalCenter
+                color: Material.foreground
+                font.pixelSize: 16
+                font.weight: Font.DemiBold
+                text: {
+                    if (updateDialog.checkState === "available")
+                        return qsTr("Update Available");
+                    if (updateDialog.checkState === "upToDate")
+                        return qsTr("No Updates");
+                    return qsTr("Update Check Failed");
+                }
+            }
+            Rectangle {
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                color: Material.dividerColor
+                height: 1
+            }
+        }
 
         onAccepted: {
             if (checkState === "available")
                 Qt.openUrlExternally(releaseUrl);
         }
 
-        ColumnLayout {
-            spacing: 10
+        RowLayout {
+            spacing: 16
             width: parent.width
 
             Text {
-                Layout.fillWidth: true
-                color: Material.foreground
-                visible: updateDialog.checkState ==="available"
-                wrapMode: Text.WordWrap
-                text: qsTr("A new version of GAV is available.\n\nCurrent: %1\nLatest: %2\n\nOpen the release page?")
-                        .arg(updateDialog.currentVersion)
-                        .arg(updateDialog.latestVersion)
+                Layout.alignment: Qt.AlignTop
+                color: {
+                    if (updateDialog.checkState === "available")
+                        return Material.accent;
+                    if (updateDialog.checkState === "upToDate")
+                        return Material.color(Material.Green);
+                    return Material.color(Material.Red);
+                }
+                font.family: materialSymbolsOutlined.name
+                font.pixelSize: 36
+                text: {
+                    if (updateDialog.checkState === "available")
+                        return ""; // update
+                    if (updateDialog.checkState === "upToDate")
+                        return ""; // check_circle
+                    return ""; // error
+                }
             }
-            Text {
+            ColumnLayout {
                 Layout.fillWidth: true
-                color: Material.foreground
-                visible: updateDialog.checkState ==="upToDate"
-                wrapMode: Text.WordWrap
-                text: qsTr("You're on the latest version (%1).").arg(updateDialog.currentVersion)
-            }
-            Text {
-                Layout.fillWidth: true
-                color: Material.foreground
-                visible: updateDialog.checkState ==="failed"
-                wrapMode: Text.WordWrap
-                text: qsTr("Could not check for updates:\n%1").arg(updateDialog.errorMessage)
+                spacing: 6
+
+                Text {
+                    Layout.fillWidth: true
+                    color: Material.foreground
+                    font.pixelSize: 14
+                    text: {
+                        if (updateDialog.checkState === "available")
+                            return qsTr("A new version of GAV is available.");
+                        if (updateDialog.checkState === "upToDate")
+                            return qsTr("You're on the latest version.");
+                        return qsTr("Could not check for updates.");
+                    }
+                    wrapMode: Text.WordWrap
+                }
+                GridLayout {
+                    Layout.topMargin: 6
+                    columnSpacing: 16
+                    columns: 2
+                    rowSpacing: 4
+                    visible: updateDialog.checkState === "available"
+
+                    Text {
+                        color: Material.foreground
+                        font.pixelSize: 12
+                        opacity: 0.6
+                        text: qsTr("Current:")
+                    }
+                    Text {
+                        color: Material.foreground
+                        font.family: "monospace"
+                        font.pixelSize: 12
+                        text: updateDialog.currentVersion
+                    }
+                    Text {
+                        color: Material.foreground
+                        font.pixelSize: 12
+                        opacity: 0.6
+                        text: qsTr("Latest:")
+                    }
+                    Text {
+                        color: Material.accent
+                        font.family: "monospace"
+                        font.pixelSize: 12
+                        font.weight: Font.DemiBold
+                        text: updateDialog.latestVersion
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    color: Material.foreground
+                    font.pixelSize: 12
+                    opacity: 0.6
+                    text: qsTr("Current version: %1").arg(updateDialog.currentVersion)
+                    visible: updateDialog.checkState === "upToDate"
+                }
+                Text {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 4
+                    color: Material.foreground
+                    font.pixelSize: 12
+                    opacity: 0.7
+                    text: updateDialog.errorMessage
+                    visible: updateDialog.checkState === "failed"
+                    wrapMode: Text.WordWrap
+                }
             }
         }
     }
-
     SettingsDialog {
         id: settingsDialog
 
         audioOutput: mediaComponent.audioOutput
         checkUpdatesOnStartup: appSettings.checkUpdatesOnStartup
-        mediaPlayer: mediaComponent.mediaPlayer
         isDarkTheme: mainWindow.isDarkTheme
-        x: (parent.width - width) / 2
-        y: (parent.height - height) / 2
+        mediaPlayer: mediaComponent.mediaPlayer
 
-        onThemeToggled: function(isDark) {
+        onCheckUpdatesOnStartupToggled: function (enabled) {
+            appSettings.checkUpdatesOnStartup = enabled;
+        }
+        onDefaultSpeedChanged: function (speed) {
+            appSettings.playbackRate = speed;
+        }
+        onThemeToggled: function (isDark) {
             mainWindow.isDarkTheme = isDark;
             appSettings.isDarkTheme = isDark;
         }
-        onDefaultSpeedChanged: function(speed) {
-            appSettings.playbackRate = speed;
-        }
-        onCheckUpdatesOnStartupToggled: function(enabled) {
-            appSettings.checkUpdatesOnStartup = enabled;
-        }
     }
     Connections {
-        target: mediaComponent.audioOutput
-
         function onVolumeChanged() {
             appSettings.volume = mediaComponent.audioOutput.volume;
         }
+
+        target: mediaComponent.audioOutput
     }
     DropArea {
         anchors.fill: parent
@@ -595,30 +822,8 @@ ApplicationWindow {
         focus: true
         path: ""
 
-        Shortcut {
-            sequence: "Space"
-            onActivated: {
-                // Play/Pause
-                if (mediaComponent.mediaPlayer.playbackState === MediaPlayer.PlayingState) {
-                    mediaComponent.mediaPlayer.pause();
-                } else {
-                    mediaComponent.mediaPlayer.play();
-                }
-            }
-        }
-        Shortcut {
-            sequence: "Left"
-            onActivated: {
-                // Seek backward
-                mediaComponent.mediaPlayer.position = Math.max(0, mediaComponent.mediaPlayer.position - AppConstants.seekStep);
-            }
-        }
-        Shortcut {
-            sequence: "Right"
-            onActivated: {
-                // Seek forward
-                mediaComponent.mediaPlayer.position = Math.min(mediaComponent.mediaPlayer.duration, mediaComponent.mediaPlayer.position + AppConstants.seekStep);
-            }
+        onFullscreenToggleRequested: {
+            mainWindow.visibility = mainWindow.visibility === Window.FullScreen ? Window.Windowed : Window.FullScreen;
         }
         onMediaLoadedChanged: {
             if (mediaLoaded) {
@@ -633,13 +838,38 @@ ApplicationWindow {
             mediaComponent.path = "";
             mainWindow.title = qsTr("GAV");
         }
-        onFullscreenToggleRequested: {
-            mainWindow.visibility = mainWindow.visibility === Window.FullScreen ? Window.Windowed : Window.FullScreen;
+
+        Shortcut {
+            sequence: "Space"
+
+            onActivated: {
+                // Play/Pause
+                if (mediaComponent.mediaPlayer.playbackState === MediaPlayer.PlayingState) {
+                    mediaComponent.mediaPlayer.pause();
+                } else {
+                    mediaComponent.mediaPlayer.play();
+                }
+            }
+        }
+        Shortcut {
+            sequence: "Left"
+
+            onActivated: {
+                // Seek backward
+                mediaComponent.mediaPlayer.position = Math.max(0, mediaComponent.mediaPlayer.position - AppConstants.seekStep);
+            }
+        }
+        Shortcut {
+            sequence: "Right"
+
+            onActivated: {
+                // Seek forward
+                mediaComponent.mediaPlayer.position = Math.min(mediaComponent.mediaPlayer.duration, mediaComponent.mediaPlayer.position + AppConstants.seekStep);
+            }
         }
     }
     ListModel {
         id: playList
-
     }
     PlayListComponent {
         id: playlistComponent
@@ -652,7 +882,7 @@ ApplicationWindow {
         playList: playList
         visible: !mediaComponent.isVideoAndPlaying || mainWindow.playlistManualVisible
 
-        onItemSelected: function(path, name) {
+        onItemSelected: function (path, name) {
             mediaComponent.path = path;
             mainWindow.title = "GAV - " + name;
             mediaComponent.mediaPlayer.play();
@@ -683,7 +913,6 @@ ApplicationWindow {
             videoOutput: mediaComponent.videoOutput
 
             onContainsMouseChanged: mainWindow.mediaControlsContainsMouse = containsMouse
-            onPlaylistToggleRequested: mainWindow.playlistManualVisible = !mainWindow.playlistManualVisible
             onMiniPlayerRequested: {
                 var px = mainWindow.x + mainWindow.width - miniPlayerWindow.width - 20;
                 var py = mainWindow.y + mainWindow.height - miniPlayerWindow.height - 60;
@@ -694,10 +923,10 @@ ApplicationWindow {
                 mainWindow.hide();
             }
             onNextTrack: playlistComponent.playListView.currentIndex++
+            onPlaylistToggleRequested: mainWindow.playlistManualVisible = !mainWindow.playlistManualVisible
             onPreviousTrack: playlistComponent.playListView.currentIndex--
         }
     }
-
     MiniPlayerWindow {
         id: miniPlayerWindow
 
