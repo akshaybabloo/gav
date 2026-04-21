@@ -87,6 +87,7 @@ ApplicationWindow {
         property bool isDarkTheme: true
         property real volume: AppConstants.defaultVolume
         property real playbackRate: 1.0
+        property bool checkUpdatesOnStartup: true
     }
 
     Component.onCompleted: {
@@ -95,6 +96,10 @@ ApplicationWindow {
             mediaComponent.audioOutput.volume = appSettings.volume;
         if (mediaComponent.mediaPlayer)
             mediaComponent.mediaPlayer.playbackRate = appSettings.playbackRate;
+        if (appSettings.checkUpdatesOnStartup) {
+            updateDialog.manualCheck = false;
+            updates.checkUpdates();
+        }
     }
 
     footer: Loader {
@@ -138,6 +143,10 @@ ApplicationWindow {
         onExitRequested: Qt.quit()
         onSettingsRequested: settingsDialog.open()
         onAboutRequested: aboutDialog.open()
+        onCheckUpdatesRequested: {
+            updateDialog.manualCheck = true;
+            updates.checkUpdates();
+        }
     }
 
     onSourceChanged: {
@@ -420,12 +429,101 @@ ApplicationWindow {
     }
     Collage {
         id: collage
-
     }
+
+    Updates {
+        id: updates
+
+        onUpdateAvailable: function(currentVersion, latestVersion, releaseUrl) {
+            updateDialog.currentVersion = currentVersion;
+            updateDialog.latestVersion = latestVersion;
+            updateDialog.releaseUrl = releaseUrl;
+            updateDialog.checkState = "available";
+            updateDialog.open();
+            updateDialog.manualCheck = false;
+        }
+        onUpToDate: function(currentVersion) {
+            const wasManual = updateDialog.manualCheck;
+            updateDialog.manualCheck = false;
+            if (!wasManual)
+                return;
+            updateDialog.currentVersion = currentVersion;
+            updateDialog.checkState = "upToDate";
+            updateDialog.open();
+        }
+        onCheckFailed: function(errorMessage) {
+            const wasManual = updateDialog.manualCheck;
+            updateDialog.manualCheck = false;
+            if (!wasManual)
+                return;
+            updateDialog.errorMessage = errorMessage;
+            updateDialog.checkState = "failed";
+            updateDialog.open();
+        }
+    }
+
+    Dialog {
+        id: updateDialog
+
+        property string checkState: "upToDate"
+        property string currentVersion: ""
+        property string errorMessage: ""
+        property string latestVersion: ""
+        property bool manualCheck: false
+        property url releaseUrl
+
+        anchors.centerIn: parent
+        modal: true
+        standardButtons: checkState === "available" ? (Dialog.Ok | Dialog.Cancel) : Dialog.Ok
+        title: {
+            if (checkState === "available")
+                return qsTr("Update Available");
+            if (checkState === "upToDate")
+                return qsTr("No Updates");
+            return qsTr("Update Check Failed");
+        }
+        width: 400
+
+        onAccepted: {
+            if (checkState === "available")
+                Qt.openUrlExternally(releaseUrl);
+        }
+
+        ColumnLayout {
+            spacing: 10
+            width: parent.width
+
+            Text {
+                Layout.fillWidth: true
+                color: Material.foreground
+                visible: updateDialog.checkState ==="available"
+                wrapMode: Text.WordWrap
+                text: qsTr("A new version of GAV is available.\n\nCurrent: %1\nLatest: %2\n\nOpen the release page?")
+                        .arg(updateDialog.currentVersion)
+                        .arg(updateDialog.latestVersion)
+            }
+            Text {
+                Layout.fillWidth: true
+                color: Material.foreground
+                visible: updateDialog.checkState ==="upToDate"
+                wrapMode: Text.WordWrap
+                text: qsTr("You're on the latest version (%1).").arg(updateDialog.currentVersion)
+            }
+            Text {
+                Layout.fillWidth: true
+                color: Material.foreground
+                visible: updateDialog.checkState ==="failed"
+                wrapMode: Text.WordWrap
+                text: qsTr("Could not check for updates:\n%1").arg(updateDialog.errorMessage)
+            }
+        }
+    }
+
     SettingsDialog {
         id: settingsDialog
 
         audioOutput: mediaComponent.audioOutput
+        checkUpdatesOnStartup: appSettings.checkUpdatesOnStartup
         mediaPlayer: mediaComponent.mediaPlayer
         isDarkTheme: mainWindow.isDarkTheme
         x: (parent.width - width) / 2
@@ -437,6 +535,9 @@ ApplicationWindow {
         }
         onDefaultSpeedChanged: function(speed) {
             appSettings.playbackRate = speed;
+        }
+        onCheckUpdatesOnStartupToggled: function(enabled) {
+            appSettings.checkUpdatesOnStartup = enabled;
         }
     }
     Connections {

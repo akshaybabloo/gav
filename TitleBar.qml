@@ -8,16 +8,16 @@ import gavqml
 Rectangle {
     id: root
 
+    readonly property bool isMac: Qt.platform.os === "osx"
+    readonly property bool isMaximized: targetWindow.visibility === Window.Maximized
     required property Window targetWindow
     property string windowTitle: ""
 
-    readonly property bool isMac: Qt.platform.os === "osx"
-    readonly property bool isMaximized: targetWindow.visibility === Window.Maximized
-
-    signal openFileRequested
-    signal exitRequested
-    signal settingsRequested
     signal aboutRequested
+    signal checkUpdatesRequested
+    signal exitRequested
+    signal openFileRequested
+    signal settingsRequested
 
     function toggleMaximize() {
         if (targetWindow.visibility === Window.Maximized) {
@@ -35,17 +35,15 @@ Rectangle {
 
         source: "qrc:/assets/fonts/MaterialSymbolsOutlined.ttf"
     }
-
     DragHandler {
         target: null
+
         onActiveChanged: if (active)
             root.targetWindow.startSystemMove()
     }
-
     TapHandler {
         onDoubleTapped: root.toggleMaximize()
     }
-
     RowLayout {
         anchors.fill: parent
         spacing: 8
@@ -184,6 +182,11 @@ Rectangle {
                     y: helpMenuButton.height
 
                     Action {
+                        text: qsTr("Check for Updates")
+
+                        onTriggered: root.checkUpdatesRequested()
+                    }
+                    Action {
                         text: qsTr("About")
 
                         onTriggered: root.aboutRequested()
@@ -260,8 +263,6 @@ Rectangle {
                 text: "\ue5cd"
                 width: 46
 
-                onClicked: root.exitRequested()
-
                 background: Rectangle {
                     color: closeButton.hovered ? "#e81123" : "transparent"
                 }
@@ -272,6 +273,8 @@ Rectangle {
                     text: closeButton.text
                     verticalAlignment: Text.AlignVCenter
                 }
+
+                onClicked: root.exitRequested()
             }
         }
     }
