@@ -61,6 +61,12 @@ void Updates::checkUpdates() {
         const QVersionNumber current = QVersionNumber::fromString(currentStr);
         const QVersionNumber latest = QVersionNumber::fromString(latestStr);
 
+        if (current.isNull() || latest.isNull()) {
+            emit checkFailed(tr("Could not parse version: current=\"%1\", latest=\"%2\"")
+                                 .arg(currentStr, latestStr));
+            return;
+        }
+
         if (latest > current) {
             emit updateAvailable(currentStr, latestStr, QUrl(htmlUrl));
         } else {

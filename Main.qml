@@ -440,16 +440,21 @@ ApplicationWindow {
             updateDialog.releaseUrl = releaseUrl;
             updateDialog.checkState = "available";
             updateDialog.open();
+            updateDialog.manualCheck = false;
         }
         onUpToDate: function(currentVersion) {
-            if (!updateDialog.manualCheck)
+            const wasManual = updateDialog.manualCheck;
+            updateDialog.manualCheck = false;
+            if (!wasManual)
                 return;
             updateDialog.currentVersion = currentVersion;
             updateDialog.checkState = "upToDate";
             updateDialog.open();
         }
         onCheckFailed: function(errorMessage) {
-            if (!updateDialog.manualCheck)
+            const wasManual = updateDialog.manualCheck;
+            updateDialog.manualCheck = false;
+            if (!wasManual)
                 return;
             updateDialog.errorMessage = errorMessage;
             updateDialog.checkState = "failed";
