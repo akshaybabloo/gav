@@ -472,7 +472,7 @@ ApplicationWindow {
                 color: Material.color(Material.Red)
                 font.family: materialSymbolsOutlined.name
                 font.pixelSize: 36
-                text: ""
+                text: "\ue000"
             }
             ColumnLayout {
                 Layout.fillWidth: true
@@ -671,10 +671,10 @@ ApplicationWindow {
                 font.pixelSize: 36
                 text: {
                     if (updateDialog.checkState === "available")
-                        return ""; // update
+                        return "\ue923"; // update
                     if (updateDialog.checkState === "upToDate")
-                        return ""; // check_circle
-                    return ""; // error
+                        return "\ue86c"; // check_circle
+                    return "\ue000"; // error
                 }
             }
             ColumnLayout {
