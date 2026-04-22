@@ -63,7 +63,7 @@ jobs:
           cache: 'true'
 
       - name: Install CMake 4+
-        uses: akshaybabloo/actions-setup-cmake@v1
+        uses: akshaybabloo/actions-setup-cmake@v2
         with:
           cmake-version: "4.2.x"
 
