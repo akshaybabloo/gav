@@ -11,6 +11,7 @@ import gavqml
 ApplicationWindow {
     id: mainWindow
 
+    readonly property string appTitle: qsTr("GAV Player")
     property bool controlsVisibleAlias: mediaComponent.controlsAreVisible
     property bool isDarkTheme: true
     property bool mediaControlsContainsMouse: false
@@ -75,7 +76,7 @@ ApplicationWindow {
     height: Screen.height * 0.75
     minimumHeight: 480
     minimumWidth: 640
-    title: qsTr("GAV")
+    title: appTitle
     visible: true
     width: Screen.width * 0.7
 
@@ -118,7 +119,7 @@ ApplicationWindow {
             return;
         playList.append(mediaInfo);
         mediaComponent.path = mediaInfo.path;
-        mainWindow.title = "GAV - " + mediaInfo.name;
+        mainWindow.title = appTitle + " - " + mediaInfo.name;
         playlistComponent.playListView.currentIndex = playList.count - 1;
         shouldAutoPlay = true;
     }
@@ -368,7 +369,7 @@ ApplicationWindow {
                 color: Material.foreground
                 font.pixelSize: 20
                 font.weight: Font.DemiBold
-                text: "GAV Media Player"
+                text: appTitle
             }
             Text {
                 Layout.alignment: Qt.AlignHCenter
@@ -687,7 +688,7 @@ ApplicationWindow {
                     font.pixelSize: 14
                     text: {
                         if (updateDialog.checkState === "available")
-                            return qsTr("A new version of GAV is available.");
+                            return qsTr("A new version of %1 is available.").arg(appTitle);
                         if (updateDialog.checkState === "upToDate")
                             return qsTr("You're on the latest version.");
                         return qsTr("Could not check for updates.");
@@ -788,7 +789,7 @@ ApplicationWindow {
                     playList.append(mediaInfo);
                     if (!firstFileSet) {
                         mediaComponent.path = mediaInfo.path;
-                        mainWindow.title = "GAV - " + mediaInfo.name;
+                        mainWindow.title = appTitle + " - " + mediaInfo.name;
                         playlistComponent.playListView.currentIndex = playList.count - 1;
                         firstFileSet = true;
                     }
@@ -808,7 +809,7 @@ ApplicationWindow {
                 return;
             playList.append(mediaInfo);
             mediaComponent.path = mediaInfo.path;
-            mainWindow.title = "GAV - " + mediaInfo.name;
+            mainWindow.title = appTitle + " - " + mediaInfo.name;
             playlistComponent.playListView.currentIndex = playList.count - 1;
         }
     }
@@ -836,7 +837,7 @@ ApplicationWindow {
         }
         onStopped: {
             mediaComponent.path = "";
-            mainWindow.title = qsTr("GAV");
+            mainWindow.title = appTitle;
         }
 
         Shortcut {
@@ -884,14 +885,14 @@ ApplicationWindow {
 
         onItemSelected: function (path, name) {
             mediaComponent.path = path;
-            mainWindow.title = "GAV - " + name;
+            mainWindow.title = appTitle + " - " + name;
             mediaComponent.mediaPlayer.play();
         }
         onPlayRequested: {
             if (mediaComponent.path === "" && playlistComponent.playListView.currentIndex !== -1) {
                 var item = playList.get(playlistComponent.playListView.currentIndex);
                 mediaComponent.path = item.path;
-                mainWindow.title = "GAV - " + item.name;
+                mainWindow.title = appTitle + " - " + item.name;
             }
             mediaComponent.mediaPlayer.play();
         }
