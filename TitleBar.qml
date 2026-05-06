@@ -9,6 +9,8 @@ Rectangle {
     id: root
 
     readonly property bool isMac: Qt.platform.os === "osx"
+    readonly property bool isWindows: Qt.platform.os === "windows"
+    readonly property bool isLinux: Qt.platform.os === "linux"
     readonly property bool isMaximized: targetWindow.visibility === Window.Maximized
     required property Window targetWindow
     property string windowTitle: ""
@@ -210,8 +212,16 @@ Rectangle {
 
         // Windows/Linux: window buttons on the right
         Row {
+            id: windowButtons
+
+            readonly property int buttonHeight: root.isLinux ? 24 : 30
+            readonly property int buttonWidth: root.isLinux ? 28 : 46
+            readonly property int buttonRadius: root.isLinux ? buttonHeight / 2 : 0
+            readonly property int glyphSize: root.isLinux ? 14 : 16
+
             Layout.alignment: Qt.AlignVCenter
-            spacing: 0
+            Layout.rightMargin: root.isLinux ? 8 : 0
+            spacing: root.isLinux ? 6 : 0
             visible: !root.isMac
 
             ToolButton {
@@ -222,12 +232,17 @@ Rectangle {
                 ToolTip.timeout: AppConstants.tooltipTimeout
                 ToolTip.visible: hovered
                 font.family: materialSymbolsOutlined.name
-                font.pixelSize: 16
-                height: 30
+                font.pixelSize: windowButtons.glyphSize
+                height: windowButtons.buttonHeight
                 hoverEnabled: true
                 padding: 0
                 text: "\ue15b"
-                width: 46
+                width: windowButtons.buttonWidth
+
+                background: Rectangle {
+                    color: minimizeButton.hovered ? Qt.rgba(Material.foreground.r, Material.foreground.g, Material.foreground.b, 0.12) : "transparent"
+                    radius: windowButtons.buttonRadius
+                }
 
                 onClicked: root.targetWindow.showMinimized()
             }
@@ -239,12 +254,17 @@ Rectangle {
                 ToolTip.timeout: AppConstants.tooltipTimeout
                 ToolTip.visible: hovered
                 font.family: materialSymbolsOutlined.name
-                font.pixelSize: 16
-                height: 30
+                font.pixelSize: windowButtons.glyphSize
+                height: windowButtons.buttonHeight
                 hoverEnabled: true
                 padding: 0
                 text: root.isMaximized ? "\ue3bb" : "\ue3c6"
-                width: 46
+                width: windowButtons.buttonWidth
+
+                background: Rectangle {
+                    color: maximizeButton.hovered ? Qt.rgba(Material.foreground.r, Material.foreground.g, Material.foreground.b, 0.12) : "transparent"
+                    radius: windowButtons.buttonRadius
+                }
 
                 onClicked: root.toggleMaximize()
             }
@@ -256,18 +276,25 @@ Rectangle {
                 ToolTip.timeout: AppConstants.tooltipTimeout
                 ToolTip.visible: hovered
                 font.family: materialSymbolsOutlined.name
-                font.pixelSize: 16
-                height: 30
+                font.pixelSize: windowButtons.glyphSize
+                height: windowButtons.buttonHeight
                 hoverEnabled: true
                 padding: 0
                 text: "\ue5cd"
-                width: 46
+                width: windowButtons.buttonWidth
 
                 background: Rectangle {
-                    color: closeButton.hovered ? "#e81123" : "transparent"
+                    color: {
+                        if (!closeButton.hovered)
+                            return "transparent";
+                        if (root.isWindows)
+                            return "#e81123";
+                        return Qt.rgba(0.91, 0.13, 0.13, 0.18);
+                    }
+                    radius: windowButtons.buttonRadius
                 }
                 contentItem: Text {
-                    color: closeButton.hovered ? "white" : Material.foreground
+                    color: (closeButton.hovered && root.isWindows) ? "white" : Material.foreground
                     font: closeButton.font
                     horizontalAlignment: Text.AlignHCenter
                     text: closeButton.text
