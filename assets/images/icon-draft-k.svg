@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Draft K: "Stacked Records G".
+     Three discs offset diagonally — like a stack of records on a shelf. The
+     top disc carries the G's right-side opening (wedge cut) and a play arrow
+     on its central label. Lower discs peek out at the top-left edge. -->
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="112" fill="#FF2E8A"/>
+
+  <!-- Bottom disc (cyan), offset down-right -->
+  <circle cx="280" cy="280" r="170" fill="#00E5FF"/>
+
+  <!-- Middle disc (white), partial offset -->
+  <circle cx="266" cy="266" r="170" fill="white"/>
+
+  <!-- Top disc with G-wedge cut on the right -->
+  <defs>
+    <mask id="topDiscMask">
+      <rect width="512" height="512" fill="white"/>
+      <path d="M 252 252 L 480 200 L 480 304 Z" fill="black"/>
+    </mask>
+  </defs>
+  <g mask="url(#topDiscMask)">
+    <circle cx="252" cy="252" r="170" fill="#00E5FF"/>
+    <circle cx="252" cy="252" r="56"  fill="white"/>
+  </g>
+
+  <!-- Pink play arrow on the top disc's label -->
+  <polygon points="240,232 274,252 240,272" fill="#FF2E8A"/>
+</svg>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Draft H: "Vinyl G".
+     Five alternating concentric discs (white/cyan) with a wedge cut on the
+     right that doubles as the G's opening. Pink play triangle on the central
+     "label". Reads as a stylised record/disc — most layered + most explicitly
+     "media" of the set. -->
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="112" fill="#FF2E8A"/>
+
+  <defs>
+    <mask id="vinylMask">
+      <rect width="512" height="512" fill="white"/>
+      <!-- Wedge cut on the right (G opening) -->
+      <path d="M 256 256 L 520 200 L 520 312 Z" fill="black"/>
+    </mask>
+  </defs>
+
+  <g mask="url(#vinylMask)">
+    <circle cx="256" cy="256" r="200" fill="white"/>
+    <circle cx="256" cy="256" r="160" fill="#00E5FF"/>
+    <circle cx="256" cy="256" r="120" fill="white"/>
+    <circle cx="256" cy="256" r="80"  fill="#00E5FF"/>
+    <circle cx="256" cy="256" r="40"  fill="white"/>
+  </g>
+
+  <!-- Hot-pink play triangle on the central label -->
+  <polygon points="244,236 280,256 244,276" fill="#FF2E8A"/>
+</svg>

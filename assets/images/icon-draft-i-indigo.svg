@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Draft I (indigo, halo variant): the indigo no longer fills a full square.
+     Each white frame sits on a slightly larger indigo halo plate (84x84,
+     offset -10,-10) that overlaps neighbours by 4px so the halos merge
+     into a continuous G-shaped silhouette. Amber drop plates kept for the
+     polaroid-lift effect on the bottom-right of every frame. -->
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Indigo halo (forms the G silhouette with extra width) -->
+  <g fill="#1A237E">
+    <rect x="54"  y="54"  width="84" height="84" rx="14"/>
+    <rect x="134" y="54"  width="84" height="84" rx="14"/>
+    <rect x="214" y="54"  width="84" height="84" rx="14"/>
+    <rect x="294" y="54"  width="84" height="84" rx="14"/>
+    <rect x="374" y="54"  width="84" height="84" rx="14"/>
+    <rect x="54"  y="134" width="84" height="84" rx="14"/>
+    <rect x="54"  y="214" width="84" height="84" rx="14"/>
+    <rect x="214" y="214" width="84" height="84" rx="14"/>
+    <rect x="294" y="214" width="84" height="84" rx="14"/>
+    <rect x="374" y="214" width="84" height="84" rx="14"/>
+    <rect x="54"  y="294" width="84" height="84" rx="14"/>
+    <rect x="374" y="294" width="84" height="84" rx="14"/>
+    <rect x="54"  y="374" width="84" height="84" rx="14"/>
+    <rect x="134" y="374" width="84" height="84" rx="14"/>
+    <rect x="214" y="374" width="84" height="84" rx="14"/>
+    <rect x="294" y="374" width="84" height="84" rx="14"/>
+    <rect x="374" y="374" width="84" height="84" rx="14"/>
+  </g>
+
+  <!-- Amber drop plates -->
+  <g fill="#FFC107" transform="translate(5, 5)">
+    <rect x="64"  y="64"  width="64" height="64" rx="10"/>
+    <rect x="144" y="64"  width="64" height="64" rx="10"/>
+    <rect x="224" y="64"  width="64" height="64" rx="10"/>
+    <rect x="304" y="64"  width="64" height="64" rx="10"/>
+    <rect x="384" y="64"  width="64" height="64" rx="10"/>
+    <rect x="64"  y="144" width="64" height="64" rx="10"/>
+    <rect x="64"  y="224" width="64" height="64" rx="10"/>
+    <rect x="224" y="224" width="64" height="64" rx="10"/>
+    <rect x="304" y="224" width="64" height="64" rx="10"/>
+    <rect x="384" y="224" width="64" height="64" rx="10"/>
+    <rect x="64"  y="304" width="64" height="64" rx="10"/>
+    <rect x="384" y="304" width="64" height="64" rx="10"/>
+    <rect x="64"  y="384" width="64" height="64" rx="10"/>
+    <rect x="144" y="384" width="64" height="64" rx="10"/>
+    <rect x="224" y="384" width="64" height="64" rx="10"/>
+    <rect x="304" y="384" width="64" height="64" rx="10"/>
+    <rect x="384" y="384" width="64" height="64" rx="10"/>
+  </g>
+
+  <!-- White frames -->
+  <g fill="white">
+    <rect x="64"  y="64"  width="64" height="64" rx="10"/>
+    <rect x="144" y="64"  width="64" height="64" rx="10"/>
+    <rect x="224" y="64"  width="64" height="64" rx="10"/>
+    <rect x="304" y="64"  width="64" height="64" rx="10"/>
+    <rect x="384" y="64"  width="64" height="64" rx="10"/>
+    <rect x="64"  y="144" width="64" height="64" rx="10"/>
+    <rect x="64"  y="224" width="64" height="64" rx="10"/>
+    <rect x="304" y="224" width="64" height="64" rx="10"/>
+    <rect x="384" y="224" width="64" height="64" rx="10"/>
+    <rect x="64"  y="304" width="64" height="64" rx="10"/>
+    <rect x="384" y="304" width="64" height="64" rx="10"/>
+    <rect x="64"  y="384" width="64" height="64" rx="10"/>
+    <rect x="144" y="384" width="64" height="64" rx="10"/>
+    <rect x="224" y="384" width="64" height="64" rx="10"/>
+    <rect x="304" y="384" width="64" height="64" rx="10"/>
+    <rect x="384" y="384" width="64" height="64" rx="10"/>
+  </g>
+
+  <!-- Active "now playing" frame + indigo play arrow -->
+  <rect x="224" y="224" width="64" height="64" rx="10" fill="#FFC107"/>
+  <polygon points="244,238 282,256 244,274" fill="#1A237E"/>
+</svg>

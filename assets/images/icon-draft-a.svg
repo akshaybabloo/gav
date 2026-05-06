@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Draft A: clean geometric G, no embedded play cue.
+     Reads at 16px taskbar size; brand identity carried by color + shape. -->
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="112" fill="#6e1b4f"/>
+  <g fill="white">
+    <!-- C ring: outer r=192, inner r=128, opening 44deg on the right -->
+    <path d="M 434 184
+             A 192 192 0 1 0 434 328
+             L 375 304
+             A 128 128 0 1 1 375 208
+             Z"/>
+    <!-- G tab -->
+    <rect x="288" y="232" width="100" height="48"/>
+  </g>
+</svg>

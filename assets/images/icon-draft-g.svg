@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Draft G: "Ripple G".
+     Three concentric arc rings (each with a right-side gap = G shape)
+     wrapping a cyan play triangle. Reads as audio waves emanating from
+     the play source, with the outermost ring forming the G's silhouette. -->
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="112" fill="#FF2E8A"/>
+
+  <g fill="none" stroke-linecap="round">
+    <!-- Outer ring: white, thick (the G's outer shell) -->
+    <path d="M 430 192 A 184 184 0 1 0 430 320"
+          stroke="white" stroke-width="34"/>
+    <!-- Middle ring: cyan, medium -->
+    <path d="M 392 211 A 144 144 0 1 0 392 301"
+          stroke="#00E5FF" stroke-width="22"/>
+    <!-- Inner ring: white, thin -->
+    <path d="M 354 226 A 104 104 0 1 0 354 286"
+          stroke="white" stroke-width="14"/>
+  </g>
+
+  <!-- Cyan play triangle at center -->
+  <polygon points="218,212 318,256 218,300" fill="#00E5FF"/>
+</svg>

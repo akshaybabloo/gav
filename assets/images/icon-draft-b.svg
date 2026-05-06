@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Draft B: same G silhouette, tab ends in a play-triangle tip.
+     The G "points forward" — implicit media cue without a separate symbol. -->
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="112" fill="#6e1b4f"/>
+  <g fill="white">
+    <path d="M 434 184
+             A 192 192 0 1 0 434 328
+             L 375 304
+             A 128 128 0 1 1 375 208
+             Z"/>
+    <!-- Tab + play-arrow tip merged into one shape -->
+    <path d="M 268 232
+             L 364 232
+             L 364 212
+             L 412 256
+             L 364 300
+             L 364 280
+             L 268 280
+             Z"/>
+  </g>
+</svg>

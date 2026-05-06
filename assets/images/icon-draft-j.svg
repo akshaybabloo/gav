@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Draft J: "Stepped Pyramid G".
+     Three G silhouettes scaled 100% / 92% / 84%, each offset slightly up-left
+     from the one beneath it. White → cyan → white sandwich shows the cyan
+     "step" peeking out around the smallest G's edge. Paper-cut depth, no blur. -->
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="112" fill="#FF2E8A"/>
+
+  <!-- Layer 1 (back): full-size white G -->
+  <g fill="white">
+    <path d="M 434 184
+             A 192 192 0 1 0 434 328
+             L 375 304
+             A 128 128 0 1 1 375 208
+             Z"/>
+    <rect x="288" y="232" width="100" height="48"/>
+  </g>
+
+  <!-- Layer 2 (mid): 92% cyan G, offset (-4,-4) -->
+  <g transform="matrix(0.92 0 0 0.92 16.48 16.48)" fill="#00E5FF">
+    <path d="M 434 184
+             A 192 192 0 1 0 434 328
+             L 375 304
+             A 128 128 0 1 1 375 208
+             Z"/>
+    <rect x="288" y="232" width="100" height="48"/>
+  </g>
+
+  <!-- Layer 3 (front): 84% white G, offset (-8,-8) -->
+  <g transform="matrix(0.84 0 0 0.84 32.96 32.96)" fill="white">
+    <path d="M 434 184
+             A 192 192 0 1 0 434 328
+             L 375 304
+             A 128 128 0 1 1 375 208
+             Z"/>
+    <rect x="288" y="232" width="100" height="48"/>
+  </g>
+</svg>

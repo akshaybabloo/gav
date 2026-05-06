@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Draft C (3-tone, bright): "Play-mouth G".
+     Hot pink tile, white G silhouette, cyan negative-space play triangle.
+     The bowl of the G is the play arrow — and now glows cyan against the pink. -->
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="112" fill="#FF2E8A"/>
+
+  <!-- Cyan layer that shows through the G's triangular bowl -->
+  <polygon points="128,142 308,256 128,370" fill="#00E5FF"/>
+
+  <!-- White G silhouette: outer disc minus triangular bowl minus right opening -->
+  <defs>
+    <mask id="playMouthMask">
+      <rect width="512" height="512" fill="black"/>
+      <circle cx="256" cy="256" r="192" fill="white"/>
+      <polygon points="128,142 308,256 128,370" fill="black"/>
+      <rect x="296" y="172" width="220" height="60" fill="black"/>
+      <rect x="296" y="280" width="220" height="60" fill="black"/>
+    </mask>
+  </defs>
+  <rect width="512" height="512" fill="white" mask="url(#playMouthMask)"/>
+</svg>

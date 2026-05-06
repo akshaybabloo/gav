@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Draft F: "Echo G".
+     Two G silhouettes stacked with offset — cyan behind, white in front.
+     Reads like an RGB-channel offset / chromatic aberration; suggests motion
+     and depth without literal shadows. -->
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="112" fill="#FF2E8A"/>
+
+  <!-- Cyan G, offset down-right -->
+  <g transform="translate(16, 16)" fill="#00E5FF">
+    <path d="M 434 184
+             A 192 192 0 1 0 434 328
+             L 375 304
+             A 128 128 0 1 1 375 208
+             Z"/>
+    <rect x="288" y="232" width="100" height="48"/>
+  </g>
+
+  <!-- White G on top -->
+  <g fill="white">
+    <path d="M 434 184
+             A 192 192 0 1 0 434 328
+             L 375 304
+             A 128 128 0 1 1 375 208
+             Z"/>
+    <rect x="288" y="232" width="100" height="48"/>
+  </g>
+</svg>
