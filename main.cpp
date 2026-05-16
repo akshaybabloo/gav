@@ -5,6 +5,7 @@
 #include <QFileInfo>
 #include <QProcess>
 #include <QProcessEnvironment>
+#include <QRegularExpression>
 #include <QEventLoop>
 #include <iostream>
 #include <thread>
@@ -27,6 +28,24 @@ std::shared_ptr<spdlog::logger> logger;
 static const QStringList SUPPORTED_VIDEO_EXTENSIONS = {
     "mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "m4v", "mpg"
 };
+
+// Converts a CLI-supplied collage path to a QUrl. Local filesystem paths (absolute or relative) become file:// URLs;
+// only strings carrying a genuine URL scheme are parsed as URLs. This avoids QUrl::fromUserInput() mis-reading a bare
+// filename like "video.mp4" as a hostname and prefixing it with "http://".
+static QUrl collagePathToUrl(const QString &path) {
+    QFileInfo info(path);
+    if (info.isAbsolute()) {
+        return QUrl::fromLocalFile(path);
+    }
+    // Treat as a URL only when the string clearly uses URI syntax (`scheme://...`). A bare scheme check is too loose:
+    // a local file legitimately named "my:video.mp4" would otherwise be misread as a URL.
+    static const QRegularExpression urlWithAuthority(R"(^[A-Za-z][A-Za-z0-9+.-]*://)");
+    if (urlWithAuthority.match(path).hasMatch()) {
+        return QUrl::fromUserInput(path);
+    }
+    // Relative filesystem path - resolve against the working directory.
+    return QUrl::fromLocalFile(QDir::current().absoluteFilePath(path));
+}
 
 void initLogging() {
     // Create a console sink (stdout)
@@ -178,7 +197,7 @@ int main(int argc, char *argv[]) {
         // If running as subprocess, process single file directly and output result
         // Output format: SUCCESS:<output_path> or FAILED:<input_path>
         if (isSubprocess) {
-            QUrl url = QUrl::fromUserInput(collagePaths.first());
+            QUrl url = collagePathToUrl(collagePaths.first());
             QString result = Collage::createCollageSingle(url);
 
             if (!result.isEmpty()) {
@@ -193,7 +212,7 @@ int main(int argc, char *argv[]) {
         // Convert paths to URLs
         QList<QUrl> urls;
         for (const QString &path : collagePaths) {
-            urls.append(QUrl::fromUserInput(path));
+            urls.append(collagePathToUrl(path));
         }
 
         // Track results
