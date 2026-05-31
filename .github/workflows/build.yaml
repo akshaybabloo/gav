@@ -52,6 +52,21 @@ jobs:
         with:
           nsis-version: '3.11'
 
+      - name: Install AppImage tooling (Linux)
+        if: startsWith(matrix.os, 'ubuntu-')
+        run: |
+          set -e
+          sudo apt-get update
+          sudo apt-get install -y patchelf
+          ARCH=$(uname -m)
+          wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${ARCH}.AppImage" -O /tmp/appimagetool.AppImage
+          chmod +x /tmp/appimagetool.AppImage
+          # Extract to avoid the FUSE dependency, then expose AppRun as `appimagetool` on PATH.
+          (cd /tmp && ./appimagetool.AppImage --appimage-extract >/dev/null)
+          sudo mv /tmp/squashfs-root /opt/appimagetool
+          sudo ln -sf /opt/appimagetool/AppRun /usr/local/bin/appimagetool
+        shell: bash
+
       - name: Install Qt
         uses: akshaybabloo/actions-setup-qt@v1
         with:

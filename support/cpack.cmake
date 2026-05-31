@@ -14,7 +14,11 @@ install(SCRIPT ${deploy_script})
 
 # Enable support for packing using CPack
 if(UNIX AND NOT APPLE) # Linux
-    set(CPACK_GENERATOR "TGZ;DEB;RPM")
+    set(CPACK_GENERATOR "TGZ;DEB;RPM;AppImage")
+    # The AppImage generator expects CPACK_PACKAGE_ICON to be a bare filename that StringStartsWith the desktop file's
+    # `Icon=` value; it then locates the file in the staged install tree via FindFile. gav.desktop has `Icon=gav`, and
+    # the install rule places the PNG at share/icons/hicolor/256x256/apps/gav.png.
+    set(CPACK_PACKAGE_ICON "gav.png")
 elseif(APPLE) # macOS
     set(CPACK_GENERATOR "TGZ;DragNDrop")
 elseif (WIN32)
