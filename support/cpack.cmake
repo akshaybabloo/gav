@@ -14,7 +14,11 @@ install(SCRIPT ${deploy_script})
 
 # Enable support for packing using CPack
 if(UNIX AND NOT APPLE) # Linux
-    set(CPACK_GENERATOR "TGZ;DEB;RPM")
+    set(CPACK_GENERATOR "TGZ;DEB;RPM;AppImage")
+    # The AppImage generator requires an icon whose basename (without extension) matches the .desktop Icon entry.
+    # gav.desktop uses `Icon=gav`, so stage a copy of the source PNG as `gav.png` for CPACK_PACKAGE_ICON to point at.
+    configure_file("${CMAKE_SOURCE_DIR}/assets/images/icon.png" "${CMAKE_BINARY_DIR}/gav.png" COPYONLY)
+    set(CPACK_PACKAGE_ICON "${CMAKE_BINARY_DIR}/gav.png")
 elseif(APPLE) # macOS
     set(CPACK_GENERATOR "TGZ;DragNDrop")
 elseif (WIN32)
