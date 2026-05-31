@@ -128,6 +128,10 @@ int main(int argc, char *argv[]) {
     QCommandLineOption verboseOption("verbose", "Enable verbose logging");
     parser.addOption(verboseOption);
 
+    // Accept a bare file path so OS file-association launches (e.g. `gav %F` from the .desktop entry, or Explorer's
+    // `"gav.exe" "%1"` on Windows) deliver the dropped file to the player.
+    parser.addPositionalArgument("file", "Audio or video file to play", "[file]");
+
     parser.process(app);
 
     if (parser.isSet(verboseOption)) {
@@ -140,6 +144,9 @@ int main(int argc, char *argv[]) {
     QString sourceValue;
     if (parser.isSet(sourceOption)) {
         sourceValue = parser.value(sourceOption);
+    } else if (!parser.positionalArguments().isEmpty()) {
+        // Fall back to the first positional argument so double-clicked files (passed without -s by the OS) play.
+        sourceValue = parser.positionalArguments().first();
     }
 
     if (parser.isSet(collageOption)) {
