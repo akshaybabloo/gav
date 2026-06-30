@@ -6,12 +6,47 @@
       "version>=": "1.16.0"
     },
     "vulkan-headers",
-    "gtest"
+    "gtest",
+    {
+      "name": "ffmpeg",
+      "default-features": false,
+      "features": [
+        "avcodec",
+        "avformat",
+        "avfilter",
+        "avdevice",
+        "swresample",
+        "swscale",
+        "vulkan"
+      ]
+    },
+    {
+      "name": "ffmpeg",
+      "default-features": false,
+      "features": ["vaapi"],
+      "platform": "linux"
+    },
+    {
+      "name": "ffmpeg",
+      "default-features": false,
+      "features": ["nvcodec"],
+      "platform": "linux | (!osx & !uwp & !(arm64 & windows))"
+    },
+    {
+      "name": "ffmpeg",
+      "default-features": false,
+      "features": ["qsv"],
+      "platform": "(x64 | x86) & (windows | linux) & !uwp"
+    }
   ],
   "overrides": [
     {
       "name": "fmt",
       "version": "12.1.0"
+    },
+    {
+      "name": "ffmpeg",
+      "version": "8.1.2"
     }
   ]
 }
