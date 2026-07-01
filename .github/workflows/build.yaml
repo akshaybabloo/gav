@@ -27,7 +27,7 @@ jobs:
             artifact: 'qt6.11.1-msvc2022-essentials'
             modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia'
             qt_tag: 'v6.11.1'
-          - os: macos-latest
+          - os: macos-15
             artifact: 'qt6.11.1-essentials'
             modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia'
             qt_tag: 'v6.11.1'
@@ -50,6 +50,15 @@ jobs:
         if: startsWith(matrix.os, 'windows-')
         with:
           arch: x64
+
+      - name: Select Xcode 16 (macOS)
+        # Qt 6.11 supports "Xcode 15 or higher" per Qt's macos.html#supported-configurations, but Xcode 26 removed
+        # APIs qtmultimedia 6.11 still uses (e.g. CGWindowListCreateImage). Pinning to Xcode 16 keeps the build inside
+        # Qt's tested envelope; the patches under support/qtmultimedia-*.patch stay as safety nets.
+        if: startsWith(matrix.os, 'macos-')
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
       
       - uses: repolevedavaj/install-nsis@v1.2.1
         if: startsWith(matrix.os, 'windows-')
@@ -124,7 +133,7 @@ jobs:
           path: ${{ github.workspace }}/qtmm-sandbox
           # Bump the trailing -vN to invalidate on demand. Auto-busts when the matrix Qt tag, Qt installer artifact,
           # FFmpeg pin in vcpkg.json, or any qtmultimedia patch changes.
-          key: qtmm-${{ matrix.os }}-${{ matrix.qt_tag }}-${{ matrix.artifact }}-${{ hashFiles('vcpkg.json', 'support/qtmultimedia-*.patch') }}-v1
+          key: qtmm-${{ matrix.os }}-${{ matrix.qt_tag }}-${{ matrix.artifact }}-${{ hashFiles('vcpkg.json', 'support/qtmultimedia-*.patch') }}-v2
 
       - name: Build custom qtmultimedia plugin (Linux/macOS)
         if: steps.cache-qtmm.outputs.cache-hit != 'true' && (startsWith(matrix.os, 'ubuntu-') || startsWith(matrix.os, 'macos-'))
@@ -144,7 +153,8 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_INSTALLED_DIR="${{ github.workspace }}/vcpkg_installed" \
             -DQT_DEPLOY_FFMPEG=OFF \
-            -DFEATURE_ffmpeg=ON
+            -DFEATURE_ffmpeg=ON \
+            -DFEATURE_spatialaudio=OFF
           cmake --build "${{ github.workspace }}/qtmm-src/build"
           cmake --install "${{ github.workspace }}/qtmm-src/build"
         shell: bash
@@ -162,7 +172,8 @@ jobs:
             -DVCPKG_INSTALLED_DIR="$env:GITHUB_WORKSPACE\vcpkg_installed" `
             -DVCPKG_TARGET_TRIPLET=x64-windows-static `
             -DQT_DEPLOY_FFMPEG=OFF `
-            -DFEATURE_ffmpeg=ON
+            -DFEATURE_ffmpeg=ON `
+            -DFEATURE_spatialaudio=OFF
           cmake --build "$env:GITHUB_WORKSPACE\qtmm-src\build"
           cmake --install "$env:GITHUB_WORKSPACE\qtmm-src\build"
         shell: pwsh
