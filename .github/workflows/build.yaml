@@ -105,7 +105,7 @@ jobs:
         shell: bash
 
       - name: Cache vcpkg binary artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}/vcpkg-bincache
           # Keyed on vcpkg.json + vcpkg-configuration.json so any dep, feature, or baseline bump invalidates.
@@ -138,7 +138,7 @@ jobs:
 
       - name: Cache custom qtmultimedia plugin
         id: cache-qtmm
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}/qtmm-sandbox
           # Bump the trailing -vN to invalidate on demand. Auto-busts when the matrix Qt tag, Qt installer artifact,
