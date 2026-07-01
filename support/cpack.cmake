@@ -15,8 +15,11 @@ install(SCRIPT ${deploy_script})
 # When GAV_QTMULTIMEDIA_PLUGIN is provided, replace Qt's bundled ffmpegmediaplugin in the install tree with a custom
 # build (statically linked against vcpkg's newer FFmpeg). Runs AFTER the Qt deploy script so we override its output.
 if(GAV_QTMULTIMEDIA_PLUGIN)
-    if(NOT EXISTS "${GAV_QTMULTIMEDIA_PLUGIN}")
-        message(FATAL_ERROR "GAV_QTMULTIMEDIA_PLUGIN points to non-existent file: ${GAV_QTMULTIMEDIA_PLUGIN}")
+    # Normalize to forward slashes so the path embeds safely into cmake_install.cmake. On Windows GITHUB_WORKSPACE
+    # comes through as D:\a\gav\gav — CMake's string parser then reads `\a` etc. as escape sequences and fails.
+    file(TO_CMAKE_PATH "${GAV_QTMULTIMEDIA_PLUGIN}" _gav_qtmm_plugin)
+    if(NOT EXISTS "${_gav_qtmm_plugin}")
+        message(FATAL_ERROR "GAV_QTMULTIMEDIA_PLUGIN points to non-existent file: ${_gav_qtmm_plugin}")
     endif()
     install(CODE "
         file(GLOB_RECURSE _existing_plugin LIST_DIRECTORIES false
@@ -28,14 +31,14 @@ if(GAV_QTMULTIMEDIA_PLUGIN)
             get_filename_component(_existing_name \"\${_existing_plugin}\" NAME)
             message(STATUS \"GAV: replacing bundled FFmpeg plugin at \${_existing_plugin}\")
             file(REMOVE \"\${_existing_plugin}\")
-            file(COPY \"${GAV_QTMULTIMEDIA_PLUGIN}\" DESTINATION \"\${_dest_dir}\")
+            file(COPY \"${_gav_qtmm_plugin}\" DESTINATION \"\${_dest_dir}\")
             # Rename if the source basename differs from what Qt deployed (e.g. shared- vs static-build naming).
-            get_filename_component(_new_name \"${GAV_QTMULTIMEDIA_PLUGIN}\" NAME)
+            get_filename_component(_new_name \"${_gav_qtmm_plugin}\" NAME)
             if(NOT _new_name STREQUAL _existing_name)
                 file(RENAME \"\${_dest_dir}/\${_new_name}\" \"\${_dest_dir}/\${_existing_name}\")
             endif()
         else()
-            message(WARNING \"GAV_QTMULTIMEDIA_PLUGIN set but no ffmpegmediaplugin found in install tree to override\")
+            message(FATAL_ERROR \"GAV_QTMULTIMEDIA_PLUGIN set but no ffmpegmediaplugin found in install tree to override\")
         endif()
     ")
 endif()

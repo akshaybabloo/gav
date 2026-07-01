@@ -26,19 +26,19 @@ jobs:
         include:
           - os: ubuntu-latest
             artifact: 'qt6.11.1-essentials'
-            modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia'
+            modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia qt.qt6.6111.addons.qtquick3d'
             qt_tag: 'v6.11.1'
           - os: windows-latest
             artifact: 'qt6.11.1-msvc2022-essentials'
-            modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia'
+            modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia qt.qt6.6111.addons.qtquick3d'
             qt_tag: 'v6.11.1'
           - os: macos-latest
             artifact: 'qt6.11.1-essentials'
-            modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia'
+            modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia qt.qt6.6111.addons.qtquick3d'
             qt_tag: 'v6.11.1'
           - os: ubuntu-24.04-arm
             artifact: 'qt6.11.1-essentials'
-            modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia'
+            modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia qt.qt6.6111.addons.qtquick3d'
             qt_tag: 'v6.11.1'
 
     steps:
@@ -143,7 +143,7 @@ jobs:
           path: ${{ github.workspace }}/qtmm-sandbox
           # Bump the trailing -vN to invalidate on demand. Auto-busts when the matrix Qt tag, Qt installer artifact,
           # FFmpeg pin in vcpkg.json, or any qtmultimedia patch changes.
-          key: qtmm-${{ matrix.os }}-${{ matrix.qt_tag }}-${{ matrix.artifact }}-${{ hashFiles('vcpkg.json', 'support/qtmultimedia-*.patch') }}-v1
+          key: qtmm-${{ matrix.os }}-${{ matrix.qt_tag }}-${{ matrix.artifact }}-${{ hashFiles('vcpkg.json', 'support/qtmultimedia-*.patch') }}-v2
 
       - name: Build custom qtmultimedia plugin (Linux/macOS)
         if: steps.cache-qtmm.outputs.cache-hit != 'true' && (startsWith(matrix.os, 'ubuntu-') || startsWith(matrix.os, 'macos-'))
@@ -164,7 +164,7 @@ jobs:
             -DVCPKG_INSTALLED_DIR="${{ github.workspace }}/vcpkg_installed" \
             -DQT_DEPLOY_FFMPEG=OFF \
             -DFEATURE_ffmpeg=ON \
-            -DFEATURE_spatialaudio=OFF
+            -DFEATURE_spatialaudio=ON
           cmake --build "${{ github.workspace }}/qtmm-src/build"
           cmake --install "${{ github.workspace }}/qtmm-src/build"
         shell: bash
@@ -186,7 +186,7 @@ jobs:
             -DCMAKE_CXX_FLAGS="/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS" `
             -DQT_DEPLOY_FFMPEG=OFF `
             -DFEATURE_ffmpeg=ON `
-            -DFEATURE_spatialaudio=OFF
+            -DFEATURE_spatialaudio=ON
           cmake --build "$env:GITHUB_WORKSPACE\qtmm-src\build"
           cmake --install "$env:GITHUB_WORKSPACE\qtmm-src\build"
         shell: pwsh
