@@ -46,6 +46,18 @@ Rectangle {
     TapHandler {
         onDoubleTapped: root.toggleMaximize()
     }
+
+    // Window title
+    Text {
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.verticalCenter: parent.verticalCenter
+        color: Material.foreground
+        elide: Text.ElideRight
+        horizontalAlignment: Text.AlignHCenter
+        text: root.windowTitle
+        width: Math.min(implicitWidth, parent.width - 200)
+    }
+
     RowLayout {
         anchors.fill: parent
         spacing: 8
@@ -96,17 +108,6 @@ Rectangle {
                     onClicked: root.toggleMaximize()
                 }
             }
-        }
-
-        // Windows/Linux: title text on the left
-        Text {
-            Layout.alignment: Qt.AlignVCenter
-            Layout.leftMargin: 10
-            Layout.maximumWidth: 280
-            color: Material.foreground
-            elide: Text.ElideRight
-            text: root.windowTitle
-            visible: !root.isMac
         }
 
         // Inline menu (File / View / Help) for all platforms
@@ -198,16 +199,6 @@ Rectangle {
         }
         Item {
             Layout.fillWidth: true
-        }
-
-        // macOS: title on the right (after the spacer)
-        Text {
-            Layout.alignment: Qt.AlignVCenter
-            Layout.rightMargin: 10
-            color: Material.foreground
-            elide: Text.ElideRight
-            text: root.windowTitle
-            visible: root.isMac
         }
 
         // Windows/Linux: window buttons on the right
