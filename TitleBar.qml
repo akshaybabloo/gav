@@ -258,7 +258,7 @@ Rectangle {
                 height: windowButtons.buttonHeight
                 hoverEnabled: true
                 padding: 0
-                text: root.isMaximized ? "\ue3bb" : "\ue3c6"
+                text: root.isMaximized ? "\ue3e0" : "\ue3c6"
                 width: windowButtons.buttonWidth
 
                 background: Rectangle {
