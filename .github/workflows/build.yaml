@@ -15,22 +15,31 @@ permissions:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
+    env:
+      # Point vcpkg's binary cache at a workspace-local dir so actions/cache can pick it up cross-platform.
+      # (The old x-gha backend was removed from vcpkg; NuGet-based caching is heavier setup, so we use the plain
+      # file cache backed by actions/cache.)
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg-bincache
     strategy:
-      fail-fast: true
+#      fail-fast: true
       matrix:
         include:
           - os: ubuntu-latest
-            artifact: 'qt6.11.0-essentials'
-            modules: 'qt.qt6.6110.addons.qt5compat qt.qt6.6110.addons.qtimageformats qt.qt6.6110.addons.qtmultimedia'
+            artifact: 'qt6.11.1-essentials'
+            modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia qt.qt6.6111.addons.qtquick3d'
+            qt_tag: 'v6.11.1'
           - os: windows-latest
-            artifact: 'qt6.11.0-msvc2022-essentials'
-            modules: 'qt.qt6.6110.addons.qt5compat qt.qt6.6110.addons.qtimageformats qt.qt6.6110.addons.qtmultimedia'
+            artifact: 'qt6.11.1-msvc2022-essentials'
+            modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia qt.qt6.6111.addons.qtquick3d'
+            qt_tag: 'v6.11.1'
           - os: macos-latest
-            artifact: 'qt6.11.0-essentials'
-            modules: 'qt.qt6.6110.addons.qt5compat qt.qt6.6110.addons.qtimageformats qt.qt6.6110.addons.qtmultimedia'
+            artifact: 'qt6.11.1-essentials'
+            modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia qt.qt6.6111.addons.qtquick3d'
+            qt_tag: 'v6.11.1'
           - os: ubuntu-24.04-arm
-            artifact: 'qt6.11.0-essentials'
-            modules: 'qt.qt6.6110.addons.qt5compat qt.qt6.6110.addons.qtimageformats qt.qt6.6110.addons.qtmultimedia'
+            artifact: 'qt6.11.1-essentials'
+            modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia qt.qt6.6111.addons.qtquick3d'
+            qt_tag: 'v6.11.1'
 
     steps:
       - uses: actions/checkout@v7
@@ -67,6 +76,15 @@ jobs:
           sudo ln -sf /opt/appimagetool/AppRun /usr/local/bin/appimagetool
         shell: bash
 
+      - name: Install FFmpeg build dependencies (Linux)
+        # Pulled in by vcpkg's ffmpeg features (vaapi, audio backend, assembler) — vcpkg expects these on PATH.
+        # libdrm-dev is required by libva (vcpkg's libva port explicitly tells you to apt-install it).
+        if: startsWith(matrix.os, 'ubuntu-')
+        run: |
+          set -e
+          sudo apt-get install -y nasm libdrm-dev libva-dev libpipewire-0.3-dev libpulse-dev
+        shell: bash
+
       - name: Install Qt
         uses: akshaybabloo/actions-setup-qt@v1
         with:
@@ -80,7 +98,21 @@ jobs:
       - name: Install CMake 4+
         uses: akshaybabloo/actions-setup-cmake@v2
         with:
-          cmake-version: "4.2.x"
+          cmake-version: "4.3.x"
+
+      - name: Prepare vcpkg binary cache dir
+        run: mkdir -p "${{ github.workspace }}/vcpkg-bincache"
+        shell: bash
+
+      - name: Cache vcpkg binary artifacts
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/vcpkg-bincache
+          # Keyed on vcpkg.json + vcpkg-configuration.json so any dep, feature, or baseline bump invalidates.
+          # restore-keys lets a new hash still recover partial hits from the previous key on the same OS.
+          key: vcpkg-${{ matrix.os }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}-v1
+          restore-keys: |
+            vcpkg-${{ matrix.os }}-
 
       - name: Bootstrap vcpkg (Windows)
         if: startsWith(matrix.os, 'windows-')
@@ -92,8 +124,90 @@ jobs:
         run: ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
         shell: bash
 
-      - name: Run vcpkg install
+      - name: Run vcpkg install (Windows)
+        # Use x64-windows-static-md: static library linkage (FFmpeg baked into the plugin DLL) with dynamic CRT (/MD)
+        # to match Qt's own build. Plain x64-windows-static uses /MT and collides with Qt's /MD at link time.
+        if: startsWith(matrix.os, 'windows-')
+        run: ./vcpkg/vcpkg install --triplet=x64-windows-static-md
+        shell: bash
+
+      - name: Run vcpkg install (Linux/macOS)
+        if: startsWith(matrix.os, 'ubuntu-') || startsWith(matrix.os, 'macos-')
         run: ./vcpkg/vcpkg install
+        shell: bash
+
+      - name: Cache custom qtmultimedia plugin
+        id: cache-qtmm
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/qtmm-sandbox
+          # Bump the trailing -vN to invalidate on demand. Auto-busts when the matrix Qt tag, Qt installer artifact,
+          # FFmpeg pin in vcpkg.json, or any qtmultimedia patch changes.
+          key: qtmm-${{ matrix.os }}-${{ matrix.qt_tag }}-${{ matrix.artifact }}-${{ hashFiles('vcpkg.json', 'support/qtmultimedia-*.patch') }}-v2
+
+      - name: Build custom qtmultimedia plugin (Linux/macOS)
+        if: steps.cache-qtmm.outputs.cache-hit != 'true' && (startsWith(matrix.os, 'ubuntu-') || startsWith(matrix.os, 'macos-'))
+        run: |
+          set -e
+          git clone --depth 1 --branch "${{ matrix.qt_tag }}" https://code.qt.io/qt/qtmultimedia.git "${{ github.workspace }}/qtmm-src"
+          # Apply every qtmultimedia patch we ship (Apple Silicon SIMD fix, macOS 15 SDK fix, ...).
+          # Each patch is a no-op on platforms it doesn't apply to (Linux/Windows only touch shared files).
+          for p in "${{ github.workspace }}/support"/qtmultimedia-*.patch; do
+            echo "Applying $p"
+            patch -p1 --fuzz=3 --directory="${{ github.workspace }}/qtmm-src" --input="$p"
+          done
+          cmake -B "${{ github.workspace }}/qtmm-src/build" -S "${{ github.workspace }}/qtmm-src" -G Ninja \
+            -DCMAKE_PREFIX_PATH="${{ env.QT_ROOT_DIR }}/lib/cmake" \
+            -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/qtmm-sandbox" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_INSTALLED_DIR="${{ github.workspace }}/vcpkg_installed" \
+            -DQT_DEPLOY_FFMPEG=OFF \
+            -DFEATURE_ffmpeg=ON \
+            -DFEATURE_spatialaudio=ON
+          cmake --build "${{ github.workspace }}/qtmm-src/build"
+          cmake --install "${{ github.workspace }}/qtmm-src/build"
+        shell: bash
+
+      - name: Build custom qtmultimedia plugin (Windows)
+        if: steps.cache-qtmm.outputs.cache-hit != 'true' && startsWith(matrix.os, 'windows-')
+        run: |
+          $ErrorActionPreference = "Stop"
+          git clone --depth 1 --branch "${{ matrix.qt_tag }}" https://code.qt.io/qt/qtmultimedia.git "$env:GITHUB_WORKSPACE\qtmm-src"
+          # qtmultimedia 6.11 still uses <experimental/coroutine>, which VS 18 / MSVC 14.51 hard-errors on. Silence
+          # the deprecation static_assert via the macro MSVC itself points at in the error message.
+          cmake -B "$env:GITHUB_WORKSPACE\qtmm-src\build" -S "$env:GITHUB_WORKSPACE\qtmm-src" -G Ninja `
+            -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR/lib/cmake" `
+            -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\qtmm-sandbox" `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_TOOLCHAIN_FILE="$env:GITHUB_WORKSPACE\vcpkg\scripts\buildsystems\vcpkg.cmake" `
+            -DVCPKG_INSTALLED_DIR="$env:GITHUB_WORKSPACE\vcpkg_installed" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static-md `
+            -DCMAKE_CXX_FLAGS="/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS" `
+            -DQT_DEPLOY_FFMPEG=OFF `
+            -DFEATURE_ffmpeg=ON `
+            -DFEATURE_spatialaudio=ON
+          cmake --build "$env:GITHUB_WORKSPACE\qtmm-src\build"
+          cmake --install "$env:GITHUB_WORKSPACE\qtmm-src\build"
+        shell: pwsh
+
+      - name: Locate custom qtmultimedia plugin
+        id: qtmm-plugin
+        run: |
+          if [[ "${{ matrix.os }}" == windows-* ]]; then
+            PLUGIN=$(find "${{ github.workspace }}/qtmm-sandbox" -name 'ffmpegmediaplugin.dll' | head -1)
+          elif [[ "${{ matrix.os }}" == macos-* ]]; then
+            PLUGIN=$(find "${{ github.workspace }}/qtmm-sandbox" -name 'libffmpegmediaplugin.dylib' | head -1)
+          else
+            PLUGIN=$(find "${{ github.workspace }}/qtmm-sandbox" -name 'libffmpegmediaplugin.so' | head -1)
+          fi
+          if [[ -z "$PLUGIN" ]]; then
+            echo "ERROR: custom ffmpegmediaplugin not found under ${{ github.workspace }}/qtmm-sandbox" >&2
+            find "${{ github.workspace }}/qtmm-sandbox" -name '*ffmpegmediaplugin*' || true
+            exit 1
+          fi
+          echo "plugin=$PLUGIN" >> "$GITHUB_OUTPUT"
+          echo "Custom qtmultimedia plugin: $PLUGIN"
         shell: bash
 
       - name: Get version from Git tag
@@ -115,12 +229,12 @@ jobs:
 
       - name: Configure CMake (Windows)
         if: startsWith(matrix.os, 'windows-')
-        run: cmake -B build -S . -DGAV_VERSION="${{ steps.version.outputs.version }}" -DCMAKE_TOOLCHAIN_FILE=${{env.QT_ROOT_DIR}}/lib/cmake/Qt6/qt.toolchain.cmake -DX_VCPKG_APPLOCAL_DEPS_INSTALL:BOOL=ON -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release -GNinja
+        run: cmake -B build -S . -DGAV_VERSION="${{ steps.version.outputs.version }}" -DCMAKE_TOOLCHAIN_FILE=${{env.QT_ROOT_DIR}}/lib/cmake/Qt6/qt.toolchain.cmake -DX_VCPKG_APPLOCAL_DEPS_INSTALL:BOOL=ON -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-static-md -DGAV_QTMULTIMEDIA_PLUGIN="${{ steps.qtmm-plugin.outputs.plugin }}" -DCMAKE_BUILD_TYPE=Release -GNinja
         shell: pwsh
 
       - name: Configure CMake (Linux/macOS)
         if: startsWith(matrix.os, 'ubuntu-') || startsWith(matrix.os, 'macos-')
-        run: cmake -B build -S . -DGAV_VERSION=${{ steps.version.outputs.version }} -DCMAKE_TOOLCHAIN_FILE=${{env.QT_ROOT_DIR}}/lib/cmake/Qt6/qt.toolchain.cmake -DX_VCPKG_APPLOCAL_DEPS_INSTALL:BOOL=ON -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release -GNinja
+        run: cmake -B build -S . -DGAV_VERSION=${{ steps.version.outputs.version }} -DCMAKE_TOOLCHAIN_FILE=${{env.QT_ROOT_DIR}}/lib/cmake/Qt6/qt.toolchain.cmake -DX_VCPKG_APPLOCAL_DEPS_INSTALL:BOOL=ON -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DGAV_QTMULTIMEDIA_PLUGIN="${{ steps.qtmm-plugin.outputs.plugin }}" -DCMAKE_BUILD_TYPE=Release -GNinja
         shell: bash
 
       - name: Build
