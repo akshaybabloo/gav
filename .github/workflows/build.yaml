@@ -125,10 +125,10 @@ jobs:
         shell: bash
 
       - name: Run vcpkg install (Windows)
-        # Use x64-windows-static so FFmpeg statically links into the qtmultimedia plugin DLL (matches Linux/macOS).
-        # The whole project's vcpkg deps (fmt, spdlog, gtest) become static on Windows as a consequence.
+        # Use x64-windows-static-md: static library linkage (FFmpeg baked into the plugin DLL) with dynamic CRT (/MD)
+        # to match Qt's own build. Plain x64-windows-static uses /MT and collides with Qt's /MD at link time.
         if: startsWith(matrix.os, 'windows-')
-        run: ./vcpkg/vcpkg install --triplet=x64-windows-static
+        run: ./vcpkg/vcpkg install --triplet=x64-windows-static-md
         shell: bash
 
       - name: Run vcpkg install (Linux/macOS)
@@ -182,7 +182,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_TOOLCHAIN_FILE="$env:GITHUB_WORKSPACE\vcpkg\scripts\buildsystems\vcpkg.cmake" `
             -DVCPKG_INSTALLED_DIR="$env:GITHUB_WORKSPACE\vcpkg_installed" `
-            -DVCPKG_TARGET_TRIPLET=x64-windows-static `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static-md `
             -DCMAKE_CXX_FLAGS="/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS" `
             -DQT_DEPLOY_FFMPEG=OFF `
             -DFEATURE_ffmpeg=ON `
@@ -229,7 +229,7 @@ jobs:
 
       - name: Configure CMake (Windows)
         if: startsWith(matrix.os, 'windows-')
-        run: cmake -B build -S . -DGAV_VERSION="${{ steps.version.outputs.version }}" -DCMAKE_TOOLCHAIN_FILE=${{env.QT_ROOT_DIR}}/lib/cmake/Qt6/qt.toolchain.cmake -DX_VCPKG_APPLOCAL_DEPS_INSTALL:BOOL=ON -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-static -DGAV_QTMULTIMEDIA_PLUGIN="${{ steps.qtmm-plugin.outputs.plugin }}" -DCMAKE_BUILD_TYPE=Release -GNinja
+        run: cmake -B build -S . -DGAV_VERSION="${{ steps.version.outputs.version }}" -DCMAKE_TOOLCHAIN_FILE=${{env.QT_ROOT_DIR}}/lib/cmake/Qt6/qt.toolchain.cmake -DX_VCPKG_APPLOCAL_DEPS_INSTALL:BOOL=ON -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-static-md -DGAV_QTMULTIMEDIA_PLUGIN="${{ steps.qtmm-plugin.outputs.plugin }}" -DCMAKE_BUILD_TYPE=Release -GNinja
         shell: pwsh
 
       - name: Configure CMake (Linux/macOS)
