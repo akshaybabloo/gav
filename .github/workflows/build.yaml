@@ -169,6 +169,8 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           git clone --depth 1 --branch "${{ matrix.qt_tag }}" https://code.qt.io/qt/qtmultimedia.git "$env:GITHUB_WORKSPACE\qtmm-src"
+          # qtmultimedia 6.11 still uses <experimental/coroutine>, which VS 18 / MSVC 14.51 hard-errors on. Silence
+          # the deprecation static_assert via the macro MSVC itself points at in the error message.
           cmake -B "$env:GITHUB_WORKSPACE\qtmm-src\build" -S "$env:GITHUB_WORKSPACE\qtmm-src" -G Ninja `
             -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR/lib/cmake" `
             -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\qtmm-sandbox" `
@@ -176,6 +178,7 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="$env:GITHUB_WORKSPACE\vcpkg\scripts\buildsystems\vcpkg.cmake" `
             -DVCPKG_INSTALLED_DIR="$env:GITHUB_WORKSPACE\vcpkg_installed" `
             -DVCPKG_TARGET_TRIPLET=x64-windows-static `
+            -DCMAKE_CXX_FLAGS="/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS" `
             -DQT_DEPLOY_FFMPEG=OFF `
             -DFEATURE_ffmpeg=ON `
             -DFEATURE_spatialaudio=OFF
