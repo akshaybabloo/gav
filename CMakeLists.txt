@@ -97,6 +97,14 @@ target_compile_definitions(appgav PRIVATE
         _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING # For https://github.com/fmtlib/fmt/issues/3183
 )
 
+find_path(GAV_FFMPEG_INCLUDE_DIR NAMES libavutil/ffversion.h)
+if (GAV_FFMPEG_INCLUDE_DIR)
+    target_include_directories(appgav PRIVATE ${GAV_FFMPEG_INCLUDE_DIR})
+    target_compile_definitions(appgav PRIVATE GAV_HAS_FFVERSION_HEADER)
+else ()
+    message(WARNING "libavutil/ffversion.h not found; the About dialog will omit the FFmpeg version")
+endif ()
+
 qt_add_resources(appgav "assets"
         PREFIX "/"
         FILES
@@ -139,6 +147,7 @@ qt_add_qml_module(appgav
         custommediaplayer.h custommediaplayer.cpp
         collage.h collage.cpp
         previewimageprovider.h previewimageprovider.cpp
+        buildinfo.h buildinfo.cpp
         SOURCES updates.h updates.cpp
 )
 

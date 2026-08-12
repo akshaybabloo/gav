@@ -394,7 +394,9 @@ ApplicationWindow {
                 color: Material.foreground
                 font.pixelSize: 11
                 opacity: 0.5
-                text: qsTr("Built with Qt %1 and FFmpeg").arg(Qt.version)
+                text: BuildInfo.ffmpegVersion
+                    ? qsTr("Built with Qt %1 and FFmpeg %2").arg(BuildInfo.qtVersion).arg(BuildInfo.ffmpegVersion)
+                    : qsTr("Built with Qt %1").arg(BuildInfo.qtVersion)
             }
         }
     }
