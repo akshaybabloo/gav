@@ -18,14 +18,13 @@ Item {
     property bool isFastForwarding: false
     property bool isFastRewinding: false
     required property bool mediaLoaded
+    property bool miniPlayerActive: false
     required property var player
     required property int playlistCount
     required property int playlistCurrentIndex
-    property int rewindMultiplier: 1
     property int repeatMode: 0  // 0=none, 1=once, 2=loop, 3=range
+    property int rewindMultiplier: 1
     required property var videoOutput
-
-    property bool miniPlayerActive: false
 
     signal miniPlayerRequested
     signal nextTrack
@@ -34,9 +33,7 @@ Item {
 
     function stopFastForwarding() {
         if (isFastForwarding) {
-            var restoreRate = (currentSpeedIndex >= 0 && currentSpeedIndex < AppConstants.playbackSpeeds.length)
-                ? AppConstants.playbackSpeeds[currentSpeedIndex]
-                : 1.0;
+            var restoreRate = (currentSpeedIndex >= 0 && currentSpeedIndex < AppConstants.playbackSpeeds.length) ? AppConstants.playbackSpeeds[currentSpeedIndex] : 1.0;
             player.playbackRate = restoreRate;
             isFastForwarding = false;
             fastForwardRate = restoreRate;
@@ -91,11 +88,9 @@ Item {
         }
     }
     Connections {
-        target: player
-
-        function onPositionChanged() {
-            if (repeatMode === 3 && seekBar.rangeSlider && seekBar.rangeSlider.second.value > seekBar.rangeSlider.first.value && player.position >= seekBar.rangeSlider.second.value) {
-                player.position = seekBar.rangeSlider.first.value;
+        function onDurationChanged() {
+            if (repeatMode === 3 && player.duration > 0 && seekBar.rangeSlider) {
+                seekBar.rangeSlider.setValues(0, player.duration);
             }
         }
         function onMediaStatusChanged(status) {
@@ -117,11 +112,13 @@ Item {
                 }
             }
         }
-        function onDurationChanged() {
-            if (repeatMode === 3 && player.duration > 0 && seekBar.rangeSlider) {
-                seekBar.rangeSlider.setValues(0, player.duration);
+        function onPositionChanged() {
+            if (repeatMode === 3 && seekBar.rangeSlider && seekBar.rangeSlider.second.value > seekBar.rangeSlider.first.value && player.position >= seekBar.rangeSlider.second.value) {
+                player.position = seekBar.rangeSlider.first.value;
             }
         }
+
+        target: player
     }
     MouseArea {
         id: controlMouseArea
@@ -138,11 +135,11 @@ Item {
         width: parent.width
 
         ColumnLayout {
+            anchors.bottomMargin: 8
             anchors.fill: parent
             anchors.leftMargin: 10
             anchors.rightMargin: 10
             anchors.topMargin: 8
-            anchors.bottomMargin: 8
             spacing: 15
 
             // Seek row
@@ -212,8 +209,8 @@ Item {
                             Text {
                                 anchors.centerIn: parent
                                 color: Material.foreground
-                                opacity: fastRewindButton.enabled ? 1.0 : 0.5
                                 font: fastRewindButton.font
+                                opacity: fastRewindButton.enabled ? 1.0 : 0.5
                                 text: "\ue020"
                             }
                             Rectangle {
@@ -315,8 +312,8 @@ Item {
                             Text {
                                 anchors.centerIn: parent
                                 color: Material.foreground
-                                opacity: fastForwardButton.enabled ? 1.0 : 0.5
                                 font: fastForwardButton.font
+                                opacity: fastForwardButton.enabled ? 1.0 : 0.5
                                 text: "\ue01f"
                             }
                             Rectangle {
@@ -354,9 +351,7 @@ Item {
                                 fastForwardRate = 10.0;
                                 player.playbackRate = fastForwardRate;
                             } else {
-                                var restoreRate = (currentSpeedIndex >= 0 && currentSpeedIndex < AppConstants.playbackSpeeds.length)
-                                    ? AppConstants.playbackSpeeds[currentSpeedIndex]
-                                    : 1.0;
+                                var restoreRate = (currentSpeedIndex >= 0 && currentSpeedIndex < AppConstants.playbackSpeeds.length) ? AppConstants.playbackSpeeds[currentSpeedIndex] : 1.0;
                                 fastForwardRate = restoreRate;
                                 player.playbackRate = restoreRate;
                             }
@@ -417,29 +412,34 @@ Item {
                             Text {
                                 anchors.centerIn: parent
                                 color: repeatMode > 0 ? Material.accent : Material.foreground
-                                opacity: repeatMode === 0 ? 0.5 : 1.0
                                 font: repeatButton.font
+                                opacity: repeatMode === 0 ? 0.5 : 1.0
                                 text: repeatMode === 1 ? "\ue9d7" : (repeatMode >= 2 ? "\ue9d6" : "\ue040")
                             }
-                            Rectangle {
+                            // Rectangle {
+                            //     anchors.bottom: parent.bottom
+                            //     anchors.bottomMargin: 2
+                            //     anchors.right: parent.right
+                            //     anchors.rightMargin: -2
+                            //     // color: Material.accent
+                            //     height: 10
+                            //     radius: 2
+                            //     visible: repeatMode === 3
+                            //     width: 10
+
+                            Text {
                                 anchors.bottom: parent.bottom
                                 anchors.bottomMargin: 2
+                                anchors.centerIn: parent
                                 anchors.right: parent.right
                                 anchors.rightMargin: -2
-                                color: Material.accent
-                                height: 10
-                                radius: 2
+                                color: isDarkTheme ? "#000000" : "#FFFFFF"
+                                // font.bold: true
+                                font.pixelSize: 5
+                                text: "R"
                                 visible: repeatMode === 3
-                                width: 20
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    color: Material.foreground
-                                    font.bold: true
-                                    font.pixelSize: 8
-                                    text: "RNG"
-                                }
                             }
+                            // }
                         }
 
                         onClicked: {
@@ -452,9 +452,12 @@ Item {
                         ToolTip {
                             delay: AppConstants.tooltipDelay
                             text: {
-                                if (repeatMode === 0) return qsTr("Repeat: Off");
-                                if (repeatMode === 1) return qsTr("Repeat: Once");
-                                if (repeatMode === 2) return qsTr("Repeat: Loop");
+                                if (repeatMode === 0)
+                                    return qsTr("Repeat: Off");
+                                if (repeatMode === 1)
+                                    return qsTr("Repeat: Once");
+                                if (repeatMode === 2)
+                                    return qsTr("Repeat: Loop");
                                 return qsTr("Repeat: Range");
                             }
                             timeout: AppConstants.tooltipTimeout
@@ -470,10 +473,10 @@ Item {
 
                     // Playback speed selector
                     PlaybackSpeedMenu {
-                        player: root.player
                         mediaLoaded: root.mediaLoaded
+                        player: root.player
 
-                        onSpeedChanged: function(speed) {
+                        onSpeedChanged: function (speed) {
                             stopFastForwarding();
                             stopFastRewinding();
                             var idx = AppConstants.playbackSpeeds.indexOf(speed);
@@ -517,8 +520,8 @@ Item {
                         sourceUrls: player.hasVideo ? [player.source] : []
                     }
                     BrightnessContrastPopup {
-                        videoOutput: root.videoOutput
                         hasVideo: player.hasVideo
+                        videoOutput: root.videoOutput
                     }
                     Rectangle {
                         Layout.preferredHeight: parent.height

@@ -16,6 +16,7 @@ ApplicationWindow {
     property bool isDarkTheme: true
     property bool mediaControlsContainsMouse: false
     property bool playlistManualVisible: false
+    property int repeatMode: 0
     property bool shouldAutoPlay: false
     property url source
 
@@ -913,9 +914,11 @@ ApplicationWindow {
             player: mediaComponent.mediaPlayer
             playlistCount: playList.count
             playlistCurrentIndex: playlistComponent.playListView.currentIndex
+            repeatMode: mainWindow.repeatMode
             videoOutput: mediaComponent.videoOutput
 
             onContainsMouseChanged: mainWindow.mediaControlsContainsMouse = containsMouse
+            onRepeatModeChanged: mainWindow.repeatMode = repeatMode
             onMiniPlayerRequested: {
                 var px = mainWindow.x + mainWindow.width - miniPlayerWindow.width - 20;
                 var py = mainWindow.y + mainWindow.height - miniPlayerWindow.height - 60;

@@ -34,26 +34,32 @@ Item {
                 hideControlsTimer.start();
             } else if (state === MediaPlayer.PausedState) {
                 isPlaying = true; // We still want to show the video when paused
-            } else {
-                // Stopped state - reset everything
-                controlsAreVisible = true;
-                isPlaying = false;
-                hideControlsTimer.stop();
-
-                // Reset zoom and pan
-                videoOutput.zoomLevel = 1.0;
-                videoOutput.panX = 0;
-                videoOutput.panY = 0;
-                videoOutput.zoomOriginX = videoOutput.width / 2;
-                videoOutput.zoomOriginY = videoOutput.height / 2;
-
-                // Reset brightness and contrast
-                videoOutput.brightnessLevel = AppConstants.defaultBrightness;
-                videoOutput.contrastLevel = AppConstants.defaultContrast;
-
-                // Notify parent to reset path and title
-                stopped();
             }
+        }
+        // Only a real teardown clears the source; a repeat loop passes through
+        // StoppedState without one, and loading a new file sets a non-empty one.
+        onSourceChanged: {
+            if (customMediaPlayer.source.toString() !== "") {
+                return;
+            }
+
+            controlsAreVisible = true;
+            isPlaying = false;
+            hideControlsTimer.stop();
+
+            // Reset zoom and pan
+            videoOutput.zoomLevel = 1.0;
+            videoOutput.panX = 0;
+            videoOutput.panY = 0;
+            videoOutput.zoomOriginX = videoOutput.width / 2;
+            videoOutput.zoomOriginY = videoOutput.height / 2;
+
+            // Reset brightness and contrast
+            videoOutput.brightnessLevel = AppConstants.defaultBrightness;
+            videoOutput.contrastLevel = AppConstants.defaultContrast;
+
+            // Notify parent to reset path and title
+            stopped();
         }
         onVideoVisibilityChanged: function (visible) {
             videoOutput.visible = visible;
