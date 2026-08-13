@@ -61,7 +61,7 @@ signals:
   void videoOutputChanged();
   void audioOutputChanged();
   void playbackStateChanged(QMediaPlayer::PlaybackState state);
-  void mediaStatusChanged();
+  void mediaStatusChanged(QMediaPlayer::MediaStatus status);
   void hasVideoChanged();
   void errorOccurred(QString errorString);
   void durationChanged();

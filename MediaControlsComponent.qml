@@ -100,6 +100,8 @@ Item {
         }
         function onMediaStatusChanged(status) {
             if (status === MediaPlayer.EndOfMedia) {
+                stopFastForwarding();
+                stopFastRewinding();
                 if (repeatMode === 1) {
                     player.position = 0;
                     player.play();
@@ -110,6 +112,8 @@ Item {
                 } else if (repeatMode === 3 && seekBar.rangeSlider) {
                     player.position = seekBar.rangeSlider.first.value;
                     player.play();
+                } else {
+                    seekBar.resetPreview();
                 }
             }
         }

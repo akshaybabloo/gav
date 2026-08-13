@@ -99,6 +99,9 @@ void CustomMediaPlayer::setPosition(qint64 position) {
 bool CustomMediaPlayer::mediaLoaded() const { return m_mediaLoaded; }
 
 void CustomMediaPlayer::play() {
+  if (m_mediaPlayer->source().isEmpty()) {
+    return;
+  }
   if (m_mediaPlayer->mediaStatus() < QMediaPlayer::LoadedMedia) {
     m_playWhenLoaded = true;
   } else {
@@ -166,6 +169,13 @@ void CustomMediaPlayer::onStatusChanged(QMediaPlayer::MediaStatus status) {
   if (status == QMediaPlayer::LoadedMedia && m_playWhenLoaded) {
     m_mediaPlayer->play();
     m_playWhenLoaded = false;
+  }
+
+  // Connected after the QML-facing forward above, so a repeat mode has already restarted playback.
+  if (status == QMediaPlayer::EndOfMedia &&
+      m_mediaPlayer->mediaStatus() == QMediaPlayer::EndOfMedia &&
+      m_mediaPlayer->playbackState() == QMediaPlayer::StoppedState) {
+    stop();
   }
 }
 
