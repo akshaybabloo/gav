@@ -7,6 +7,7 @@
 #include <QProcessEnvironment>
 #include <QRegularExpression>
 #include <QEventLoop>
+#include <QLoggingCategory>
 #include <iostream>
 #include <thread>
 #include <atomic>
@@ -97,9 +98,6 @@ int main(int argc, char *argv[]) {
     SetConsoleOutputCP(CP_UTF8);
 #endif
 
-    // Suppress FFmpeg verbose output by default
-    qputenv("QT_LOGGING_RULES", "qt.multimedia.ffmpeg*=false");
-
     initLogging();
     qInstallMessageHandler(logOutput);
 
@@ -137,8 +135,8 @@ int main(int argc, char *argv[]) {
     if (parser.isSet(verboseOption)) {
         logger->set_level(spdlog::level::debug);
         logger->debug("Verbose logging enabled");
-        // Re-enable FFmpeg logging in verbose mode
-        qputenv("QT_LOGGING_RULES", "qt.multimedia.ffmpeg*=true");
+    } else {
+        QLoggingCategory::setFilterRules(QStringLiteral("qt.multimedia*=false"));
     }
 
     QString sourceValue;
