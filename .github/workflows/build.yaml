@@ -56,7 +56,7 @@ jobs:
         with:
           arch: x64
       
-      - uses: repolevedavaj/install-nsis@v1.2.1
+      - uses: repolevedavaj/install-nsis@v1.3.0
         if: startsWith(matrix.os, 'windows-')
         with:
           nsis-version: '3.11'
