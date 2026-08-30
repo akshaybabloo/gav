@@ -109,6 +109,9 @@ Item {
                     player.play();
                 } else {
                     seekBar.resetPreview();
+                    if (playlistCurrentIndex >= 0 && playlistCurrentIndex < playlistCount - 1) {
+                        nextTrack();
+                    }
                 }
             }
         }
