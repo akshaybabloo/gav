@@ -216,6 +216,39 @@ Rectangle {
             visible: !root.isMac
 
             ToolButton {
+                id: pinButton
+
+                checkable: true
+                checked: (targetWindow.flags & Qt.WindowStaysOnTopHint) !== 0
+
+                ToolTip.delay: AppConstants.tooltipDelay
+                ToolTip.text: checked ? qsTr("Unpin Window") : qsTr("Pin Window")
+                ToolTip.timeout: AppConstants.tooltipTimeout
+                ToolTip.visible: hovered
+                font.family: materialSymbolsOutlined.name
+                font.pixelSize: windowButtons.glyphSize
+                height: windowButtons.buttonHeight
+                hoverEnabled: true
+                padding: 0
+                text: checked ? "\ue6aa" : "\ue6f9"
+                width: windowButtons.buttonWidth
+
+                background: Rectangle {
+                    color: (pinButton.hovered || pinButton.checked) ? Qt.rgba(Material.foreground.r, Material.foreground.g, Material.foreground.b, 0.12) : "transparent"
+                    radius: windowButtons.buttonRadius
+                }
+
+                onCheckedChanged: {
+                    if (checked) {
+                        targetWindow.flags |= Qt.WindowStaysOnTopHint
+                    } else {
+                        targetWindow.flags &= ~Qt.WindowStaysOnTopHint
+                    }
+                }
+            }
+
+
+            ToolButton {
                 id: minimizeButton
 
                 ToolTip.delay: AppConstants.tooltipDelay
