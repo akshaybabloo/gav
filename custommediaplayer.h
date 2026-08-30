@@ -22,6 +22,7 @@ class CustomMediaPlayer : public QQuickItem {
   Q_PROPERTY(qint64 position READ position WRITE setPosition NOTIFY positionChanged)
   Q_PROPERTY(bool mediaLoaded READ mediaLoaded NOTIFY mediaLoadedChanged)
   Q_PROPERTY(qreal playbackRate READ playbackRate WRITE setPlaybackRate NOTIFY playbackRateChanged)
+  Q_PROPERTY(qreal fps READ fps NOTIFY fpsChanged)
 
 public:
   CustomMediaPlayer();
@@ -56,6 +57,8 @@ public:
 
   bool mediaLoaded() const;
 
+  qreal fps() const;
+
 signals:
   void sourceChanged();
   void videoOutputChanged();
@@ -68,6 +71,7 @@ signals:
   void positionChanged();
   void mediaLoadedChanged();
   void playbackRateChanged();
+  void fpsChanged();
   void videoVisibilityChanged(bool visible);
   void frameCaptured(bool success, const QString &path);
   void previewReady(qint64 position, const QString &imageDataUrl);
@@ -93,6 +97,10 @@ private:
   bool m_playWhenLoaded = false;
   bool m_mediaLoaded = false;
   bool m_waitingForPreview = false;
+  qreal m_fps = 0;
+  int m_frameCount = 0;
+  QTimer *m_fpsTimer = nullptr;
+  QMetaObject::Connection m_frameChangedConnection;
 };
 
 #endif // CUSTOMMEDIAPLAYER_H

@@ -8,6 +8,7 @@
 #include <QDir>
 #include <QBuffer>
 #include <QTimer>
+#include <QDebug>
 
 CustomMediaPlayer::CustomMediaPlayer() {
   m_mediaPlayer = new QMediaPlayer(this);
@@ -34,6 +35,27 @@ CustomMediaPlayer::CustomMediaPlayer() {
           QOverload<QMediaPlayer::Error, const QString &>::of(
             &QMediaPlayer::errorOccurred),
           this, &CustomMediaPlayer::onMediaPlayerError);
+
+  m_fpsTimer = new QTimer(this);
+  m_fpsTimer->setInterval(1000);
+  connect(m_fpsTimer, &QTimer::timeout, this, [this]() {
+      if (m_fps != m_frameCount) {
+          m_fps = m_frameCount;
+          emit fpsChanged();
+      }
+      m_frameCount = 0;
+  });
+
+  connect(m_mediaPlayer, &QMediaPlayer::playbackStateChanged, this, [this](QMediaPlayer::PlaybackState state) {
+      if (state == QMediaPlayer::PlayingState) {
+          m_frameCount = 0;
+          m_fpsTimer->start();
+      } else {
+          m_fpsTimer->stop();
+          m_fps = 0;
+          emit fpsChanged();
+      }
+  });
 }
 
 QUrl CustomMediaPlayer::source() const { return m_mediaPlayer->source(); }
@@ -53,6 +75,10 @@ void CustomMediaPlayer::setSource(const QUrl &source) {
   
   // Reset preview player when source changes
   resetPreviewPlayer();
+  
+  m_fps = 0;
+  emit fpsChanged();
+  
   m_mediaPlayer->setSource(source);
 }
 
@@ -63,8 +89,28 @@ QObject *CustomMediaPlayer::videoOutput() const {
 void CustomMediaPlayer::setVideoOutput(QObject *videoOutput) {
   if (m_mediaPlayer->videoOutput() == videoOutput)
     return;
+    
+  if (m_frameChangedConnection) {
+      QObject::disconnect(m_frameChangedConnection);
+  }
+  
   m_mediaPlayer->setVideoOutput(videoOutput);
   emit videoOutputChanged();
+  
+  if (videoOutput) {
+      const QVariant sinkVar = videoOutput->property("videoSink");
+      if (const auto *sink = qobject_cast<QVideoSink*>(sinkVar.value<QObject*>())) {
+          m_frameChangedConnection = connect(sink, &QVideoSink::videoFrameChanged, this, [this](const QVideoFrame &frame) {
+              if (frame.isValid()) {
+                  m_frameCount++;
+              }
+          });
+      }
+  }
+}
+
+qreal CustomMediaPlayer::fps() const {
+    return m_fps;
 }
 
 QAudioOutput *CustomMediaPlayer::audioOutput() const {

@@ -60,7 +60,7 @@ Rectangle {
             Layout.fillWidth: true
             
             Text { text: "FPS:"; color: Material.foreground; font.pixelSize: 12; opacity: 0.8 }
-            Text { text: "N/A"; color: Material.foreground; font.pixelSize: 12; font.family: "monospace" } // Video FPS is tricky to get without digging into Qt internals, leaving N/A or we can expose it
+            Text { text: (root.hasVideo && mediaComponent.mediaPlayer.fps > 0) ? mediaComponent.mediaPlayer.fps.toFixed(0) : "N/A"; color: Material.foreground; font.pixelSize: 12; font.family: "monospace" }
             
             Text { text: "CPU Usage:"; color: Material.foreground; font.pixelSize: 12; opacity: 0.8 }
             Text { text: SystemStats.cpuUsage; color: Material.foreground; font.pixelSize: 12; font.family: "monospace" }
