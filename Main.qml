@@ -875,6 +875,33 @@ ApplicationWindow {
     ListModel {
         id: playList
     }
+    Rectangle {
+        id: loadingScreen
+
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: mainWindow.visibility === Window.FullScreen ? parent.top : titleBar.bottom
+        color: Material.background
+        visible: mediaComponent.path !== "" && !mediaComponent.mediaLoaded
+        z: 50
+
+        ColumnLayout {
+            anchors.centerIn: parent
+            spacing: 16
+
+            BusyIndicator {
+                Layout.alignment: Qt.AlignHCenter
+                running: loadingScreen.visible
+            }
+            Text {
+                Layout.alignment: Qt.AlignHCenter
+                color: Material.foreground
+                font.pixelSize: 16
+                text: qsTr("Loading...")
+            }
+        }
+    }
     PlayListComponent {
         id: playlistComponent
 
@@ -884,7 +911,7 @@ ApplicationWindow {
         anchors.top: mainWindow.visibility === Window.FullScreen ? parent.top : titleBar.bottom
         collageTarget: collage
         playList: playList
-        visible: !mediaComponent.isVideoAndPlaying || mainWindow.playlistManualVisible
+        visible: (!mediaComponent.isVideoAndPlaying && !loadingScreen.visible) || mainWindow.playlistManualVisible
 
         onItemSelected: function (path, name) {
             mediaComponent.path = path;
