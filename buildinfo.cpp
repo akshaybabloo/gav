@@ -20,3 +20,11 @@ QString BuildInfo::ffmpegVersion() {
     return {};
 #endif
 }
+
+bool BuildInfo::isDebugBuild() {
+#ifdef QT_DEBUG
+    return true;
+#else
+    return false;
+#endif
+}

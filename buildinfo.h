@@ -12,6 +12,7 @@ class BuildInfo : public QObject {
 
     Q_PROPERTY(QString qtVersion READ qtVersion CONSTANT)
     Q_PROPERTY(QString ffmpegVersion READ ffmpegVersion CONSTANT)
+    Q_PROPERTY(bool isDebugBuild READ isDebugBuild CONSTANT)
 
 public:
     explicit BuildInfo(QObject *parent = nullptr);
@@ -19,6 +20,8 @@ public:
     static QString qtVersion();
 
     static QString ffmpegVersion();
+    
+    static bool isDebugBuild();
 };
 
 #endif // BUILDINFO_H

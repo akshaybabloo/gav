@@ -103,7 +103,7 @@ ApplicationWindow {
             mediaComponent.audioOutput.volume = appSettings.volume;
         if (mediaComponent.mediaPlayer)
             mediaComponent.mediaPlayer.playbackRate = appSettings.playbackRate;
-        if (appSettings.checkUpdatesOnStartup) {
+        if (appSettings.checkUpdatesOnStartup && !BuildInfo.isDebugBuild) {
             updateDialog.manualCheck = false;
             updates.checkUpdates();
         }
