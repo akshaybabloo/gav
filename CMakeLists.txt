@@ -143,11 +143,13 @@ qt_add_qml_module(appgav
         PlaybackSpeedMenu.qml
         CollageButton.qml
         TitleBar.qml
+        NerdStatsOverlay.qml
         SOURCES
         custommediaplayer.h custommediaplayer.cpp
         collage.h collage.cpp
         previewimageprovider.h previewimageprovider.cpp
         buildinfo.h buildinfo.cpp
+        systemstats.h systemstats.cpp
         SOURCES updates.h updates.cpp
 )
 

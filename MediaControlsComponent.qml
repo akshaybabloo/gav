@@ -19,6 +19,7 @@ Item {
     property bool isFastRewinding: false
     required property bool mediaLoaded
     property bool miniPlayerActive: false
+    property bool nerdStatsActive: false
     required property var player
     required property int playlistCount
     required property int playlistCurrentIndex
@@ -27,6 +28,7 @@ Item {
     required property var videoOutput
 
     signal miniPlayerRequested
+    signal nerdStatsToggleRequested
     signal nextTrack
     signal playlistToggleRequested
     signal previousTrack
@@ -525,6 +527,38 @@ Item {
                     BrightnessContrastPopup {
                         hasVideo: player.hasVideo
                         videoOutput: root.videoOutput
+                    }
+                    Button {
+                        id: nerdStatsButton
+
+                        Layout.preferredHeight: 30
+                        Layout.preferredWidth: 25
+                        Material.roundedScale: Material.NotRounded
+                        checkable: true
+                        enabled: player.hasVideo
+                        font.family: materialSymbolsOutlined.name
+                        font.weight: Font.Light
+                        hoverEnabled: true
+                        scale: 1.5
+                        text: "\uf2c7"
+
+                        onClicked: {
+                            nerdStatsToggleRequested();
+                        }
+
+                        Binding {
+                            target: nerdStatsButton
+                            property: "checked"
+                            value: root.nerdStatsActive
+                            restoreMode: Binding.RestoreBindingOrValue
+                        }
+
+                        ToolTip {
+                            delay: AppConstants.tooltipDelay
+                            text: qsTr("Stats for nerds")
+                            timeout: AppConstants.tooltipTimeout
+                            visible: nerdStatsButton.hovered
+                        }
                     }
                     Rectangle {
                         Layout.preferredHeight: parent.height

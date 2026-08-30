@@ -927,6 +927,19 @@ ApplicationWindow {
             mediaComponent.mediaPlayer.play();
         }
     }
+    
+    NerdStatsOverlay {
+        id: nerdStats
+        
+        anchors.top: mainWindow.visibility === Window.FullScreen ? parent.top : titleBar.bottom
+        anchors.left: parent.left
+        anchors.margins: 20
+        z: 90
+        
+        hasVideo: mediaComponent.isVideo
+        videoOutput: mediaComponent.videoOutput
+    }
+    
     Component {
         id: mediaControlsComponent
 
@@ -938,6 +951,7 @@ ApplicationWindow {
             implicitHeight: 90
             mediaLoaded: mediaComponent.mediaLoaded
             miniPlayerActive: miniPlayerWindow.visible
+            nerdStatsActive: nerdStats.visible
             player: mediaComponent.mediaPlayer
             playlistCount: playList.count
             playlistCurrentIndex: playlistComponent.playListView.currentIndex
@@ -946,6 +960,7 @@ ApplicationWindow {
 
             onContainsMouseChanged: mainWindow.mediaControlsContainsMouse = containsMouse
             onRepeatModeChanged: mainWindow.repeatMode = repeatMode
+            onNerdStatsToggleRequested: nerdStats.visible = !nerdStats.visible
             onMiniPlayerRequested: {
                 var px = mainWindow.x + mainWindow.width - miniPlayerWindow.width - 20;
                 var py = mainWindow.y + mainWindow.height - miniPlayerWindow.height - 60;
