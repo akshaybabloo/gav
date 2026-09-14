@@ -10,7 +10,7 @@ Rectangle {
     property bool hasVideo: false
     property var videoOutput: null
     
-    width: 300
+    width: 320
     height: contentLayout.height + 20
     color: Qt.rgba(0, 0, 0, 0.7)
     radius: 8

@@ -3,7 +3,12 @@
 
 #include <QObject>
 #include <QTimer>
+#include <QElapsedTimer>
+#include <QMap>
+#include <memory>
 #include <QtQml/qqmlregistration.h>
+
+struct NvmlHandler;
 
 class SystemStats : public QObject {
     Q_OBJECT
@@ -17,6 +22,7 @@ class SystemStats : public QObject {
 
 public:
     explicit SystemStats(QObject *parent = nullptr);
+    ~SystemStats() override;
 
     QString cpuUsage() const;
     QString ramUsage() const;
@@ -30,12 +36,30 @@ private slots:
     void updateStats();
 
 private:
+    void updateCpuStats();
+    void updateRamStats();
+    void updateIoStats();
+    void updateGpuStats();
+
     QTimer *m_timer;
 
     QString m_cpuUsage = "0.0%";
     QString m_ramUsage = "0 MB / 0 MB";
     QString m_ioUsage = "N/A";
     QString m_gpuUsage = "N/A";
+
+    // IO stats tracking
+    bool m_hasLastIo = false;
+    unsigned long long m_lastReadBytes = 0;
+    unsigned long long m_lastWriteBytes = 0;
+    QElapsedTimer m_ioTimer;
+
+    // GPU stats tracking
+    std::unique_ptr<NvmlHandler> m_nvml;
+#ifdef Q_OS_LINUX
+    QMap<QString, unsigned long long> m_lastDrmEngineTime;
+    QElapsedTimer m_drmTimer;
+#endif
 
 #ifdef Q_OS_LINUX
     unsigned long long m_lastTotalUser = 0;
