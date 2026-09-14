@@ -37,12 +37,34 @@ Rectangle {
                 Layout.fillWidth: true
             }
             Button {
-                text: "\ue5cd" // close
-                font.family: "Material Symbols Outlined"
+                id: closeButton
+                text: "\ue5cd"
+                font.family: materialSymbolsOutlined.name
+                font.pixelSize: 16
                 flat: true
+                hoverEnabled: true
                 padding: 0
-                Layout.preferredWidth: 20
-                Layout.preferredHeight: 20
+                Layout.preferredWidth: 24
+                Layout.preferredHeight: 24
+
+                ToolTip.delay: AppConstants.tooltipDelay
+                ToolTip.text: qsTr("Close")
+                ToolTip.timeout: AppConstants.tooltipTimeout
+                ToolTip.visible: hovered
+
+                contentItem: Text {
+                    text: closeButton.text
+                    font: closeButton.font
+                    color: closeButton.hovered ? (Material.theme === Material.Dark ? "#ff6b6b" : "#e02424") : Material.foreground
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                background: Rectangle {
+                    color: closeButton.hovered ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
+                    radius: 4
+                }
+
                 onClicked: root.visible = false
             }
         }
