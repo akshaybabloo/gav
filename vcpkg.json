@@ -5,7 +5,7 @@
     "fmt",
     {
       "name": "spdlog",
-      "version>=": "1.16.0"
+      "version>=": "1.17.0"
     },
     "vulkan-headers",
     "gtest",
@@ -48,10 +48,6 @@
     }
   ],
   "overrides": [
-    {
-      "name": "fmt",
-      "version": "12.1.0"
-    },
     {
       "name": "ffmpeg",
       "version": "9.0.1"
