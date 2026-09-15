@@ -883,7 +883,7 @@ ApplicationWindow {
         anchors.right: parent.right
         anchors.top: mainWindow.visibility === Window.FullScreen ? parent.top : titleBar.bottom
         color: Material.background
-        visible: mediaComponent.path !== "" && !mediaComponent.mediaLoaded
+        visible: mediaComponent.path !== "" && !mediaComponent.mediaLoaded && !mediaComponent.hasError
         z: 50
 
         ColumnLayout {

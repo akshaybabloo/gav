@@ -18,7 +18,13 @@ Rectangle {
     border.width: 1
     
     visible: false
-    
+
+    Binding {
+        target: SystemStats
+        property: "active"
+        value: root.visible
+    }
+
     ColumnLayout {
         id: contentLayout
         anchors.left: parent.left

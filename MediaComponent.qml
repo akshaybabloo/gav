@@ -6,6 +6,8 @@ import gavqml
 Item {
     property alias audioOutput: audioOutput
     property bool controlsAreVisible: true
+    property string errorPath: ""
+    property bool hasError: errorPath !== "" && errorPath === path
     property bool isPlaying: false
     property bool isVideo: customMediaPlayer.hasVideo
     property bool isVideoAndPlaying: isVideo && isPlaying
@@ -26,6 +28,7 @@ Item {
 
         onErrorOccurred: function (errorString) {
             console.log("MediaPlayer error:", errorString);
+            errorPath = path;
             playbackErrorDialog.open();
         }
         onPlaybackStateChanged: function (state) {
