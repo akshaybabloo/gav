@@ -8,45 +8,55 @@
       "version>=": "1.17.0"
     },
     "vulkan-headers",
-    "gtest",
-    {
-      "name": "ffmpeg",
-      "default-features": false,
-      "features": [
-        "avcodec",
-        "avformat",
-        "avfilter",
-        "avdevice",
-        "swresample",
-        "swscale",
-        "vulkan"
-      ]
-    },
-    {
-      "name": "ffmpeg",
-      "default-features": false,
-      "features": [
-        "vaapi"
-      ],
-      "platform": "linux"
-    },
-    {
-      "name": "ffmpeg",
-      "default-features": false,
-      "features": [
-        "nvcodec"
-      ],
-      "platform": "linux | (!osx & !uwp & !(arm64 & windows))"
-    },
-    {
-      "name": "ffmpeg",
-      "default-features": false,
-      "features": [
-        "qsv"
-      ],
-      "platform": "(x64 | x86) & (windows | linux) & !uwp"
-    }
+    "gtest"
   ],
+  "default-features": [
+    "ffmpeg"
+  ],
+  "features": {
+    "ffmpeg": {
+      "description": "FFmpeg for the custom Qt multimedia plugin and the About dialog version string",
+      "dependencies": [
+        {
+          "name": "ffmpeg",
+          "default-features": false,
+          "features": [
+            "avcodec",
+            "avformat",
+            "avfilter",
+            "avdevice",
+            "swresample",
+            "swscale",
+            "vulkan"
+          ]
+        },
+        {
+          "name": "ffmpeg",
+          "default-features": false,
+          "features": [
+            "vaapi"
+          ],
+          "platform": "linux"
+        },
+        {
+          "name": "ffmpeg",
+          "default-features": false,
+          "features": [
+            "nvcodec"
+          ],
+          "platform": "linux | (!osx & !uwp & !(arm64 & windows))"
+        },
+        {
+          "name": "ffmpeg",
+          "default-features": false,
+          "features": [
+            "qsv"
+          ],
+          "platform": "(x64 | x86) & (windows | linux) & !uwp"
+        }
+      ]
+    }
+  },
   "overrides": [
     {
       "name": "ffmpeg",
