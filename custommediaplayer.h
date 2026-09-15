@@ -138,6 +138,7 @@ private:
   int m_droppedFrames = 0;
   int m_droppedFramesBase = 0;
   bool m_skipDropTick = true;
+  int m_probedAudioTrack = -1;
 };
 
 #endif // CUSTOMMEDIAPLAYER_H

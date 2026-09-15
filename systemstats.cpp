@@ -5,7 +5,12 @@
 #include <QFile>
 #include <QGuiApplication>
 #include <QDir>
+#include <QElapsedTimer>
+#include <QHash>
 #include <QLibrary>
+#include <QThread>
+#include <QTimer>
+#include <memory>
 #include <vector>
 
 #ifdef Q_OS_WIN
@@ -301,73 +306,92 @@ static qint64 processCpuTimeNs() {
 #endif
 }
 
-SystemStats::SystemStats(QObject *parent)
-    : QObject(parent) {
-    m_timer = new QTimer(this);
-    m_timer->setInterval(1000);
-    connect(m_timer, &QTimer::timeout, this, &SystemStats::updateStats);
-}
+struct SystemStatsSnapshot {
+    int generation = 0;
+    QString cpuUsage = "N/A";
+    QString ramUsage = "N/A";
+    QString ioUsage = "N/A";
+    QString gpuUsage = "N/A";
+    QString gpuMemory = "N/A";
+    QString threadCount = "N/A";
+    double cpuPercent = -1.0;
+    double gpuPercent = -1.0;
+};
 
-SystemStats::~SystemStats() = default;
+class SystemStatsSampler : public QObject {
+public:
+    explicit SystemStatsSampler(SystemStats *owner) : m_owner(owner) {}
 
-bool SystemStats::active() const { return m_active; }
-
-void SystemStats::setActive(bool active) {
-    if (m_active == active) {
-        return;
-    }
-    m_active = active;
-    if (m_active) {
+    void start(int generation) {
+        if (!m_timer) {
+            m_timer = new QTimer(this);
+            m_timer->setInterval(1000);
+            connect(m_timer, &QTimer::timeout, this, [this] { sample(); });
+        }
         if (!m_nvml) {
             m_nvml = std::make_unique<NvmlHandler>();
         }
-        resetSamples();
-        updateStats();
+        m_values = SystemStatsSnapshot();
+        m_values.generation = generation;
+        m_cpuTimer.invalidate();
+        m_ioTimer.invalidate();
+#ifdef Q_OS_LINUX
+        m_lastDrmEngineTime.clear();
+        m_drmTimer.invalidate();
+#endif
+        sample();
         m_timer->start();
-    } else {
-        m_timer->stop();
+    }
+
+    void stop() {
+        if (m_timer) {
+            m_timer->stop();
+        }
         m_nvml.reset();
     }
-    emit activeChanged();
-}
 
-QString SystemStats::cpuUsage() const { return m_cpuUsage; }
-QString SystemStats::ramUsage() const { return m_ramUsage; }
-QString SystemStats::ioUsage() const { return m_ioUsage; }
-QString SystemStats::gpuUsage() const { return m_gpuUsage; }
-QString SystemStats::gpuMemory() const { return m_gpuMemory; }
-QString SystemStats::threadCount() const { return m_threadCount; }
-double SystemStats::cpuPercent() const { return m_cpuPercent; }
-double SystemStats::gpuPercent() const { return m_gpuPercent; }
-
-void SystemStats::copyToClipboard(const QString &text) const {
-    if (QClipboard *clipboard = QGuiApplication::clipboard()) {
-        clipboard->setText(text);
+private:
+    void sample() {
+        updateCpuStats();
+        updateRamStats();
+        updateIoStats();
+        updateGpuStats();
+        updateThreadStats();
+        QMetaObject::invokeMethod(m_owner, [owner = m_owner, values = m_values] { owner->applySnapshot(values); }, Qt::QueuedConnection);
     }
-}
 
-void SystemStats::resetSamples() {
-    m_cpuUsage = "N/A";
-    m_ramUsage = "N/A";
-    m_ioUsage = "N/A";
-    m_gpuUsage = "N/A";
-    m_gpuMemory = "N/A";
-    m_threadCount = "N/A";
-    m_cpuPercent = -1.0;
-    m_gpuPercent = -1.0;
-    m_cpuTimer.invalidate();
-    m_ioTimer.invalidate();
+    void updateCpuStats();
+    void updateRamStats();
+    void updateIoStats();
+    void updateGpuStats();
+    void updateThreadStats();
 #ifdef Q_OS_LINUX
-    m_lastDrmEngineTime.clear();
-    m_drmTimer.invalidate();
+    void updateDrmStats(double &usage, qint64 &memoryBytes);
 #endif
-}
 
-void SystemStats::updateCpuStats() {
+    SystemStats *m_owner;
+    QTimer *m_timer = nullptr;
+    SystemStatsSnapshot m_values;
+
+    qint64 m_lastCpuNs = 0;
+    QElapsedTimer m_cpuTimer;
+
+    unsigned long long m_lastReadBytes = 0;
+    unsigned long long m_lastWriteBytes = 0;
+    QElapsedTimer m_ioTimer;
+
+    std::unique_ptr<NvmlHandler> m_nvml;
+#ifdef Q_OS_LINUX
+    QHash<QByteArray, unsigned long long> m_lastDrmEngineTime;
+    QElapsedTimer m_drmTimer;
+#endif
+};
+
+void SystemStatsSampler::updateCpuStats() {
     const qint64 cpuNs = processCpuTimeNs();
     if (cpuNs < 0) {
-        m_cpuUsage = "N/A";
-        m_cpuPercent = -1.0;
+        m_values.cpuUsage = "N/A";
+        m_values.cpuPercent = -1.0;
         return;
     }
 
@@ -376,13 +400,13 @@ void SystemStats::updateCpuStats() {
     m_cpuTimer.start();
 
     if (hasBaseline && elapsedNs > 0 && cpuNs >= m_lastCpuNs) {
-        m_cpuPercent = static_cast<double>(cpuNs - m_lastCpuNs) * 100.0 / static_cast<double>(elapsedNs);
-        m_cpuUsage = QString::number(m_cpuPercent, 'f', 1) + "%";
+        m_values.cpuPercent = static_cast<double>(cpuNs - m_lastCpuNs) * 100.0 / static_cast<double>(elapsedNs);
+        m_values.cpuUsage = QString::number(m_values.cpuPercent, 'f', 1) + "%";
     }
     m_lastCpuNs = cpuNs;
 }
 
-void SystemStats::updateRamStats() {
+void SystemStatsSampler::updateRamStats() {
     unsigned long long residentBytes = 0;
 
 #if defined(Q_OS_LINUX)
@@ -403,13 +427,13 @@ void SystemStats::updateRamStats() {
 #endif
 
     if (residentBytes > 0) {
-        m_ramUsage = QString::number(residentBytes / (1024.0 * 1024.0), 'f', 1) + " MB";
+        m_values.ramUsage = QString::number(residentBytes / (1024.0 * 1024.0), 'f', 1) + " MB";
     } else {
-        m_ramUsage = "N/A";
+        m_values.ramUsage = "N/A";
     }
 }
 
-void SystemStats::updateIoStats() {
+void SystemStatsSampler::updateIoStats() {
     unsigned long long currentRead = 0;
     unsigned long long currentWrite = 0;
     bool ioAvailable = false;
@@ -443,7 +467,7 @@ void SystemStats::updateIoStats() {
 #endif
 
     if (!ioAvailable) {
-        m_ioUsage = "N/A";
+        m_values.ioUsage = "N/A";
         m_ioTimer.invalidate();
         return;
     }
@@ -456,14 +480,14 @@ void SystemStats::updateIoStats() {
         const double elapsedSec = static_cast<double>(elapsedNs) / 1e9;
         const double readRate = currentRead >= m_lastReadBytes ? (currentRead - m_lastReadBytes) / elapsedSec : 0.0;
         const double writeRate = currentWrite >= m_lastWriteBytes ? (currentWrite - m_lastWriteBytes) / elapsedSec : 0.0;
-        m_ioUsage = QString("R: %1 | W: %2").arg(formatBytesPerSec(readRate), formatBytesPerSec(writeRate));
+        m_values.ioUsage = QString("R: %1 | W: %2").arg(formatBytesPerSec(readRate), formatBytesPerSec(writeRate));
     }
     m_lastReadBytes = currentRead;
     m_lastWriteBytes = currentWrite;
 }
 
 #ifdef Q_OS_LINUX
-void SystemStats::updateDrmStats(double &usage, qint64 &memoryBytes) {
+void SystemStatsSampler::updateDrmStats(double &usage, qint64 &memoryBytes) {
     usage = -1.0;
     memoryBytes = -1;
 
@@ -551,7 +575,7 @@ void SystemStats::updateDrmStats(double &usage, qint64 &memoryBytes) {
 }
 #endif
 
-void SystemStats::updateGpuStats() {
+void SystemStatsSampler::updateGpuStats() {
     double usage = -1.0;
     qint64 memoryBytes = -1;
 
@@ -568,12 +592,12 @@ void SystemStats::updateGpuStats() {
         }
     }
 
-    m_gpuPercent = usage;
-    m_gpuUsage = usage >= 0.0 ? QString::number(usage, 'f', 1) + "%" : "N/A";
-    m_gpuMemory = memoryBytes >= 0 ? formatBytes(memoryBytes) : "N/A";
+    m_values.gpuPercent = usage;
+    m_values.gpuUsage = usage >= 0.0 ? QString::number(usage, 'f', 1) + "%" : "N/A";
+    m_values.gpuMemory = memoryBytes >= 0 ? formatBytes(memoryBytes) : "N/A";
 }
 
-void SystemStats::updateThreadStats() {
+void SystemStatsSampler::updateThreadStats() {
     int count = -1;
 
 #if defined(Q_OS_LINUX)
@@ -615,15 +639,72 @@ void SystemStats::updateThreadStats() {
     }
 #endif
 
-    m_threadCount = count >= 0 ? QString::number(count) : "N/A";
+    m_values.threadCount = count >= 0 ? QString::number(count) : "N/A";
 }
 
-void SystemStats::updateStats() {
-    updateCpuStats();
-    updateRamStats();
-    updateIoStats();
-    updateGpuStats();
-    updateThreadStats();
+SystemStats::SystemStats(QObject *parent)
+    : QObject(parent) {
+}
 
+SystemStats::~SystemStats() {
+    if (m_thread) {
+        m_thread->quit();
+        m_thread->wait();
+    }
+}
+
+bool SystemStats::active() const { return m_active; }
+
+void SystemStats::setActive(bool active) {
+    if (m_active == active) {
+        return;
+    }
+    m_active = active;
+    const int generation = ++m_generation;
+
+    if (m_active) {
+        applySnapshot(SystemStatsSnapshot{generation});
+        if (!m_thread) {
+            m_thread = new QThread(this);
+            m_thread->setObjectName("SystemStats");
+            m_sampler = new SystemStatsSampler(this);
+            m_sampler->moveToThread(m_thread);
+            connect(m_thread, &QThread::finished, m_sampler, &QObject::deleteLater);
+            m_thread->start(QThread::LowPriority);
+        }
+        QMetaObject::invokeMethod(m_sampler, [sampler = m_sampler, generation] { sampler->start(generation); }, Qt::QueuedConnection);
+    } else {
+        QMetaObject::invokeMethod(m_sampler, [sampler = m_sampler] { sampler->stop(); }, Qt::QueuedConnection);
+    }
+    emit activeChanged();
+}
+
+void SystemStats::applySnapshot(const SystemStatsSnapshot &snapshot) {
+    if (!m_active || snapshot.generation != m_generation) {
+        return;
+    }
+    m_cpuUsage = snapshot.cpuUsage;
+    m_ramUsage = snapshot.ramUsage;
+    m_ioUsage = snapshot.ioUsage;
+    m_gpuUsage = snapshot.gpuUsage;
+    m_gpuMemory = snapshot.gpuMemory;
+    m_threadCount = snapshot.threadCount;
+    m_cpuPercent = snapshot.cpuPercent;
+    m_gpuPercent = snapshot.gpuPercent;
     emit statsUpdated();
+}
+
+QString SystemStats::cpuUsage() const { return m_cpuUsage; }
+QString SystemStats::ramUsage() const { return m_ramUsage; }
+QString SystemStats::ioUsage() const { return m_ioUsage; }
+QString SystemStats::gpuUsage() const { return m_gpuUsage; }
+QString SystemStats::gpuMemory() const { return m_gpuMemory; }
+QString SystemStats::threadCount() const { return m_threadCount; }
+double SystemStats::cpuPercent() const { return m_cpuPercent; }
+double SystemStats::gpuPercent() const { return m_gpuPercent; }
+
+void SystemStats::copyToClipboard(const QString &text) const {
+    if (QClipboard *clipboard = QGuiApplication::clipboard()) {
+        clipboard->setText(text);
+    }
 }

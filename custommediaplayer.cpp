@@ -196,8 +196,9 @@ void CustomMediaPlayer::onFpsTick() {
 
   const int frames = m_frameCount;
   m_frameCount = 0;
-  if (m_fps != frames) {
-    m_fps = frames;
+  const qreal fps = elapsedNs > 0 ? qRound(frames * 1e9 / static_cast<double>(elapsedNs)) : frames;
+  if (m_fps != fps) {
+    m_fps = fps;
     emit fpsChanged();
   }
 
@@ -223,6 +224,7 @@ void CustomMediaPlayer::resetDroppedFrameWindow() {
   if (!m_statsEnabled)
     return;
   m_droppedFramesBase = m_droppedFrames;
+  m_frameCount = 0;
   m_expectedFrames = 0;
   m_shownFrames = 0;
   m_skipDropTick = true;
@@ -237,6 +239,7 @@ void CustomMediaPlayer::resetPlaybackStats() {
 
   m_droppedFrames = 0;
   m_droppedFramesBase = 0;
+  m_probedAudioTrack = -1;
   resetDroppedFrameWindow();
 
   if (m_mediaPlayer->audioBufferOutput()) {
@@ -313,9 +316,11 @@ void CustomMediaPlayer::updateMediaInfo() {
     }
   }
 
-  for (const char *key : {"sampleRate", "channels"}) {
-    if (m_mediaInfo.contains(key)) {
-      info.insert(key, m_mediaInfo.value(key));
+  if (m_probedAudioTrack == audioIndex) {
+    for (const char *key : {"sampleRate", "channels"}) {
+      if (m_mediaInfo.contains(key)) {
+        info.insert(key, m_mediaInfo.value(key));
+      }
     }
   }
 
@@ -383,6 +388,7 @@ void CustomMediaPlayer::onAudioBufferReceived(const QAudioBuffer &buffer) {
   if (!m_mediaPlayer->audioBufferOutput() || !format.isValid() || m_mediaInfo.contains("sampleRate"))
     return;
 
+  m_probedAudioTrack = m_mediaPlayer->activeAudioTrack();
   m_mediaInfo.insert("sampleRate", format.sampleRate());
   m_mediaInfo.insert("channels", format.channelCount());
   emit mediaInfoChanged();

@@ -2,13 +2,12 @@
 #define SYSTEMSTATS_H
 
 #include <QObject>
-#include <QTimer>
-#include <QElapsedTimer>
-#include <QHash>
-#include <memory>
+#include <QString>
 #include <QtQml/qqmlregistration.h>
 
-struct NvmlHandler;
+class QThread;
+class SystemStatsSampler;
+struct SystemStatsSnapshot;
 
 class SystemStats : public QObject {
     Q_OBJECT
@@ -47,22 +46,15 @@ signals:
     void activeChanged();
     void statsUpdated();
 
-private slots:
-    void updateStats();
-
 private:
-    void resetSamples();
-    void updateCpuStats();
-    void updateRamStats();
-    void updateIoStats();
-    void updateGpuStats();
-    void updateThreadStats();
-#ifdef Q_OS_LINUX
-    void updateDrmStats(double &usage, qint64 &memoryBytes);
-#endif
+    friend class SystemStatsSampler;
 
-    QTimer *m_timer;
+    void applySnapshot(const SystemStatsSnapshot &snapshot);
+
+    QThread *m_thread = nullptr;
+    SystemStatsSampler *m_sampler = nullptr;
     bool m_active = false;
+    int m_generation = 0;
 
     QString m_cpuUsage = "N/A";
     QString m_ramUsage = "N/A";
@@ -72,19 +64,6 @@ private:
     QString m_threadCount = "N/A";
     double m_cpuPercent = -1.0;
     double m_gpuPercent = -1.0;
-
-    qint64 m_lastCpuNs = 0;
-    QElapsedTimer m_cpuTimer;
-
-    unsigned long long m_lastReadBytes = 0;
-    unsigned long long m_lastWriteBytes = 0;
-    QElapsedTimer m_ioTimer;
-
-    std::unique_ptr<NvmlHandler> m_nvml;
-#ifdef Q_OS_LINUX
-    QHash<QByteArray, unsigned long long> m_lastDrmEngineTime;
-    QElapsedTimer m_drmTimer;
-#endif
 };
 
 #endif // SYSTEMSTATS_H

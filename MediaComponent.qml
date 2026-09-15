@@ -19,6 +19,11 @@ Item {
     signal stopped
     signal fullscreenToggleRequested
 
+    onPathChanged: {
+        if (path === "")
+            errorPath = "";
+    }
+
     CustomMediaPlayer {
         id: customMediaPlayer
 
