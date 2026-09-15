@@ -280,6 +280,9 @@ Dialog {
                 Text { color: Material.foreground; opacity: 0.5; text: "Ctrl+Scroll" }
                 Text { color: Material.foreground; opacity: 0.7; text: qsTr("Zoom") }
 
+                Text { color: Material.foreground; opacity: 0.5; text: "I" }
+                Text { color: Material.foreground; opacity: 0.7; text: qsTr("Stats for nerds") }
+
                 Text { color: Material.foreground; opacity: 0.5; text: "Double-click" }
                 Text { color: Material.foreground; opacity: 0.7; text: qsTr("Fullscreen") }
             }

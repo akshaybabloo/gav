@@ -1,9 +1,13 @@
 #ifndef CUSTOMMEDIAPLAYER_H
 #define CUSTOMMEDIAPLAYER_H
 
+#include <QAudioBuffer>
+#include <QAudioBufferOutput>
 #include <QAudioOutput>
+#include <QElapsedTimer>
 #include <QMediaPlayer>
 #include <QMediaMetaData>
+#include <QPointer>
 #include <QQuickItem>
 #include <QTimer>
 #include <QUrl>
@@ -23,6 +27,9 @@ class CustomMediaPlayer : public QQuickItem {
   Q_PROPERTY(bool mediaLoaded READ mediaLoaded NOTIFY mediaLoadedChanged)
   Q_PROPERTY(qreal playbackRate READ playbackRate WRITE setPlaybackRate NOTIFY playbackRateChanged)
   Q_PROPERTY(qreal fps READ fps NOTIFY fpsChanged)
+  Q_PROPERTY(bool statsEnabled READ statsEnabled WRITE setStatsEnabled NOTIFY statsEnabledChanged)
+  Q_PROPERTY(QVariantMap mediaInfo READ mediaInfo NOTIFY mediaInfoChanged)
+  Q_PROPERTY(QVariantMap frameInfo READ frameInfo NOTIFY frameInfoChanged)
 
 public:
   CustomMediaPlayer();
@@ -59,6 +66,12 @@ public:
 
   qreal fps() const;
 
+  bool statsEnabled() const;
+  void setStatsEnabled(bool enabled);
+
+  QVariantMap mediaInfo() const;
+  QVariantMap frameInfo() const;
+
 signals:
   void sourceChanged();
   void videoOutputChanged();
@@ -72,6 +85,9 @@ signals:
   void mediaLoadedChanged();
   void playbackRateChanged();
   void fpsChanged();
+  void statsEnabledChanged();
+  void mediaInfoChanged();
+  void frameInfoChanged();
   void videoVisibilityChanged(bool visible);
   void frameCaptured(bool success, const QString &path);
   void previewReady(qint64 position, const QString &imageDataUrl);
@@ -88,6 +104,14 @@ private:
   void resetPreviewPlayer();
   void startPreviewCapture(qint64 position);
   void clearMainVideoFrame();
+  void onFpsTick();
+  void updateFrameCounting();
+  void resetDroppedFrameWindow();
+  void resetPlaybackStats();
+  void updateMediaInfo();
+  void updateFrameInfo();
+  void updateAudioProbe();
+  void onAudioBufferReceived(const QAudioBuffer &buffer);
 
   QMediaPlayer *m_mediaPlayer;
   QMediaPlayer *m_previewPlayer = nullptr;
@@ -101,6 +125,19 @@ private:
   int m_frameCount = 0;
   QTimer *m_fpsTimer = nullptr;
   QMetaObject::Connection m_frameChangedConnection;
+  QPointer<QVideoSink> m_videoSink;
+  QElapsedTimer m_fpsElapsed;
+
+  bool m_statsEnabled = false;
+  QVariantMap m_mediaInfo;
+  QVariantMap m_frameInfo;
+  QAudioBufferOutput *m_audioBufferOutput = nullptr;
+
+  double m_expectedFrames = 0;
+  qint64 m_shownFrames = 0;
+  int m_droppedFrames = 0;
+  int m_droppedFramesBase = 0;
+  bool m_skipDropTick = true;
 };
 
 #endif // CUSTOMMEDIAPLAYER_H

@@ -871,6 +871,12 @@ ApplicationWindow {
                 mediaComponent.mediaPlayer.position = Math.min(mediaComponent.mediaPlayer.duration, mediaComponent.mediaPlayer.position + AppConstants.seekStep);
             }
         }
+        Shortcut {
+            enabled: mediaComponent.isVideo || nerdStats.visible
+            sequence: "I"
+
+            onActivated: nerdStats.visible = !nerdStats.visible
+        }
     }
     ListModel {
         id: playList
@@ -936,7 +942,10 @@ ApplicationWindow {
         anchors.margins: 20
         z: 90
         
+        audioOutput: mediaComponent.audioOutput
         hasVideo: mediaComponent.isVideo
+        maximumHeight: mediaComponent.height - 40
+        player: mediaComponent.mediaPlayer
         videoOutput: mediaComponent.videoOutput
     }
     

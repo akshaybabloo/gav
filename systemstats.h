@@ -20,6 +20,10 @@ class SystemStats : public QObject {
     Q_PROPERTY(QString ramUsage READ ramUsage NOTIFY statsUpdated)
     Q_PROPERTY(QString ioUsage READ ioUsage NOTIFY statsUpdated)
     Q_PROPERTY(QString gpuUsage READ gpuUsage NOTIFY statsUpdated)
+    Q_PROPERTY(QString gpuMemory READ gpuMemory NOTIFY statsUpdated)
+    Q_PROPERTY(QString threadCount READ threadCount NOTIFY statsUpdated)
+    Q_PROPERTY(double cpuPercent READ cpuPercent NOTIFY statsUpdated)
+    Q_PROPERTY(double gpuPercent READ gpuPercent NOTIFY statsUpdated)
 
 public:
     explicit SystemStats(QObject *parent = nullptr);
@@ -32,6 +36,12 @@ public:
     QString ramUsage() const;
     QString ioUsage() const;
     QString gpuUsage() const;
+    QString gpuMemory() const;
+    QString threadCount() const;
+    double cpuPercent() const;
+    double gpuPercent() const;
+
+    Q_INVOKABLE void copyToClipboard(const QString &text) const;
 
 signals:
     void activeChanged();
@@ -46,8 +56,9 @@ private:
     void updateRamStats();
     void updateIoStats();
     void updateGpuStats();
+    void updateThreadStats();
 #ifdef Q_OS_LINUX
-    double drmGpuUsage();
+    void updateDrmStats(double &usage, qint64 &memoryBytes);
 #endif
 
     QTimer *m_timer;
@@ -57,6 +68,10 @@ private:
     QString m_ramUsage = "N/A";
     QString m_ioUsage = "N/A";
     QString m_gpuUsage = "N/A";
+    QString m_gpuMemory = "N/A";
+    QString m_threadCount = "N/A";
+    double m_cpuPercent = -1.0;
+    double m_gpuPercent = -1.0;
 
     qint64 m_lastCpuNs = 0;
     QElapsedTimer m_cpuTimer;

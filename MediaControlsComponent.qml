@@ -111,7 +111,7 @@ Item {
                     player.play();
                 } else {
                     seekBar.resetPreview();
-                    if (playlistCurrentIndex >= 0 && playlistCurrentIndex < playlistCount - 1) {
+                    if (!player.statsEnabled && playlistCurrentIndex >= 0 && playlistCurrentIndex < playlistCount - 1) {
                         nextTrack();
                     }
                 }
@@ -555,7 +555,7 @@ Item {
 
                         ToolTip {
                             delay: AppConstants.tooltipDelay
-                            text: qsTr("Stats for nerds")
+                            text: qsTr("Stats for nerds (I)")
                             timeout: AppConstants.tooltipTimeout
                             visible: nerdStatsButton.hovered
                         }
