@@ -4,21 +4,34 @@ on:
   push:
     branches: ["main"]
     tags: ["v*", "*.*.*"]
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - "renovate.json"
   pull_request:
     branches: ["main"]
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - "renovate.json"
+  schedule:
+    - cron: "0 18 */5 * *"
   workflow_dispatch:
 
 permissions:
-  contents: write
-  packages: write
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  VCPKG_COMMIT: 4b6825283f814d7f522aafd11990454ed39e9983
 
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     env:
-      # Point vcpkg's binary cache at a workspace-local dir so actions/cache can pick it up cross-platform.
-      # (The old x-gha backend was removed from vcpkg; NuGet-based caching is heavier setup, so we use the plain
-      # file cache backed by actions/cache.)
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg-bincache
     strategy:
 #      fail-fast: true
@@ -28,18 +41,26 @@ jobs:
             artifact: 'qt6.11.1-essentials'
             modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia qt.qt6.6111.addons.qtquick3d'
             qt_tag: 'v6.11.1'
+            triplet: 'x64-linux-release'
+            host_triplet: 'x64-linux-release'
           - os: windows-latest
             artifact: 'qt6.11.1-msvc2022-essentials'
             modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia qt.qt6.6111.addons.qtquick3d'
             qt_tag: 'v6.11.1'
+            triplet: 'x64-windows-static-md-release'
+            host_triplet: 'x64-windows'
           - os: macos-latest
             artifact: 'qt6.11.1-essentials'
             modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia qt.qt6.6111.addons.qtquick3d'
             qt_tag: 'v6.11.1'
+            triplet: 'arm64-osx-release'
+            host_triplet: 'arm64-osx-release'
           - os: ubuntu-24.04-arm
             artifact: 'qt6.11.1-essentials'
             modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia qt.qt6.6111.addons.qtquick3d'
             qt_tag: 'v6.11.1'
+            triplet: 'arm64-linux-release'
+            host_triplet: 'arm64-linux-release'
 
     steps:
       - uses: actions/checkout@v7
@@ -49,13 +70,14 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: microsoft/vcpkg
+          ref: ${{ env.VCPKG_COMMIT }}
           path: vcpkg
 
       - uses: TheMrMilchmann/setup-msvc-dev@v4
         if: startsWith(matrix.os, 'windows-')
         with:
           arch: x64
-      
+
       - uses: repolevedavaj/install-nsis@v1.3.0
         if: startsWith(matrix.os, 'windows-')
         with:
@@ -100,19 +122,35 @@ jobs:
         with:
           cmake-version: "4.4.x"
 
-      - name: Prepare vcpkg binary cache dir
-        run: mkdir -p "${{ github.workspace }}/vcpkg-bincache"
+      - name: Compute cache keys
+        id: keys
+        run: |
+          set -euo pipefail
+          sha() { if command -v sha256sum >/dev/null; then sha256sum; else shasum -a 256; fi; }
+          FFMPEG=$(jq -cS '{feature: .features.ffmpeg, overrides: [.overrides[]? | select(.name == "ffmpeg")]}' vcpkg.json | tr -d '\r' | sha | cut -c1-16)
+          echo "ffmpeg=$FFMPEG" >> "$GITHUB_OUTPUT"
         shell: bash
 
-      - name: Cache vcpkg binary artifacts
-        uses: actions/cache@v6
+      - name: Restore custom qtmultimedia plugin
+        id: cache-qtmm
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ github.workspace }}/qtmm-sandbox
+          key: qtmm-${{ matrix.os }}-${{ matrix.triplet }}-${{ matrix.qt_tag }}-${{ matrix.artifact }}-${{ env.VCPKG_COMMIT }}-${{ steps.keys.outputs.ffmpeg }}-${{ hashFiles('support/qtmultimedia-*.patch') }}-v3
+
+      - name: Prepare vcpkg binary cache dir
+        run: mkdir -p vcpkg-bincache
+        shell: bash
+
+      - name: Restore vcpkg binary cache
+        uses: actions/cache/restore@v6
         with:
           path: ${{ github.workspace }}/vcpkg-bincache
-          # Keyed on vcpkg.json + vcpkg-configuration.json so any dep, feature, or baseline bump invalidates.
-          # restore-keys lets a new hash still recover partial hits from the previous key on the same OS.
-          key: vcpkg-${{ matrix.os }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}-v1
+          key: vcpkg-${{ matrix.os }}-${{ matrix.triplet }}-${{ env.VCPKG_COMMIT }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            vcpkg-${{ matrix.os }}-
+            vcpkg-${{ matrix.os }}-${{ matrix.triplet }}-${{ env.VCPKG_COMMIT }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}-
+            vcpkg-${{ matrix.os }}-${{ matrix.triplet }}-${{ env.VCPKG_COMMIT }}-
+            vcpkg-${{ matrix.os }}-${{ matrix.triplet }}-
 
       - name: Bootstrap vcpkg (Windows)
         if: startsWith(matrix.os, 'windows-')
@@ -124,26 +162,36 @@ jobs:
         run: ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
         shell: bash
 
-      - name: Run vcpkg install (Windows)
-        # Use x64-windows-static-md: static library linkage (FFmpeg baked into the plugin DLL) with dynamic CRT (/MD)
-        # to match Qt's own build. Plain x64-windows-static uses /MT and collides with Qt's /MD at link time.
-        if: startsWith(matrix.os, 'windows-')
-        run: ./vcpkg/vcpkg install --triplet=x64-windows-static-md
+      - name: Run vcpkg install
+        id: vcpkg
+        run: |
+          set -euo pipefail
+          find vcpkg-bincache -name '*.zip' | sort > "$RUNNER_TEMP/bincache-before.txt"
+          ARGS=(--triplet="${{ matrix.triplet }}" --host-triplet="${{ matrix.host_triplet }}")
+          if [[ "${{ steps.cache-qtmm.outputs.cache-hit }}" == "true" ]]; then
+            ARGS+=(--x-no-default-features)
+          fi
+          ./vcpkg/vcpkg install "${ARGS[@]}"
+          find vcpkg-bincache -name '*.zip' | sort > "$RUNNER_TEMP/bincache-after.txt"
+          if [[ "$(cat "$RUNNER_TEMP/bincache-before.txt")" == "$(cat "$RUNNER_TEMP/bincache-after.txt")" ]]; then
+            exit 0
+          fi
+          if [[ "${{ steps.cache-qtmm.outputs.cache-hit }}" != "true" ]]; then
+            sha() { if command -v sha256sum >/dev/null; then sha256sum; else shasum -a 256; fi; }
+            for f in vcpkg_installed/*/share/*/vcpkg_abi_info.txt; do sha < "$f" | cut -d' ' -f1; done > "$RUNNER_TEMP/abi-keep.txt"
+            if [[ -s "$RUNNER_TEMP/abi-keep.txt" ]]; then
+              { grep -vFf "$RUNNER_TEMP/abi-keep.txt" "$RUNNER_TEMP/bincache-after.txt" || true; } | while read -r f; do rm -f "$f"; done
+            fi
+          fi
+          echo "save=true" >> "$GITHUB_OUTPUT"
         shell: bash
 
-      - name: Run vcpkg install (Linux/macOS)
-        if: startsWith(matrix.os, 'ubuntu-') || startsWith(matrix.os, 'macos-')
-        run: ./vcpkg/vcpkg install
-        shell: bash
-
-      - name: Cache custom qtmultimedia plugin
-        id: cache-qtmm
-        uses: actions/cache@v6
+      - name: Save vcpkg binary cache
+        if: steps.vcpkg.outputs.save == 'true'
+        uses: actions/cache/save@v6
         with:
-          path: ${{ github.workspace }}/qtmm-sandbox
-          # Bump the trailing -vN to invalidate on demand. Auto-busts when the matrix Qt tag, Qt installer artifact,
-          # FFmpeg pin in vcpkg.json, or any qtmultimedia patch changes.
-          key: qtmm-${{ matrix.os }}-${{ matrix.qt_tag }}-${{ matrix.artifact }}-${{ hashFiles('vcpkg.json', 'support/qtmultimedia-*.patch') }}-v2
+          path: ${{ github.workspace }}/vcpkg-bincache
+          key: vcpkg-${{ matrix.os }}-${{ matrix.triplet }}-${{ env.VCPKG_COMMIT }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Build custom qtmultimedia plugin (Linux/macOS)
         if: steps.cache-qtmm.outputs.cache-hit != 'true' && (startsWith(matrix.os, 'ubuntu-') || startsWith(matrix.os, 'macos-'))
@@ -162,6 +210,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_INSTALLED_DIR="${{ github.workspace }}/vcpkg_installed" \
+            -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} \
             -DQT_DEPLOY_FFMPEG=OFF \
             -DFEATURE_ffmpeg=ON \
             -DFEATURE_spatialaudio=ON
@@ -182,7 +231,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_TOOLCHAIN_FILE="$env:GITHUB_WORKSPACE\vcpkg\scripts\buildsystems\vcpkg.cmake" `
             -DVCPKG_INSTALLED_DIR="$env:GITHUB_WORKSPACE\vcpkg_installed" `
-            -DVCPKG_TARGET_TRIPLET=x64-windows-static-md `
+            -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} `
             -DCMAKE_CXX_FLAGS="/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS" `
             -DQT_DEPLOY_FFMPEG=OFF `
             -DFEATURE_ffmpeg=ON `
@@ -190,6 +239,21 @@ jobs:
           cmake --build "$env:GITHUB_WORKSPACE\qtmm-src\build"
           cmake --install "$env:GITHUB_WORKSPACE\qtmm-src\build"
         shell: pwsh
+
+      - name: Stash FFmpeg version header
+        if: steps.cache-qtmm.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          mkdir -p qtmm-sandbox/ffmpeg-include/libavutil
+          cp "vcpkg_installed/${{ matrix.triplet }}/include/libavutil/ffversion.h" qtmm-sandbox/ffmpeg-include/libavutil/
+        shell: bash
+
+      - name: Save custom qtmultimedia plugin
+        if: steps.cache-qtmm.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ github.workspace }}/qtmm-sandbox
+          key: ${{ steps.cache-qtmm.outputs.cache-primary-key }}
 
       - name: Locate custom qtmultimedia plugin
         id: qtmm-plugin
@@ -207,6 +271,7 @@ jobs:
             exit 1
           fi
           echo "plugin=$PLUGIN" >> "$GITHUB_OUTPUT"
+          echo "ffmpeg_include=${{ github.workspace }}/qtmm-sandbox/ffmpeg-include" >> "$GITHUB_OUTPUT"
           echo "Custom qtmultimedia plugin: $PLUGIN"
         shell: bash
 
@@ -229,12 +294,12 @@ jobs:
 
       - name: Configure CMake (Windows)
         if: startsWith(matrix.os, 'windows-')
-        run: cmake -B build -S . -DGAV_VERSION="${{ steps.version.outputs.version }}" -DCMAKE_TOOLCHAIN_FILE=${{env.QT_ROOT_DIR}}/lib/cmake/Qt6/qt.toolchain.cmake -DX_VCPKG_APPLOCAL_DEPS_INSTALL:BOOL=ON -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-static-md -DGAV_QTMULTIMEDIA_PLUGIN="${{ steps.qtmm-plugin.outputs.plugin }}" -DCMAKE_BUILD_TYPE=Release -GNinja
+        run: cmake -B build -S . -DGAV_VERSION="${{ steps.version.outputs.version }}" -DCMAKE_TOOLCHAIN_FILE=${{env.QT_ROOT_DIR}}/lib/cmake/Qt6/qt.toolchain.cmake -DX_VCPKG_APPLOCAL_DEPS_INSTALL:BOOL=ON -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} -DVCPKG_HOST_TRIPLET=${{ matrix.host_triplet }} -DVCPKG_MANIFEST_INSTALL=OFF -DVCPKG_INSTALLED_DIR="${{ github.workspace }}/vcpkg_installed" -DGAV_FFMPEG_INCLUDE_DIR="${{ steps.qtmm-plugin.outputs.ffmpeg_include }}" -DGAV_QTMULTIMEDIA_PLUGIN="${{ steps.qtmm-plugin.outputs.plugin }}" -DCMAKE_BUILD_TYPE=Release -GNinja
         shell: pwsh
 
       - name: Configure CMake (Linux/macOS)
         if: startsWith(matrix.os, 'ubuntu-') || startsWith(matrix.os, 'macos-')
-        run: cmake -B build -S . -DGAV_VERSION=${{ steps.version.outputs.version }} -DCMAKE_TOOLCHAIN_FILE=${{env.QT_ROOT_DIR}}/lib/cmake/Qt6/qt.toolchain.cmake -DX_VCPKG_APPLOCAL_DEPS_INSTALL:BOOL=ON -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DGAV_QTMULTIMEDIA_PLUGIN="${{ steps.qtmm-plugin.outputs.plugin }}" -DCMAKE_BUILD_TYPE=Release -GNinja
+        run: cmake -B build -S . -DGAV_VERSION=${{ steps.version.outputs.version }} -DCMAKE_TOOLCHAIN_FILE=${{env.QT_ROOT_DIR}}/lib/cmake/Qt6/qt.toolchain.cmake -DX_VCPKG_APPLOCAL_DEPS_INSTALL:BOOL=ON -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} -DVCPKG_HOST_TRIPLET=${{ matrix.host_triplet }} -DVCPKG_MANIFEST_INSTALL=OFF -DVCPKG_INSTALLED_DIR="${{ github.workspace }}/vcpkg_installed" -DGAV_FFMPEG_INCLUDE_DIR="${{ steps.qtmm-plugin.outputs.ffmpeg_include }}" -DGAV_QTMULTIMEDIA_PLUGIN="${{ steps.qtmm-plugin.outputs.plugin }}" -DCMAKE_BUILD_TYPE=Release -GNinja
         shell: bash
 
       - name: Build
@@ -254,6 +319,7 @@ jobs:
           ninja package
 
       - name: Upload build artifacts
+        if: github.event_name != 'schedule'
         uses: actions/upload-artifact@v7
         with:
           name: artifacts-${{ matrix.os }}
@@ -263,6 +329,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: github.ref_type == 'tag' && contains(github.ref_name, '-')
+    permissions:
+      contents: write
     steps:
       - name: Download all build artifacts
         uses: actions/download-artifact@v8
@@ -290,6 +358,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: github.ref_type == 'tag' && !contains(github.ref_name, '-')
+    permissions:
+      contents: write
     steps:
       - name: Download all build artifacts
         uses: actions/download-artifact@v8
