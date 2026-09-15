@@ -20,6 +20,11 @@ Rectangle {
     property var cpuHistory: []
     property var gpuHistory: []
 
+    readonly property int maximumRecordedSamples: 86400
+    property var recording: []
+    property double recordingStartedAt: 0
+    property int recordedSampleCount: 0
+
     readonly property var sections: [
         {
             title: qsTr("Video"),
@@ -157,7 +162,62 @@ Rectangle {
                 lines.push(row.label + ": " + displayValue(row.value()) + (tooltip ? " (" + tooltip + ")" : ""));
             }
         }
+        if (recording.length > 0) {
+            lines.push("", "[History]", qsTr("%1 samples, one per second").arg(recording.length), historyCsv());
+        }
         return lines.join("\n");
+    }
+    function recordSample() {
+        const source = player ? player.source.toString() : "";
+        recording.push({
+            time: (Date.now() - recordingStartedAt) / 1000,
+            file: source === "" ? "" : decodeURIComponent(source.substring(source.lastIndexOf("/") + 1)),
+            state: player ? ["stopped", "playing", "paused"][player.playbackState] || "" : "",
+            position: player && player.mediaLoaded ? player.position : -1,
+            fps: player && hasVideo ? player.fps : -1,
+            droppedFrames: hasVideo && sourceFrameRate() > 0 ? Number(frameValue("droppedFrames")) || 0 : -1,
+            cpu: SystemStats.cpuPercent,
+            gpu: SystemStats.gpuPercent,
+            gpuMemory: SystemStats.gpuMemoryBytes,
+            ram: SystemStats.ramBytes,
+            ioRead: SystemStats.ioReadRate,
+            ioWrite: SystemStats.ioWriteRate,
+            threads: SystemStats.threads
+        });
+        if (recording.length > maximumRecordedSamples)
+            recording.shift();
+        recordedSampleCount = recording.length;
+    }
+    function clearRecording() {
+        recording = [];
+        recordedSampleCount = 0;
+        recordingStartedAt = Date.now();
+        fpsHistory = [];
+        cpuHistory = [];
+        gpuHistory = [];
+    }
+    function historyCsv() {
+        const number = (value, divisor, digits) => value >= 0 ? (value / divisor).toFixed(digits) : "";
+        const text = value => value === "" ? "" : "\"" + value.replace(/"/g, "\"\"") + "\"";
+        const rows = ["time_s,file,state,position_s,fps,dropped_frames,cpu_percent,gpu_percent,gpu_memory_mb,ram_mb,io_read_kbps,io_write_kbps,threads"];
+        for (const sample of recording) {
+            rows.push([
+                sample.time.toFixed(1),
+                text(sample.file),
+                sample.state,
+                number(sample.position, 1000, 3),
+                number(sample.fps, 1, 0),
+                number(sample.droppedFrames, 1, 0),
+                number(sample.cpu, 1, 1),
+                number(sample.gpu, 1, 1),
+                number(sample.gpuMemory, 1024 * 1024, 1),
+                number(sample.ram, 1024 * 1024, 1),
+                number(sample.ioRead, 1024, 1),
+                number(sample.ioWrite, 1024, 1),
+                number(sample.threads, 1, 0)
+            ].join(","));
+        }
+        return rows.join("\n");
     }
     function pushSample(history, value) {
         const next = history.slice(-(historyLength - 1));
@@ -174,13 +234,7 @@ Rectangle {
 
     visible: false
 
-    onVisibleChanged: {
-        if (visible) {
-            fpsHistory = [];
-            cpuHistory = [];
-            gpuHistory = [];
-        }
-    }
+    onVisibleChanged: clearRecording()
 
     Binding {
         target: SystemStats
@@ -199,7 +253,8 @@ Rectangle {
         enabled: root.visible
         target: SystemStats
 
-        function onStatsUpdated() {
+        function onSampled() {
+            root.recordSample();
             root.fpsHistory = root.pushSample(root.fpsHistory, root.player ? root.player.fps : 0);
             root.cpuHistory = root.pushSample(root.cpuHistory, SystemStats.cpuPercent);
             root.gpuHistory = root.pushSample(root.gpuHistory, SystemStats.gpuPercent);
@@ -337,7 +392,7 @@ Rectangle {
                         Layout.preferredHeight: 24
 
                         ToolTip.delay: AppConstants.tooltipDelay
-                        ToolTip.text: copied ? qsTr("Copied") : qsTr("Copy stats")
+                        ToolTip.text: copied ? qsTr("Copied") : qsTr("Copy stats and %1 s of history").arg(root.recordedSampleCount)
                         ToolTip.timeout: AppConstants.tooltipTimeout
                         ToolTip.visible: hovered
 

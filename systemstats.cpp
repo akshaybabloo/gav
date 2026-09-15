@@ -316,6 +316,11 @@ struct SystemStatsSnapshot {
     QString threadCount = "N/A";
     double cpuPercent = -1.0;
     double gpuPercent = -1.0;
+    double gpuMemoryBytes = -1.0;
+    double ramBytes = -1.0;
+    double ioReadRate = -1.0;
+    double ioWriteRate = -1.0;
+    int threads = -1;
 };
 
 class SystemStatsSampler : public QObject {
@@ -426,11 +431,8 @@ void SystemStatsSampler::updateRamStats() {
     }
 #endif
 
-    if (residentBytes > 0) {
-        m_values.ramUsage = QString::number(residentBytes / (1024.0 * 1024.0), 'f', 1) + " MB";
-    } else {
-        m_values.ramUsage = "N/A";
-    }
+    m_values.ramBytes = residentBytes > 0 ? static_cast<double>(residentBytes) : -1.0;
+    m_values.ramUsage = residentBytes > 0 ? QString::number(residentBytes / (1024.0 * 1024.0), 'f', 1) + " MB" : "N/A";
 }
 
 void SystemStatsSampler::updateIoStats() {
@@ -468,6 +470,8 @@ void SystemStatsSampler::updateIoStats() {
 
     if (!ioAvailable) {
         m_values.ioUsage = "N/A";
+        m_values.ioReadRate = -1.0;
+        m_values.ioWriteRate = -1.0;
         m_ioTimer.invalidate();
         return;
     }
@@ -480,6 +484,8 @@ void SystemStatsSampler::updateIoStats() {
         const double elapsedSec = static_cast<double>(elapsedNs) / 1e9;
         const double readRate = currentRead >= m_lastReadBytes ? (currentRead - m_lastReadBytes) / elapsedSec : 0.0;
         const double writeRate = currentWrite >= m_lastWriteBytes ? (currentWrite - m_lastWriteBytes) / elapsedSec : 0.0;
+        m_values.ioReadRate = readRate;
+        m_values.ioWriteRate = writeRate;
         m_values.ioUsage = QString("R: %1 | W: %2").arg(formatBytesPerSec(readRate), formatBytesPerSec(writeRate));
     }
     m_lastReadBytes = currentRead;
@@ -594,6 +600,7 @@ void SystemStatsSampler::updateGpuStats() {
 
     m_values.gpuPercent = usage;
     m_values.gpuUsage = usage >= 0.0 ? QString::number(usage, 'f', 1) + "%" : "N/A";
+    m_values.gpuMemoryBytes = memoryBytes >= 0 ? static_cast<double>(memoryBytes) : -1.0;
     m_values.gpuMemory = memoryBytes >= 0 ? formatBytes(memoryBytes) : "N/A";
 }
 
@@ -639,6 +646,7 @@ void SystemStatsSampler::updateThreadStats() {
     }
 #endif
 
+    m_values.threads = count;
     m_values.threadCount = count >= 0 ? QString::number(count) : "N/A";
 }
 
@@ -663,7 +671,7 @@ void SystemStats::setActive(bool active) {
     const int generation = ++m_generation;
 
     if (m_active) {
-        applySnapshot(SystemStatsSnapshot{generation});
+        setValues(SystemStatsSnapshot{generation});
         if (!m_thread) {
             m_thread = new QThread(this);
             m_thread->setObjectName("SystemStats");
@@ -683,6 +691,11 @@ void SystemStats::applySnapshot(const SystemStatsSnapshot &snapshot) {
     if (!m_active || snapshot.generation != m_generation) {
         return;
     }
+    setValues(snapshot);
+    emit sampled();
+}
+
+void SystemStats::setValues(const SystemStatsSnapshot &snapshot) {
     m_cpuUsage = snapshot.cpuUsage;
     m_ramUsage = snapshot.ramUsage;
     m_ioUsage = snapshot.ioUsage;
@@ -691,6 +704,11 @@ void SystemStats::applySnapshot(const SystemStatsSnapshot &snapshot) {
     m_threadCount = snapshot.threadCount;
     m_cpuPercent = snapshot.cpuPercent;
     m_gpuPercent = snapshot.gpuPercent;
+    m_gpuMemoryBytes = snapshot.gpuMemoryBytes;
+    m_ramBytes = snapshot.ramBytes;
+    m_ioReadRate = snapshot.ioReadRate;
+    m_ioWriteRate = snapshot.ioWriteRate;
+    m_threads = snapshot.threads;
     emit statsUpdated();
 }
 
@@ -702,6 +720,11 @@ QString SystemStats::gpuMemory() const { return m_gpuMemory; }
 QString SystemStats::threadCount() const { return m_threadCount; }
 double SystemStats::cpuPercent() const { return m_cpuPercent; }
 double SystemStats::gpuPercent() const { return m_gpuPercent; }
+double SystemStats::gpuMemoryBytes() const { return m_gpuMemoryBytes; }
+double SystemStats::ramBytes() const { return m_ramBytes; }
+double SystemStats::ioReadRate() const { return m_ioReadRate; }
+double SystemStats::ioWriteRate() const { return m_ioWriteRate; }
+int SystemStats::threads() const { return m_threads; }
 
 void SystemStats::copyToClipboard(const QString &text) const {
     if (QClipboard *clipboard = QGuiApplication::clipboard()) {
