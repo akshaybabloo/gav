@@ -98,7 +98,7 @@ jobs:
       - name: Install CMake 4+
         uses: akshaybabloo/actions-setup-cmake@v2
         with:
-          cmake-version: "4.3.x"
+          cmake-version: "4.4.x"
 
       - name: Prepare vcpkg binary cache dir
         run: mkdir -p "${{ github.workspace }}/vcpkg-bincache"

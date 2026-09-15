@@ -871,6 +871,12 @@ ApplicationWindow {
                 mediaComponent.mediaPlayer.position = Math.min(mediaComponent.mediaPlayer.duration, mediaComponent.mediaPlayer.position + AppConstants.seekStep);
             }
         }
+        Shortcut {
+            enabled: mediaComponent.isVideo || nerdStats.visible
+            sequence: "I"
+
+            onActivated: nerdStats.visible = !nerdStats.visible
+        }
     }
     ListModel {
         id: playList
@@ -883,7 +889,7 @@ ApplicationWindow {
         anchors.right: parent.right
         anchors.top: mainWindow.visibility === Window.FullScreen ? parent.top : titleBar.bottom
         color: Material.background
-        visible: mediaComponent.path !== "" && !mediaComponent.mediaLoaded
+        visible: mediaComponent.path !== "" && !mediaComponent.mediaLoaded && !mediaComponent.hasError
         z: 50
 
         ColumnLayout {
@@ -927,6 +933,22 @@ ApplicationWindow {
             mediaComponent.mediaPlayer.play();
         }
     }
+    
+    NerdStatsOverlay {
+        id: nerdStats
+        
+        anchors.top: mainWindow.visibility === Window.FullScreen ? parent.top : titleBar.bottom
+        anchors.left: parent.left
+        anchors.margins: 20
+        z: 90
+        
+        audioOutput: mediaComponent.audioOutput
+        hasVideo: mediaComponent.isVideo
+        maximumHeight: mediaComponent.height - 40
+        player: mediaComponent.mediaPlayer
+        videoOutput: mediaComponent.videoOutput
+    }
+    
     Component {
         id: mediaControlsComponent
 
@@ -938,6 +960,7 @@ ApplicationWindow {
             implicitHeight: 90
             mediaLoaded: mediaComponent.mediaLoaded
             miniPlayerActive: miniPlayerWindow.visible
+            nerdStatsActive: nerdStats.visible
             player: mediaComponent.mediaPlayer
             playlistCount: playList.count
             playlistCurrentIndex: playlistComponent.playListView.currentIndex
@@ -946,6 +969,7 @@ ApplicationWindow {
 
             onContainsMouseChanged: mainWindow.mediaControlsContainsMouse = containsMouse
             onRepeatModeChanged: mainWindow.repeatMode = repeatMode
+            onNerdStatsToggleRequested: nerdStats.visible = !nerdStats.visible
             onMiniPlayerRequested: {
                 var px = mainWindow.x + mainWindow.width - miniPlayerWindow.width - 20;
                 var py = mainWindow.y + mainWindow.height - miniPlayerWindow.height - 60;
