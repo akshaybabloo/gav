@@ -332,7 +332,7 @@ jobs:
 
   pre-release:
     needs: build
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: github.ref_type == 'tag' && contains(github.ref_name, '-')
     permissions:
       contents: write
@@ -361,7 +361,7 @@ jobs:
 
   release:
     needs: build
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: github.ref_type == 'tag' && !contains(github.ref_name, '-')
     permissions:
       contents: write
