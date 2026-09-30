@@ -1,0 +1,23 @@
+qtmultimedia 6.12's cmake/FindFFmpeg.cmake links each FFmpeg component by its
+full library path and no longer calls target_link_directories. The static
+dependencies it reads from the .pc files' Libs: line (e.g. -lvpl from vcpkg's
+qsv feature) are still passed as bare names, so the linker has no search path
+for them and fails:
+
+    /usr/bin/ld: cannot find -lvpl: No such file or directory
+
+Restore the 6.11 behaviour of adding the FFmpeg library directory as an
+interface link directory so those bare names resolve against vcpkg's lib dir.
+
+Verified against qtmultimedia v6.12.0.
+
+--- a/cmake/FindFFmpeg.cmake
++++ b/cmake/FindFFmpeg.cmake
+@@ -297,6 +297,7 @@ foreach (_component ${FFmpeg_FIND_COMPONENTS})
+             target_compile_options(${_target} INTERFACE "${${_component}_CFLAGS}")
+             target_include_directories(${_target} INTERFACE "${${_component}_INCLUDE_DIR}")
+             target_link_libraries(${_target} INTERFACE "${${_component}_LIBRARY}")
++            target_link_directories(${_target} INTERFACE ${${_component}_LIBRARY_DIR})
+ 
+             __ffmpeg_internal_set_dependencies(${_component})
+             if (UNIX AND NOT APPLE)
