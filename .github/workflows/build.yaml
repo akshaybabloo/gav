@@ -38,27 +38,27 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            artifact: 'qt6.11.1-essentials'
-            modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia qt.qt6.6111.addons.qtquick3d'
-            qt_tag: 'v6.11.1'
+            artifact: 'qt6.12.0-essentials'
+            modules: 'qt.qt6.6120.addons.qt5compat qt.qt6.6120.addons.qtimageformats qt.qt6.6120.addons.qtmultimedia qt.qt6.6120.addons.qtquick3d'
+            qt_tag: 'v6.12.0'
             triplet: 'x64-linux-release'
             host_triplet: 'x64-linux-release'
           - os: windows-latest
-            artifact: 'qt6.11.1-msvc2022-essentials'
-            modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia qt.qt6.6111.addons.qtquick3d'
-            qt_tag: 'v6.11.1'
+            artifact: 'qt6.12.0-msvc2022-essentials'
+            modules: 'qt.qt6.6120.addons.qt5compat qt.qt6.6120.addons.qtimageformats qt.qt6.6120.addons.qtmultimedia qt.qt6.6120.addons.qtquick3d'
+            qt_tag: 'v6.12.0'
             triplet: 'x64-windows-static-md-release'
             host_triplet: 'x64-windows'
           - os: macos-latest
-            artifact: 'qt6.11.1-essentials'
-            modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia qt.qt6.6111.addons.qtquick3d'
-            qt_tag: 'v6.11.1'
+            artifact: 'qt6.12.0-essentials'
+            modules: 'qt.qt6.6120.addons.qt5compat qt.qt6.6120.addons.qtimageformats qt.qt6.6120.addons.qtmultimedia qt.qt6.6120.addons.qtquick3d'
+            qt_tag: 'v6.12.0'
             triplet: 'arm64-osx-release'
             host_triplet: 'arm64-osx-release'
           - os: ubuntu-24.04-arm
-            artifact: 'qt6.11.1-essentials'
-            modules: 'qt.qt6.6111.addons.qt5compat qt.qt6.6111.addons.qtimageformats qt.qt6.6111.addons.qtmultimedia qt.qt6.6111.addons.qtquick3d'
-            qt_tag: 'v6.11.1'
+            artifact: 'qt6.12.0-essentials'
+            modules: 'qt.qt6.6120.addons.qt5compat qt.qt6.6120.addons.qtimageformats qt.qt6.6120.addons.qtmultimedia qt.qt6.6120.addons.qtquick3d'
+            qt_tag: 'v6.12.0'
             triplet: 'arm64-linux-release'
             host_triplet: 'arm64-linux-release'
 
@@ -198,7 +198,7 @@ jobs:
         run: |
           set -e
           git clone --depth 1 --branch "${{ matrix.qt_tag }}" https://code.qt.io/qt/qtmultimedia.git "${{ github.workspace }}/qtmm-src"
-          # Apply every qtmultimedia patch we ship (Apple Silicon SIMD fix, macOS 15 SDK fix, ...).
+          # Apply every qtmultimedia patch we ship (Apple Silicon SIMD fix, ...).
           # Each patch is a no-op on platforms it doesn't apply to (Linux/Windows only touch shared files).
           for p in "${{ github.workspace }}/support"/qtmultimedia-*.patch; do
             echo "Applying $p"
@@ -223,7 +223,7 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           git clone --depth 1 --branch "${{ matrix.qt_tag }}" https://code.qt.io/qt/qtmultimedia.git "$env:GITHUB_WORKSPACE\qtmm-src"
-          # qtmultimedia 6.11 still uses <experimental/coroutine>, which VS 18 / MSVC 14.51 hard-errors on. Silence
+          # qtmultimedia 6.12 still uses <experimental/coroutine>, which VS 18 / MSVC 14.51 hard-errors on. Silence
           # the deprecation static_assert via the macro MSVC itself points at in the error message.
           cmake -B "$env:GITHUB_WORKSPACE\qtmm-src\build" -S "$env:GITHUB_WORKSPACE\qtmm-src" -G Ninja `
             -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR/lib/cmake" `
