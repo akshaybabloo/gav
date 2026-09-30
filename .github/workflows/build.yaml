@@ -37,7 +37,7 @@ jobs:
 #      fail-fast: true
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             artifact: 'qt6.12.0-essentials'
             modules: 'qt.qt6.6120.addons.qt5compat qt.qt6.6120.addons.qtimageformats qt.qt6.6120.addons.qtmultimedia qt.qt6.6120.addons.qtquick3d'
             qt_tag: 'v6.12.0'
@@ -332,7 +332,7 @@ jobs:
 
   pre-release:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.ref_type == 'tag' && contains(github.ref_name, '-')
     permissions:
       contents: write
@@ -361,7 +361,7 @@ jobs:
 
   release:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.ref_type == 'tag' && !contains(github.ref_name, '-')
     permissions:
       contents: write
