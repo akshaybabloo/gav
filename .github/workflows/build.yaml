@@ -198,7 +198,7 @@ jobs:
         run: |
           set -e
           git clone --depth 1 --branch "${{ matrix.qt_tag }}" https://code.qt.io/qt/qtmultimedia.git "${{ github.workspace }}/qtmm-src"
-          # Apply every qtmultimedia patch we ship (Apple Silicon SIMD fix, ...).
+          # Apply every qtmultimedia patch we ship (Apple Silicon SIMD fix, FFmpeg link dirs, ...).
           # Each patch is a no-op on platforms it doesn't apply to (Linux/Windows only touch shared files).
           for p in "${{ github.workspace }}/support"/qtmultimedia-*.patch; do
             echo "Applying $p"
@@ -223,6 +223,11 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           git clone --depth 1 --branch "${{ matrix.qt_tag }}" https://code.qt.io/qt/qtmultimedia.git "$env:GITHUB_WORKSPACE\qtmm-src"
+          foreach ($p in Get-ChildItem "$env:GITHUB_WORKSPACE\support\qtmultimedia-*.patch") {
+            Write-Host "Applying $p"
+            git -C "$env:GITHUB_WORKSPACE\qtmm-src" apply --ignore-whitespace $p.FullName
+            if ($LASTEXITCODE -ne 0) { throw "Failed to apply $p" }
+          }
           # qtmultimedia 6.12 still uses <experimental/coroutine>, which VS 18 / MSVC 14.51 hard-errors on. Silence
           # the deprecation static_assert via the macro MSVC itself points at in the error message.
           cmake -B "$env:GITHUB_WORKSPACE\qtmm-src\build" -S "$env:GITHUB_WORKSPACE\qtmm-src" -G Ninja `
