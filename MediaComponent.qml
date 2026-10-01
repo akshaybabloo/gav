@@ -257,6 +257,8 @@ Item {
         cursorShape: {
             if (isDragging) {
                 return Qt.ClosedHandCursor;
+            } else if (!controlsAreVisible && !volumeColumn.visible && mainWindow.visibility === Window.FullScreen) {
+                return Qt.BlankCursor;
             } else if (videoOutput.zoomLevel > 1.0) {
                 return Qt.OpenHandCursor;
             } else {
@@ -297,12 +299,10 @@ Item {
                 dragStartPos = Qt.point(mouseX, mouseY);
                 startPanX = videoOutput.panX;
                 startPanY = videoOutput.panY;
-                cursorShape = Qt.ClosedHandCursor;
             }
         }
         onReleased: function (mouse) {
             isDragging = false;
-            cursorShape = videoOutput.zoomLevel > 1.0 ? Qt.OpenHandCursor : Qt.ArrowCursor;
         }
         onWheel: function (wheel) {
             // Only handle scroll when video is playing or paused (not stopped)
