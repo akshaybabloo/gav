@@ -151,6 +151,7 @@ qt_add_qml_module(appgav
         buildinfo.h buildinfo.cpp
         systemstats.h systemstats.cpp
         SOURCES updates.h updates.cpp
+        SOURCES instancemanager.h instancemanager.cpp
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.

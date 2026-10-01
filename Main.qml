@@ -18,7 +18,6 @@ ApplicationWindow {
     property bool playlistManualVisible: false
     property int repeatMode: 0
     property bool shouldAutoPlay: false
-    property url source
 
     function exitMiniPlayer() {
         if (!miniPlayerWindow.visible)
@@ -70,6 +69,22 @@ ApplicationWindow {
             "icon": "\ueb87"
         };
     }
+    function openUrls(urls) {
+        var startPlayback = mediaComponent.path === "";
+        for (var i = 0; i < urls.length; i++) {
+            var mediaInfo = getMediaInfo(urls[i]);
+            if (!mediaInfo)
+                continue;
+            playList.append(mediaInfo);
+            if (startPlayback) {
+                mediaComponent.path = mediaInfo.path;
+                mainWindow.title = appTitle + " - " + mediaInfo.name;
+                playlistComponent.playListView.currentIndex = playList.count - 1;
+                shouldAutoPlay = true;
+                startPlayback = false;
+            }
+        }
+    }
 
     // Dynamic theme switching - overrides qtquickcontrols2.conf at runtime
     Material.theme: isDarkTheme ? Material.Dark : Material.Light
@@ -107,22 +122,7 @@ ApplicationWindow {
             updateDialog.manualCheck = false;
             updates.checkUpdates();
         }
-    }
-    onSourceChanged: {
-        const s = "" + source;
-        if (!s) {
-            console.log("No source provided");
-            return;
-        }
-
-        const mediaInfo = getMediaInfo(source);
-        if (!mediaInfo)
-            return;
-        playList.append(mediaInfo);
-        mediaComponent.path = mediaInfo.path;
-        mainWindow.title = appTitle + " - " + mediaInfo.name;
-        playlistComponent.playListView.currentIndex = playList.count - 1;
-        shouldAutoPlay = true;
+        openUrls(InstanceManager.takePendingUrls());
     }
 
     Settings {
@@ -272,6 +272,17 @@ ApplicationWindow {
         }
 
         target: mediaComponent.mediaPlayer
+    }
+    Connections {
+        function onUrlsPending() {
+            mainWindow.openUrls(InstanceManager.takePendingUrls());
+            if (!miniPlayerWindow.visible) {
+                mainWindow.raise();
+                mainWindow.requestActivate();
+            }
+        }
+
+        target: InstanceManager
     }
     Connections {
         function onCollageFinished(successCount, failCount) {
