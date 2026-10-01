@@ -14,6 +14,7 @@
 #include <memory>
 
 #include "collage.h"
+#include "instancemanager.h"
 #include "previewimageprovider.h"
 
 #include <spdlog/spdlog.h>
@@ -46,6 +47,37 @@ static QUrl collagePathToUrl(const QString &path) {
     }
     // Relative filesystem path - resolve against the working directory.
     return QUrl::fromLocalFile(QDir::current().absoluteFilePath(path));
+}
+
+static QUrl sourcePathToUrl(const QString &sourceValue) {
+    QFileInfo fileInfo(sourceValue);
+
+    if (fileInfo.isRelative()) {
+        // Convert relative path to absolute
+        QString absolutePath = QDir::current().absoluteFilePath(sourceValue);
+        QFileInfo resolvedInfo(absolutePath);
+        if (!resolvedInfo.exists()) {
+            logger->warn("File does not exist: '{}'", absolutePath.toStdString());
+            return {};
+        }
+        logger->debug("Converted relative path '{}' to absolute: '{}'",
+                      sourceValue.toStdString(), absolutePath.toStdString());
+        return QUrl::fromLocalFile(absolutePath);
+    }
+
+    if (fileInfo.isAbsolute()) {
+        if (!fileInfo.exists()) {
+            logger->warn("File does not exist: '{}'", sourceValue.toStdString());
+            return {};
+        }
+        logger->debug("Using absolute path: '{}'", sourceValue.toStdString());
+        return QUrl::fromLocalFile(sourceValue);
+    }
+
+    // Try to parse as URL (e.g., file://, http://, etc.)
+    QUrl sourceURL = QUrl::fromUserInput(sourceValue);
+    logger->debug("Parsed as URL: '{}'", sourceURL.toString().toStdString());
+    return sourceURL;
 }
 
 void initLogging() {
@@ -126,9 +158,9 @@ int main(int argc, char *argv[]) {
     QCommandLineOption verboseOption("verbose", "Enable verbose logging");
     parser.addOption(verboseOption);
 
-    // Accept a bare file path so OS file-association launches (e.g. `gav %F` from the .desktop entry, or Explorer's
-    // `"gav.exe" "%1"` on Windows) deliver the dropped file to the player.
-    parser.addPositionalArgument("file", "Audio or video file to play", "[file]");
+    // Accept bare file paths so OS file-association launches (e.g. `gav %F` from the .desktop entry, or Explorer's
+    // `"gav.exe" "%1"` on Windows) deliver the selected files to the player.
+    parser.addPositionalArgument("files", "Audio or video files to play", "[files...]");
 
     parser.process(app);
 
@@ -139,18 +171,18 @@ int main(int argc, char *argv[]) {
         QLoggingCategory::setFilterRules(QStringLiteral("qt.multimedia*=false"));
     }
 
-    QString sourceValue;
+    QStringList sourceValues;
     if (parser.isSet(sourceOption)) {
-        sourceValue = parser.value(sourceOption);
-    } else if (!parser.positionalArguments().isEmpty()) {
-        // Fall back to the first positional argument so double-clicked files (passed without -s by the OS) play.
-        sourceValue = parser.positionalArguments().first();
+        sourceValues.append(parser.value(sourceOption));
+    } else {
+        // Fall back to the positional arguments so double-clicked files (passed without -s by the OS) play.
+        sourceValues = parser.positionalArguments();
     }
 
     if (parser.isSet(collageOption)) {
         QStringList collagePaths = parser.values(collageOption);
-        if (collagePaths.isEmpty() && !sourceValue.isEmpty()) {
-            collagePaths.append(sourceValue);
+        if (collagePaths.isEmpty() && !sourceValues.isEmpty()) {
+            collagePaths.append(sourceValues.first());
         } else if (collagePaths.isEmpty()) {
             std::cerr << "No input files provided for collage creation." << std::endl;
             return 1;
@@ -300,45 +332,24 @@ int main(int argc, char *argv[]) {
         return failCount > 0 ? 1 : 0;
     }
 
-    QQmlApplicationEngine engine;
-    engine.addImageProvider("preview", new PreviewImageProvider());
-    
-    if (!sourceValue.isEmpty()) {
-        // Check if the path is relative or absolute
-        QFileInfo fileInfo(sourceValue);
-        QUrl sourceURL;
-
-        if (fileInfo.isRelative()) {
-            // Convert relative path to absolute
-            QString absolutePath = QDir::current().absoluteFilePath(sourceValue);
-            QFileInfo resolvedInfo(absolutePath);
-            if (!resolvedInfo.exists()) {
-                logger->warn("File does not exist: '{}'", absolutePath.toStdString());
-            } else {
-                sourceURL = QUrl::fromLocalFile(absolutePath);
-                logger->debug("Converted relative path '{}' to absolute: '{}'",
-                              sourceValue.toStdString(), absolutePath.toStdString());
-            }
-        } else if (fileInfo.isAbsolute()) {
-            if (!fileInfo.exists()) {
-                logger->warn("File does not exist: '{}'", sourceValue.toStdString());
-            } else {
-                sourceURL = QUrl::fromLocalFile(sourceValue);
-                logger->debug("Using absolute path: '{}'", sourceValue.toStdString());
-            }
-        } else {
-            // Try to parse as URL (e.g., file://, http://, etc.)
-            sourceURL = QUrl::fromUserInput(sourceValue);
-            logger->debug("Parsed as URL: '{}'", sourceURL.toString().toStdString());
-        }
-
+    QList<QUrl> sourceUrls;
+    for (const QString &sourceValue : sourceValues) {
+        const QUrl sourceURL = sourcePathToUrl(sourceValue);
         if (!sourceURL.isEmpty() && sourceURL.isValid()) {
-            engine.setInitialProperties({{"source", sourceURL}});
+            sourceUrls.append(sourceURL);
             logger->info("Loading source: '{}'", sourceURL.toString().toStdString());
         } else if (!sourceURL.isEmpty()) {
             logger->warn("Invalid source URL: '{}'", sourceValue.toStdString());
         }
     }
+
+    InstanceManager instanceManager;
+    if (!instanceManager.start(sourceUrls)) {
+        return 0;
+    }
+
+    QQmlApplicationEngine engine;
+    engine.addImageProvider("preview", new PreviewImageProvider());
 
     QObject::connect(
         &engine,
