@@ -58,6 +58,9 @@ void SubtitleController::setSource(const QUrl &source) {
             }
             QStringList paths;
             for (const SubtitleFile &file : files) {
+                if (find(MediaProbe::externalSource(file.path))) {
+                    continue;
+                }
                 Track track;
                 track.id = MediaProbe::externalSource(file.path);
                 track.path = file.path;
@@ -78,7 +81,7 @@ void SubtitleController::setSource(const QUrl &source) {
 void SubtitleController::clear() {
     ++m_generation;
     m_probe->stop();
-    m_renderer->clearTrack();
+    m_renderer->reset();
     if (m_player) {
         m_player->setActiveSubtitleTrack(-1);
     }

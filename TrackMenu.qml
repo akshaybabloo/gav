@@ -38,7 +38,7 @@ Button {
     FileDialog {
         id: subtitleFileDialog
 
-        nameFilters: [AppConstants.getSubtitleExtensionsFilter()]
+        nameFilters: [AppConstants.getSubtitleExtensionsFilter(), qsTr("All files (*)")]
         title: qsTr("Load subtitle file")
 
         onAccepted: subtitles.loadFile(selectedFile)
@@ -183,17 +183,31 @@ Button {
                 font.bold: true
                 text: qsTr("Audio")
             }
-            Repeater {
-                model: audioTracks.length > 1 ? audioTracks : []
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(audioColumn.implicitHeight, 160)
+                clip: true
+                visible: audioTracks.length > 1
 
-                RadioButton {
-                    required property var modelData
+                ColumnLayout {
+                    id: audioColumn
 
-                    Layout.fillWidth: true
-                    checked: modelData.index === player.activeAudioTrack
-                    text: modelData.displayName
+                    spacing: 0
+                    width: parent.width
 
-                    onClicked: player.selectAudioTrack(modelData.index)
+                    Repeater {
+                        model: audioTracks.length > 1 ? audioTracks : []
+
+                        RadioButton {
+                            required property var modelData
+
+                            Layout.fillWidth: true
+                            checked: modelData.index === player.activeAudioTrack
+                            text: modelData.displayName
+
+                            onClicked: player.selectAudioTrack(modelData.index)
+                        }
+                    }
                 }
             }
             Text {

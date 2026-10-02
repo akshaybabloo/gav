@@ -15,6 +15,7 @@ ApplicationWindow {
     property bool controlsVisibleAlias: mediaComponent.controlsAreVisible
     property bool isDarkTheme: true
     property bool mediaControlsContainsMouse: false
+    property var pendingSubtitleUrls: []
     property bool playlistManualVisible: false
     property int repeatMode: 0
     readonly property bool shortcutsEnabled: !textInputFocused && !aboutDialog.opened && !playbackErrorDialog.opened && !updateDialog.opened && !settingsDialog.opened
@@ -71,10 +72,12 @@ ApplicationWindow {
             "icon": "\ueb87"
         };
     }
-    function loadSubtitleUrl(url) {
+    function isSubtitleUrl(url) {
         var name = url.toString();
-        var ext = name.substring(name.lastIndexOf('.') + 1);
-        if (!AppConstants.isSubtitleExtension(ext))
+        return AppConstants.isSubtitleExtension(name.substring(name.lastIndexOf('.') + 1));
+    }
+    function loadSubtitleUrl(url) {
+        if (!isSubtitleUrl(url))
             return false;
         if (!mediaComponent.mediaPlayer.mediaLoaded || !mediaComponent.mediaPlayer.hasVideo) {
             captureSnackbar.message = qsTr("Open a video before loading subtitles");
@@ -842,9 +845,12 @@ ApplicationWindow {
         onDropped: function (drop) {
             if (drop.urls && drop.urls.length > 0) {
                 var firstFileSet = false;
+                var subtitleUrls = [];
                 for (var i = 0; i < drop.urls.length; i++) {
-                    if (loadSubtitleUrl(drop.urls[i]))
+                    if (isSubtitleUrl(drop.urls[i])) {
+                        subtitleUrls.push(drop.urls[i]);
                         continue;
+                    }
                     var mediaInfo = getMediaInfo(drop.urls[i]);
                     console.debug("Media info for dropped file:", JSON.stringify(mediaInfo));
                     if (!mediaInfo)
@@ -856,6 +862,12 @@ ApplicationWindow {
                         playlistComponent.playListView.currentIndex = playList.count - 1;
                         firstFileSet = true;
                     }
+                }
+                if (firstFileSet) {
+                    mainWindow.pendingSubtitleUrls = subtitleUrls;
+                } else {
+                    for (var j = 0; j < subtitleUrls.length; j++)
+                        loadSubtitleUrl(subtitleUrls[j]);
                 }
             }
         }
@@ -894,6 +906,10 @@ ApplicationWindow {
         onMediaLoadedChanged: {
             if (mediaLoaded) {
                 mediaPlayer.playbackRate = appSettings.playbackRate;
+                var subtitleUrls = mainWindow.pendingSubtitleUrls;
+                mainWindow.pendingSubtitleUrls = [];
+                for (var i = 0; i < subtitleUrls.length; i++)
+                    mainWindow.loadSubtitleUrl(subtitleUrls[i]);
                 if (shouldAutoPlay) {
                     mediaPlayer.play();
                     shouldAutoPlay = false;
@@ -901,6 +917,7 @@ ApplicationWindow {
             }
         }
         onStopped: {
+            mainWindow.pendingSubtitleUrls = [];
             mediaComponent.path = "";
             mainWindow.title = appTitle;
         }

@@ -123,6 +123,24 @@ void SubtitleEngine::clearTrack() {
     m_dirty = true;
 }
 
+void SubtitleEngine::reset() {
+    QMutexLocker locker(&m_mutex);
+    if (m_track) {
+        ass_free_track(m_track);
+        m_track = nullptr;
+    }
+    if (m_renderer) {
+        ass_renderer_done(m_renderer);
+        m_renderer = nullptr;
+    }
+    if (m_library) {
+        ass_clear_fonts(m_library);
+    }
+    m_frameSize = QSize();
+    m_last = SubtitleFrame();
+    m_dirty = true;
+}
+
 bool SubtitleEngine::hasTrack() const {
     QMutexLocker locker(&m_mutex);
     return m_track != nullptr;
@@ -233,6 +251,11 @@ void SubtitleRenderer::setTrack(const QByteArray &header) {
 
 void SubtitleRenderer::clearTrack() {
     m_engine->clearTrack();
+    emit changed();
+}
+
+void SubtitleRenderer::reset() {
+    m_engine->reset();
     emit changed();
 }
 

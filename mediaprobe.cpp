@@ -17,7 +17,6 @@ void MediaProbe::setProgram(const QString &program) { m_program = program; }
 QString MediaProbe::externalSource(const QString &path) { return QStringLiteral("external:") + QFileInfo(path).absoluteFilePath(); }
 
 void MediaProbe::start(const QString &mediaPath, const QStringList &subtitleFiles) {
-    stop();
     m_fontsDir = std::make_unique<QTemporaryDir>();
 
     QStringList arguments{QStringLiteral("--probe"), mediaPath};

@@ -111,7 +111,7 @@ void SubtitleOverlay::requestRender() {
     m_busy = true;
     m_pending = false;
     const std::shared_ptr<SubtitleEngine> engine = m_renderer->engine();
-    const qint64 timeMs = m_lastFrameMs + m_delayMs;
+    const qint64 timeMs = m_lastFrameMs - m_delayMs;
     m_pool.start([this, engine, timeMs, size] {
         const SubtitleFrame frame = engine->render(timeMs, size);
         QMetaObject::invokeMethod(this, [this, frame] { onRendered(frame); }, Qt::QueuedConnection);

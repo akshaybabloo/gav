@@ -238,6 +238,11 @@ TEST(ProbeWorkerFixtures, MissingSidecarIsReportedPerSource) {
     EXPECT_EQ(ofType(messages, ProbeMessage::Type::End).size(), 1);
 }
 
+TEST(ProbeWorkerFixtures, DetectEncodingIgnoresUtf8CutMidCharacter) {
+    EXPECT_TRUE(ProbeWorker::detectEncoding("caf\xc3\xa9 \xc3").isEmpty());
+    EXPECT_TRUE(ProbeWorker::detectEncoding("na\xc3\xafve \xe2\x82").isEmpty());
+}
+
 TEST(ProbeWorkerFixtures, DetectEncodingLeavesUtf8Alone) {
     EXPECT_TRUE(ProbeWorker::detectEncoding("plain ascii").isEmpty());
     EXPECT_TRUE(ProbeWorker::detectEncoding("caf\xc3\xa9").isEmpty());

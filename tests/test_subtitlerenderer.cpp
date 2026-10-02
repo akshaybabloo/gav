@@ -98,6 +98,17 @@ TEST_F(SubtitleRendererTest, ClearedTrackRendersNothing) {
     EXPECT_TRUE(frame.changed);
 }
 
+TEST_F(SubtitleRendererTest, ResetDropsTrackAndCanBeReused) {
+    engine.addFont("unused.ttf", QByteArray(16, 'x'));
+    EXPECT_FALSE(engine.render(5000, frameSize).image.isNull());
+    engine.reset();
+    EXPECT_FALSE(engine.hasTrack());
+    EXPECT_TRUE(engine.render(5000, frameSize).image.isNull());
+
+    SetUp();
+    EXPECT_GT(coveredPixels(engine.render(5000, frameSize), QRect(150, 150, 800, 150)), 100);
+}
+
 TEST_F(SubtitleRendererTest, RenderTimeIsLogged) {
     engine.render(5000, frameSize);
     constexpr int frames = 120;

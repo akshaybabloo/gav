@@ -220,7 +220,7 @@ QString ProbeWorker::detectEncoding(const QByteArray &data) {
     if (data.startsWith("\xEF\xBB\xBF") || data.startsWith("\xFF\xFE") || data.startsWith("\xFE\xFF")) {
         return {};
     }
-    QStringDecoder utf8(QStringDecoder::Utf8, QStringDecoder::Flag::Stateless);
+    QStringDecoder utf8(QStringDecoder::Utf8);
     [[maybe_unused]] const QString decoded = utf8.decode(data);
     if (!utf8.hasError()) {
         return {};

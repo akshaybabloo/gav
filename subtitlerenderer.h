@@ -35,6 +35,7 @@ public:
     void addFont(const QString &name, const QByteArray &data);
     void setTrack(const QByteArray &header);
     void clearTrack();
+    void reset();
     bool hasTrack() const;
     void addEvents(const QList<ProbeEvent> &events);
     void setScale(double scale);
@@ -67,6 +68,7 @@ public:
     void addFont(const QString &name, const QByteArray &data);
     void setTrack(const QByteArray &header);
     void clearTrack();
+    void reset();
     bool hasTrack() const;
     void addEvents(const QList<ProbeEvent> &events);
     void setScale(double scale);
