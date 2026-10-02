@@ -282,6 +282,14 @@ Item {
             }
         }
     }
+    SubtitleOverlay {
+        anchors.fill: videoOutput
+        contentRect: videoOutput.contentRect
+        delayMs: customMediaPlayer.subtitles.delay
+        renderer: customMediaPlayer.subtitles.renderer
+        videoSink: videoOutput.videoSink
+        visible: videoOutput.visible
+    }
     MouseArea {
         id: mouseArea
 

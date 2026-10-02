@@ -13,6 +13,8 @@
 #include <QUrl>
 #include <QVideoSink>
 
+#include "subtitlecontroller.h"
+
 class CustomMediaPlayer : public QQuickItem {
   Q_OBJECT
   QML_ELEMENT
@@ -30,6 +32,12 @@ class CustomMediaPlayer : public QQuickItem {
   Q_PROPERTY(bool statsEnabled READ statsEnabled WRITE setStatsEnabled NOTIFY statsEnabledChanged)
   Q_PROPERTY(QVariantMap mediaInfo READ mediaInfo NOTIFY mediaInfoChanged)
   Q_PROPERTY(QVariantMap frameInfo READ frameInfo NOTIFY frameInfoChanged)
+  Q_PROPERTY(SubtitleController *subtitles READ subtitles CONSTANT)
+  Q_PROPERTY(QVariantList audioTracks READ audioTracks NOTIFY audioTracksChanged)
+  Q_PROPERTY(int activeAudioTrack READ activeAudioTrack NOTIFY audioTracksChanged)
+  Q_PROPERTY(QString activeAudioTrackName READ activeAudioTrackName NOTIFY audioTracksChanged)
+  Q_PROPERTY(QString preferredAudioLanguage READ preferredAudioLanguage WRITE setPreferredAudioLanguage NOTIFY preferredAudioLanguageChanged)
+  Q_PROPERTY(QVariantList chapters READ chapters NOTIFY chaptersChanged)
 
 public:
   CustomMediaPlayer();
@@ -39,6 +47,8 @@ public:
   Q_INVOKABLE void stop();
   Q_INVOKABLE void captureFrame();
   Q_INVOKABLE void requestPreviewAt(qint64 position);
+  Q_INVOKABLE void selectAudioTrack(int index);
+  Q_INVOKABLE QString cycleAudioTrack();
 
   QUrl source() const;
   void setSource(const QUrl &source);
@@ -72,6 +82,14 @@ public:
   QVariantMap mediaInfo() const;
   QVariantMap frameInfo() const;
 
+  SubtitleController *subtitles() const;
+  QVariantList audioTracks() const;
+  int activeAudioTrack() const;
+  QString activeAudioTrackName() const;
+  QString preferredAudioLanguage() const;
+  void setPreferredAudioLanguage(const QString &language);
+  QVariantList chapters() const;
+
 signals:
   void sourceChanged();
   void videoOutputChanged();
@@ -91,6 +109,9 @@ signals:
   void videoVisibilityChanged(bool visible);
   void frameCaptured(bool success, const QString &path);
   void previewReady(qint64 position, const QString &imageDataUrl);
+  void audioTracksChanged();
+  void preferredAudioLanguageChanged();
+  void chaptersChanged();
 
 private slots:
   void onPreviewPlayerStatusChanged(QMediaPlayer::MediaStatus status);
@@ -112,6 +133,8 @@ private:
   void updateFrameInfo();
   void updateAudioProbe();
   void onAudioBufferReceived(const QAudioBuffer &buffer);
+  void applyAudioSelection();
+  QString audioTrackName(int index) const;
 
   QMediaPlayer *m_mediaPlayer;
   QMediaPlayer *m_previewPlayer = nullptr;
@@ -139,6 +162,11 @@ private:
   int m_droppedFramesBase = 0;
   bool m_skipDropTick = true;
   int m_probedAudioTrack = -1;
+
+  SubtitleController *m_subtitles = nullptr;
+  QString m_preferredAudioLanguage;
+  int m_pendingAudioTrack = -1;
+  bool m_audioSelectionApplied = false;
 };
 
 #endif // CUSTOMMEDIAPLAYER_H

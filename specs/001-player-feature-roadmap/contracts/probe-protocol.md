@@ -11,10 +11,10 @@ GAV_SUBPROCESS=probe gav --probe <path> --fonts-dir <dir> [--subtitle-file <path
 
 | Argument | Meaning |
 |----------|---------|
-| `--probe <path>` | The media file to probe (local path only). Required. |
+| `--probe <path>` | The media file to probe (local path only). Required unless at least one `--subtitle-file` is given. |
 | `--subtitle-file <path>` | An external subtitle file to parse. Can be repeated. With `--events none`, only the files' headers are emitted. |
 | `--events` | Which embedded subtitle streams to emit events for. Defaults to `all`. |
-| `--fonts-dir <dir>` | Directory the probe writes embedded fonts into. Required with `--probe`. |
+| `--fonts-dir <dir>` | Directory the probe writes embedded fonts into. Fonts are skipped when it is not given. |
 
 - The UI starts one probe per opened local file, plus one short-lived probe per external subtitle
   file loaded later.
@@ -49,7 +49,7 @@ must ignore unknown `type` values and unknown fields.
      the parent) and sent as file paths, never inline, so no message line carries bulk data.
      The parent loads them off the UI thread and deletes the directory when the file closes.
 
-3. `header` (once per subtitle source that will emit events)
+3. `header` (once per subtitle source that will emit events; external files come before embedded streams)
 
    ```json
    {"type":"header","source":"embedded:3","assHeader":"[Script Info]\n..."}
@@ -81,7 +81,14 @@ must ignore unknown `type` values and unknown fields.
 
    ```json
    {"type":"warning","code":"font-write-failed","detail":"Fancy.ttf"}
+   {"type":"warning","code":"source-failed","detail":"external:/abs/movie.en.srt\tInvalid data found"}
    ```
+
+   - `source-failed` means one subtitle source could not be read. `detail` is the source id, a
+     tab, then the reason. The probe carries on with the other sources, and the parent marks
+     only that source `Failed`.
+   - `encoding-failed` means the detected encoding was rejected and the file is decoded without
+     conversion.
 
 8. `error` (at most once, last; the process then exits with a non-zero code)
 

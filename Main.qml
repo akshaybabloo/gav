@@ -71,6 +71,22 @@ ApplicationWindow {
             "icon": "\ueb87"
         };
     }
+    function loadSubtitleUrl(url) {
+        var name = url.toString();
+        var ext = name.substring(name.lastIndexOf('.') + 1);
+        if (!AppConstants.isSubtitleExtension(ext))
+            return false;
+        if (!mediaComponent.mediaPlayer.mediaLoaded || !mediaComponent.mediaPlayer.hasVideo) {
+            captureSnackbar.message = qsTr("Open a video before loading subtitles");
+            captureSnackbar.show();
+            return true;
+        }
+        if (!mediaComponent.mediaPlayer.subtitles.loadFile(url)) {
+            captureSnackbar.message = qsTr("Could not load subtitle file");
+            captureSnackbar.show();
+        }
+        return true;
+    }
     function openUrls(urls) {
         var startPlayback = mediaComponent.path === "";
         for (var i = 0; i < urls.length; i++) {
@@ -118,8 +134,12 @@ ApplicationWindow {
         isDarkTheme = appSettings.isDarkTheme;
         if (mediaComponent.audioOutput)
             mediaComponent.audioOutput.volume = appSettings.volume;
-        if (mediaComponent.mediaPlayer)
+        if (mediaComponent.mediaPlayer) {
             mediaComponent.mediaPlayer.playbackRate = appSettings.playbackRate;
+            mediaComponent.mediaPlayer.preferredAudioLanguage = appSettings.preferredAudioLanguage;
+            mediaComponent.mediaPlayer.subtitles.preferredLanguage = appSettings.preferredSubtitleLanguage;
+            mediaComponent.mediaPlayer.subtitles.scale = appSettings.subtitleScale;
+        }
         if (appSettings.checkUpdatesOnStartup && !BuildInfo.isDebugBuild) {
             updateDialog.manualCheck = false;
             updates.checkUpdates();
@@ -133,6 +153,9 @@ ApplicationWindow {
         property bool checkUpdatesOnStartup: true
         property bool isDarkTheme: true
         property real playbackRate: 1.0
+        property string preferredAudioLanguage: ""
+        property string preferredSubtitleLanguage: ""
+        property real subtitleScale: 1.0
         property real volume: AppConstants.defaultVolume
     }
     TitleBar {
@@ -262,6 +285,20 @@ ApplicationWindow {
     }
     CustomSnackbar {
         id: collageSnackbar
+    }
+    CustomSnackbar {
+        id: subtitleSnackbar
+    }
+    Connections {
+        function onErrorOccurred(message) {
+            subtitleSnackbar.message = message;
+            subtitleSnackbar.show();
+        }
+        function onScaleChanged() {
+            appSettings.subtitleScale = mediaComponent.mediaPlayer.subtitles.scale;
+        }
+
+        target: mediaComponent.mediaPlayer.subtitles
     }
     Connections {
         function onFrameCaptured(success, path) {
@@ -779,6 +816,14 @@ ApplicationWindow {
         onDefaultSpeedChanged: function (speed) {
             appSettings.playbackRate = speed;
         }
+        onPreferredAudioLanguageEdited: function (language) {
+            appSettings.preferredAudioLanguage = language;
+            mediaComponent.mediaPlayer.preferredAudioLanguage = language;
+        }
+        onPreferredSubtitleLanguageEdited: function (language) {
+            appSettings.preferredSubtitleLanguage = language;
+            mediaComponent.mediaPlayer.subtitles.preferredLanguage = language;
+        }
         onThemeToggled: function (isDark) {
             mainWindow.isDarkTheme = isDark;
             appSettings.isDarkTheme = isDark;
@@ -798,6 +843,8 @@ ApplicationWindow {
             if (drop.urls && drop.urls.length > 0) {
                 var firstFileSet = false;
                 for (var i = 0; i < drop.urls.length; i++) {
+                    if (loadSubtitleUrl(drop.urls[i]))
+                        continue;
                     var mediaInfo = getMediaInfo(drop.urls[i]);
                     console.debug("Media info for dropped file:", JSON.stringify(mediaInfo));
                     if (!mediaInfo)
@@ -820,6 +867,8 @@ ApplicationWindow {
         nameFilters: ["All files (*)"]
 
         onAccepted: {
+            if (loadSubtitleUrl(selectedFile))
+                return;
             var mediaInfo = getMediaInfo(selectedFile);
             if (!mediaInfo)
                 return;
@@ -892,6 +941,30 @@ ApplicationWindow {
             sequence: "I"
 
             onActivated: nerdStats.visible = !nerdStats.visible
+        }
+        Shortcut {
+            enabled: mainWindow.shortcutsEnabled && mediaComponent.isVideo && mediaComponent.mediaPlayer.subtitles.tracks.length > 0
+            sequence: "V"
+
+            onActivated: mediaComponent.showOsd(qsTr("Subtitles: ") + mediaComponent.mediaPlayer.subtitles.cycleTrack())
+        }
+        Shortcut {
+            enabled: mainWindow.shortcutsEnabled && mediaComponent.mediaPlayer.audioTracks.length > 1
+            sequence: "B"
+
+            onActivated: mediaComponent.showOsd(qsTr("Audio: ") + mediaComponent.mediaPlayer.cycleAudioTrack())
+        }
+        Shortcut {
+            enabled: mainWindow.shortcutsEnabled && mediaComponent.mediaPlayer.subtitles.activeTrackId !== ""
+            sequence: "G"
+
+            onActivated: mediaComponent.showOsd(qsTr("Subtitle delay: ") + AppConstants.formatDelay(mediaComponent.mediaPlayer.subtitles.adjustDelay(-AppConstants.subtitleDelayStep)))
+        }
+        Shortcut {
+            enabled: mainWindow.shortcutsEnabled && mediaComponent.mediaPlayer.subtitles.activeTrackId !== ""
+            sequence: "H"
+
+            onActivated: mediaComponent.showOsd(qsTr("Subtitle delay: ") + AppConstants.formatDelay(mediaComponent.mediaPlayer.subtitles.adjustDelay(AppConstants.subtitleDelayStep)))
         }
     }
     ListModel {

@@ -524,6 +524,9 @@ Item {
                         collageTarget: root.collageTarget
                         sourceUrls: player.hasVideo ? [player.source] : []
                     }
+                    TrackMenu {
+                        player: root.player
+                    }
                     BrightnessContrastPopup {
                         hasVideo: player.hasVideo
                         videoOutput: root.videoOutput

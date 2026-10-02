@@ -16,6 +16,8 @@ Dialog {
     signal themeToggled(bool isDark)
     signal defaultSpeedChanged(real speed)
     signal checkUpdatesOnStartupToggled(bool enabled)
+    signal preferredAudioLanguageEdited(string language)
+    signal preferredSubtitleLanguageEdited(string language)
 
     anchors.centerIn: parent
     bottomPadding: 20
@@ -217,6 +219,63 @@ Dialog {
             color: Material.dividerColor
         }
 
+        // Languages section
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 8
+
+            Text {
+                color: Material.foreground
+                font.bold: true
+                font.pixelSize: 14
+                text: qsTr("Languages")
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+
+                Text {
+                    Layout.fillWidth: true
+                    color: Material.foreground
+                    opacity: 0.7
+                    text: qsTr("Preferred subtitle language")
+                }
+                TextField {
+                    Accessible.name: qsTr("Preferred subtitle language")
+                    Layout.preferredWidth: 90
+                    placeholderText: qsTr("e.g. en")
+                    text: root.mediaPlayer.subtitles.preferredLanguage
+
+                    onEditingFinished: root.preferredSubtitleLanguageEdited(text.trim())
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+
+                Text {
+                    Layout.fillWidth: true
+                    color: Material.foreground
+                    opacity: 0.7
+                    text: qsTr("Preferred audio language")
+                }
+                TextField {
+                    Accessible.name: qsTr("Preferred audio language")
+                    Layout.preferredWidth: 90
+                    placeholderText: qsTr("e.g. ja")
+                    text: root.mediaPlayer.preferredAudioLanguage
+
+                    onEditingFinished: root.preferredAudioLanguageEdited(text.trim())
+                }
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 1
+            color: Material.dividerColor
+        }
+
         // Updates section
         ColumnLayout {
             Layout.fillWidth: true
@@ -285,6 +344,15 @@ Dialog {
 
                 Text { color: Material.foreground; opacity: 0.5; text: "Double-click" }
                 Text { color: Material.foreground; opacity: 0.7; text: qsTr("Fullscreen") }
+
+                Text { color: Material.foreground; opacity: 0.5; text: "V" }
+                Text { color: Material.foreground; opacity: 0.7; text: qsTr("Cycle subtitle track") }
+
+                Text { color: Material.foreground; opacity: 0.5; text: "B" }
+                Text { color: Material.foreground; opacity: 0.7; text: qsTr("Cycle audio track") }
+
+                Text { color: Material.foreground; opacity: 0.5; text: "G / H" }
+                Text { color: Material.foreground; opacity: 0.7; text: qsTr("Subtitle delay −/+ 100 ms") }
             }
         }
     }

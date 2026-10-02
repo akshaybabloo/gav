@@ -90,6 +90,18 @@ QtObject {
         return "Audio Files (*." + audioExtensions.join(" *.") + ")";
     }
 
+    function getSubtitleExtensionsFilter(): string {
+        return "Subtitle Files (*." + subtitleExtensions.join(" *.") + ")";
+    }
+
+    function isSubtitleExtension(ext: string): bool {
+        return subtitleExtensions.indexOf(ext.toLowerCase()) !== -1;
+    }
+
+    function formatDelay(ms: int): string {
+        return (ms > 0 ? "+" : "") + ms + " ms";
+    }
+
     function getSupportedFormatsString(): string {
         var allExts = videoExtensions.concat(audioExtensions);
         return allExts.map(ext => ext.toUpperCase()).join(", ");
