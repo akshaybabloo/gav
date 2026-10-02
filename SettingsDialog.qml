@@ -16,14 +16,51 @@ Dialog {
     signal themeToggled(bool isDark)
     signal defaultSpeedChanged(real speed)
     signal checkUpdatesOnStartupToggled(bool enabled)
+    signal preferredAudioLanguageEdited(string language)
+    signal preferredSubtitleLanguageEdited(string language)
+
+    component SectionTitle: Text {
+        Layout.topMargin: 6
+        color: Material.foreground
+        font.bold: true
+        font.pixelSize: 14
+    }
+    component SettingLabel: Text {
+        Layout.fillWidth: true
+        color: Material.foreground
+        elide: Text.ElideRight
+        opacity: 0.7
+    }
+    component Divider: Rectangle {
+        Layout.fillWidth: true
+        Layout.preferredHeight: 1
+        color: Material.dividerColor
+    }
+    component SettingsPage: ScrollView {
+        id: page
+
+        default property alias content: pageColumn.data
+
+        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+        clip: true
+        contentWidth: availableWidth
+
+        ColumnLayout {
+            id: pageColumn
+
+            spacing: 12
+            width: page.availableWidth
+        }
+    }
 
     anchors.centerIn: parent
-    bottomPadding: 20
-    leftPadding: 24
+    bottomPadding: 0
+    height: parent ? Math.min(520, parent.height - 48) : 520
+    leftPadding: 0
     modal: true
-    rightPadding: 24
-    topPadding: 20
-    width: 440
+    rightPadding: 0
+    topPadding: 0
+    width: parent ? Math.min(560, parent.width - 48) : 560
 
     background: Rectangle {
         border.color: Material.dividerColor
@@ -45,13 +82,6 @@ Dialog {
             font.pixelSize: 16
             font.weight: Font.DemiBold
             text: qsTr("Settings")
-        }
-        Rectangle {
-            anchors.bottom: parent.bottom
-            anchors.left: parent.left
-            anchors.right: parent.right
-            color: Material.dividerColor
-            height: 1
         }
     }
 
@@ -81,210 +111,250 @@ Dialog {
     }
 
     ColumnLayout {
-        spacing: 18
-        width: parent.width
+        anchors.fill: parent
+        spacing: 0
 
-        // Appearance section
-        ColumnLayout {
+        TabBar {
+            id: tabs
+
             Layout.fillWidth: true
-            spacing: 8
+            Layout.leftMargin: 12
+            Layout.rightMargin: 12
+            clip: true
 
-            Text {
-                color: Material.foreground
-                font.bold: true
-                font.pixelSize: 14
-                text: qsTr("Appearance")
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 10
+            background: Rectangle {
+                color: "transparent"
 
-                Text {
-                    color: Material.foreground
-                    opacity: 0.7
-                    text: qsTr("Theme:")
-                }
-                Item { Layout.fillWidth: true }
-                Text {
-                    color: Material.foreground
-                    opacity: 0.7
-                    text: qsTr("Light")
-                }
-                Switch {
-                    id: themeSwitch
-                    checked: isDarkTheme
-                    onCheckedChanged: {
-                        themeToggled(checked);
-                    }
-                }
-                Text {
-                    color: Material.foreground
-                    opacity: 0.7
-                    text: qsTr("Dark")
+                Rectangle {
+                    anchors.bottom: parent.bottom
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    color: Material.dividerColor
+                    height: 1
                 }
             }
-        }
 
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 1
-            color: Material.dividerColor
-        }
-
-        // Volume section
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 8
-
-            Text {
-                color: Material.foreground
-                font.bold: true
-                font.pixelSize: 14
-                text: qsTr("Audio")
+            TabButton {
+                text: qsTr("General")
             }
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 10
-
-                Text {
-                    color: Material.foreground
-                    opacity: 0.7
-                    text: qsTr("Default Volume:")
-                }
-                Slider {
-                    id: defaultVolumeSlider
-                    Layout.fillWidth: true
-                    from: 0
-                    to: 1
-                    value: audioOutput.volume
-                    onValueChanged: {
-                        audioOutput.volume = value;
-                    }
-                }
-                Text {
-                    color: Material.foreground
-                    opacity: 0.7
-                    text: Math.round(defaultVolumeSlider.value * 100) + "%"
-                    Layout.preferredWidth: 40
-                }
-            }
-        }
-
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 1
-            color: Material.dividerColor
-        }
-
-        // Playback section
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 8
-
-            Text {
-                color: Material.foreground
-                font.bold: true
-                font.pixelSize: 14
+            TabButton {
                 text: qsTr("Playback")
             }
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 10
+            TabButton {
+                text: qsTr("Languages")
+            }
+            TabButton {
+                text: qsTr("Shortcuts")
+            }
+        }
+        StackLayout {
+            Layout.bottomMargin: 12
+            Layout.fillHeight: true
+            Layout.fillWidth: true
+            Layout.leftMargin: 24
+            Layout.rightMargin: 12
+            Layout.topMargin: 12
+            currentIndex: tabs.currentIndex
 
-                Text {
-                    color: Material.foreground
-                    opacity: 0.7
-                    text: qsTr("Default Speed:")
+            SettingsPage {
+                SectionTitle {
+                    text: qsTr("Appearance")
                 }
-                ComboBox {
-                    id: defaultSpeedCombo
+                RowLayout {
                     Layout.fillWidth: true
-                    model: AppConstants.playbackSpeeds.map(function(s) { return s + "x"; })
-                    currentIndex: AppConstants.playbackSpeeds.indexOf(mediaPlayer.playbackRate) >= 0
-                                  ? AppConstants.playbackSpeeds.indexOf(mediaPlayer.playbackRate)
-                                  : 3
-                    onActivated: function(index) {
-                        mediaPlayer.playbackRate = AppConstants.playbackSpeeds[index];
-                        defaultSpeedChanged(AppConstants.playbackSpeeds[index]);
+                    Layout.rightMargin: 12
+                    spacing: 10
+
+                    SettingLabel {
+                        text: qsTr("Theme")
+                    }
+                    Text {
+                        color: Material.foreground
+                        opacity: 0.7
+                        text: qsTr("Light")
+                    }
+                    Switch {
+                        id: themeSwitch
+
+                        Accessible.name: qsTr("Dark theme")
+                        checked: root.isDarkTheme
+
+                        onCheckedChanged: root.themeToggled(checked)
+                    }
+                    Text {
+                        color: Material.foreground
+                        opacity: 0.7
+                        text: qsTr("Dark")
+                    }
+                }
+                Divider {
+                    Layout.rightMargin: 12
+                }
+                SectionTitle {
+                    text: qsTr("Updates")
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.rightMargin: 12
+                    spacing: 10
+
+                    SettingLabel {
+                        text: qsTr("Check for updates on startup")
+                    }
+                    Switch {
+                        id: checkUpdatesSwitch
+
+                        Accessible.name: qsTr("Check for updates on startup")
+                        checked: root.checkUpdatesOnStartup
+
+                        onCheckedChanged: root.checkUpdatesOnStartupToggled(checked)
                     }
                 }
             }
-        }
+            SettingsPage {
+                SectionTitle {
+                    text: qsTr("Audio")
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.rightMargin: 12
+                    spacing: 10
 
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 1
-            color: Material.dividerColor
-        }
+                    SettingLabel {
+                        Layout.fillWidth: false
+                        text: qsTr("Default volume")
+                    }
+                    Slider {
+                        id: defaultVolumeSlider
 
-        // Updates section
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 8
+                        Accessible.name: qsTr("Default volume")
+                        Layout.fillWidth: true
+                        from: 0
+                        to: 1
+                        value: root.audioOutput.volume
 
-            Text {
-                color: Material.foreground
-                font.bold: true
-                font.pixelSize: 14
-                text: qsTr("Updates")
+                        onValueChanged: root.audioOutput.volume = value
+                    }
+                    Text {
+                        Layout.preferredWidth: 40
+                        color: Material.foreground
+                        horizontalAlignment: Text.AlignRight
+                        opacity: 0.7
+                        text: Math.round(defaultVolumeSlider.value * 100) + "%"
+                    }
+                }
+                Divider {
+                    Layout.rightMargin: 12
+                }
+                SectionTitle {
+                    text: qsTr("Playback")
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.rightMargin: 12
+                    spacing: 10
+
+                    SettingLabel {
+                        text: qsTr("Default speed")
+                    }
+                    ComboBox {
+                        id: defaultSpeedCombo
+
+                        Accessible.name: qsTr("Default speed")
+                        Layout.preferredWidth: 120
+                        currentIndex: AppConstants.playbackSpeeds.indexOf(root.mediaPlayer.playbackRate) >= 0 ? AppConstants.playbackSpeeds.indexOf(root.mediaPlayer.playbackRate) : 3
+                        model: AppConstants.playbackSpeeds.map(function (s) {
+                            return s + "x";
+                        })
+
+                        onActivated: function (index) {
+                            root.mediaPlayer.playbackRate = AppConstants.playbackSpeeds[index];
+                            root.defaultSpeedChanged(AppConstants.playbackSpeeds[index]);
+                        }
+                    }
+                }
             }
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 10
-
+            SettingsPage {
+                SectionTitle {
+                    text: qsTr("Preferred languages")
+                }
                 Text {
+                    Layout.fillWidth: true
+                    Layout.rightMargin: 12
                     color: Material.foreground
-                    opacity: 0.7
-                    text: qsTr("Check for updates on startup")
+                    opacity: 0.5
+                    text: qsTr("Two- or three-letter language codes, such as en, fra or ja. Matching tracks are chosen automatically when a file opens.")
+                    wrapMode: Text.WordWrap
                 }
-                Item { Layout.fillWidth: true }
-                Switch {
-                    id: checkUpdatesSwitch
-                    checked: root.checkUpdatesOnStartup
-                    onCheckedChanged: root.checkUpdatesOnStartupToggled(checked)
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.rightMargin: 12
+                    spacing: 10
+
+                    SettingLabel {
+                        text: qsTr("Subtitles")
+                    }
+                    TextField {
+                        Accessible.name: qsTr("Preferred subtitle language")
+                        Layout.preferredWidth: 120
+                        placeholderText: qsTr("e.g. en")
+                        text: root.mediaPlayer.subtitles.preferredLanguage
+
+                        onEditingFinished: root.preferredSubtitleLanguageEdited(text.trim())
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.rightMargin: 12
+                    spacing: 10
+
+                    SettingLabel {
+                        text: qsTr("Audio")
+                    }
+                    TextField {
+                        Accessible.name: qsTr("Preferred audio language")
+                        Layout.preferredWidth: 120
+                        placeholderText: qsTr("e.g. ja")
+                        text: root.mediaPlayer.preferredAudioLanguage
+
+                        onEditingFinished: root.preferredAudioLanguageEdited(text.trim())
+                    }
                 }
             }
-        }
+            SettingsPage {
+                Repeater {
+                    model: AppConstants.shortcutReference
 
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 1
-            color: Material.dividerColor
-        }
+                    RowLayout {
+                        required property var modelData
 
-        // Keyboard shortcuts reference
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 8
+                        Layout.fillWidth: true
+                        Layout.rightMargin: 12
+                        spacing: 16
 
-            Text {
-                color: Material.foreground
-                font.bold: true
-                font.pixelSize: 14
-                text: qsTr("Keyboard Shortcuts")
-            }
-            GridLayout {
-                columns: 2
-                columnSpacing: 20
-                rowSpacing: 4
+                        Rectangle {
+                            Layout.preferredHeight: keyText.implicitHeight + 8
+                            Layout.preferredWidth: 130
+                            border.color: Material.dividerColor
+                            border.width: 1
+                            color: "transparent"
+                            radius: 4
 
-                Text { color: Material.foreground; opacity: 0.5; text: "Space" }
-                Text { color: Material.foreground; opacity: 0.7; text: qsTr("Play/Pause") }
+                            Text {
+                                id: keyText
 
-                Text { color: Material.foreground; opacity: 0.5; text: "Left/Right" }
-                Text { color: Material.foreground; opacity: 0.7; text: qsTr("Seek 5 seconds") }
-
-                Text { color: Material.foreground; opacity: 0.5; text: "Scroll" }
-                Text { color: Material.foreground; opacity: 0.7; text: qsTr("Volume") }
-
-                Text { color: Material.foreground; opacity: 0.5; text: "Ctrl+Scroll" }
-                Text { color: Material.foreground; opacity: 0.7; text: qsTr("Zoom") }
-
-                Text { color: Material.foreground; opacity: 0.5; text: "I" }
-                Text { color: Material.foreground; opacity: 0.7; text: qsTr("Stats for nerds") }
-
-                Text { color: Material.foreground; opacity: 0.5; text: "Double-click" }
-                Text { color: Material.foreground; opacity: 0.7; text: qsTr("Fullscreen") }
+                                anchors.centerIn: parent
+                                color: Material.foreground
+                                font.family: "monospace"
+                                font.pixelSize: 12
+                                text: modelData.keys
+                            }
+                        }
+                        SettingLabel {
+                            text: modelData.action
+                        }
+                    }
+                }
             }
         }
     }

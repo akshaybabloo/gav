@@ -131,30 +131,30 @@ with no comments by default (Constitution: Development Workflow).
 
 ### Tests for User Story 1
 
-- [ ] T016 [P] [US1] Write `tests/test_subtitlefiles.cpp`, covering:
+- [X] T016 [P] [US1] Write `tests/test_subtitlefiles.cpp`, covering:
   - `movie.srt`, `movie.en.srt`, `movie.pt-BR.vtt` and `MOVIE.EN.SRT` (case-insensitive) are matched
   - `movie.toolongsuffix.srt` (over 8 characters) and `other.srt` are rejected
   - preferred-language choice, with an alphabetical fallback when nothing matches
-- [ ] T017 [P] [US1] Write `tests/test_probeprotocol.cpp` for `ProbeMessage::parse`/`serialise`:
+- [X] T017 [P] [US1] Write `tests/test_probeprotocol.cpp` for `ProbeMessage::parse`/`serialise`:
   - every message type in [contracts/probe-protocol.md](./contracts/probe-protocol.md) round-trips
   - unknown `type` and unknown fields are ignored
   - events with negative times are rejected
   - malformed JSON returns an invalid message
-- [ ] T018 [P] [US1] Add golden-output tests to `tests/test_probeprotocol.cpp`:
+- [X] T018 [P] [US1] Add fixture tests to `tests/test_probeprotocol.cpp`:
   - run `ProbeWorker` in-process against `multi.mkv` and against `multi.fr.srt` (with `--events all`)
-  - compare the output with `tests/data/multi.mkv.jsonl` and `tests/data/multi.fr.srt.jsonl`
-  - check that `corrupt.mkv` produces `error` code `open-failed`
-- [ ] T019 [P] [US1] Write `tests/test_subtitlerenderer.cpp`:
+  - assert the chapters, streams, fonts, headers, event timings and decoded text (field assertions instead of stored `.jsonl` files, so FFmpeg header comments and temp paths don't break them)
+  - check that `corrupt.mkv` produces `error` code `open-failed`, and that sidecars still load when the media can't be opened
+- [X] T019 [P] [US1] Write `tests/test_subtitlerenderer.cpp`:
   - load `styled.ass` into `SubtitleRenderer` at 1920×1080 and render at 5 000, 12 000 and 20 000 ms
   - assert non-transparent pixels exist inside the expected bounding boxes for the positioned sign, the rotated sign and the karaoke line, and that a box elsewhere is transparent
   - measure and log the average render time per frame (plan target: under 4 ms)
 
 ### Implementation for User Story 1
 
-- [ ] T020 [P] [US1] Create `subtitlefiles.h`/`subtitlefiles.cpp` with `SubtitleFiles::discover(videoPath) → QList<{path, language}>` and `SubtitleFiles::choose(list, preferredLanguage) → int`:
+- [X] T020 [P] [US1] Create `subtitlefiles.h`/`subtitlefiles.cpp` with `SubtitleFiles::discover(videoPath) → QList<{path, language}>` and `SubtitleFiles::choose(list, preferredLanguage) → int`:
   - matches `<basename>.<ext>` and `<basename>.<lang>.<ext>`, where `<ext>` is `srt|ass|ssa|vtt` (case-insensitive) and `<lang>` is "any dot-free suffix up to 8 characters" (research R5)
-- [ ] T021 [P] [US1] Create `probemessage.h`/`probemessage.cpp`: a `ProbeMessage` variant type (`Hello`, `Media`, `Header`, `Event`, `End`, `Warning`, `Error`) with `parse(QByteArray line)` and `serialise()`, implementing [contracts/probe-protocol.md](./contracts/probe-protocol.md) with `protocol: 1`.
-- [ ] T022 [US1] Create `probeworker.h`/`probeworker.cpp` (child side, depends on T021):
+- [X] T021 [P] [US1] Create `probemessage.h`/`probemessage.cpp`: a `ProbeMessage` variant type (`Hello`, `Media`, `Header`, `Event`, `End`, `Warning`, `Error`) with `parse(QByteArray line)` and `serialise()`, implementing [contracts/probe-protocol.md](./contracts/probe-protocol.md) with `protocol: 1`.
+- [X] T022 [US1] Create `probeworker.h`/`probeworker.cpp` (child side, depends on T021):
   - Open the file with `avformat_open_input`/`avformat_find_stream_info`.
   - Send `hello`, then `media`:
     - `durationMs`
@@ -168,11 +168,11 @@ with no comments by default (Constitution: Development Workflow).
   - Detect encoding with uchardet when there's no BOM and the content isn't valid UTF-8, and pass it as `sub_charenc`, reporting `encoding` in `header` (research R4).
   - Map failures to the error codes `open-failed`, `no-streams`, `decode-failed`, `encoding-failed` and `internal`, with exit code 1.
   - Write only protocol lines to stdout and send logs to stderr.
-- [ ] T023 [US1] In `main.cpp`, before any GUI object is created:
+- [X] T023 [US1] In `main.cpp`, before any GUI object is created:
   - when `GAV_SUBPROCESS=probe`, build a `QCoreApplication`, parse the hidden `--probe`, `--subtitle-file` (repeatable) and `--events` options, run `ProbeWorker`, and return its exit code
   - hide these options from `--help` ([contracts/keyboard-and-cli.md](./contracts/keyboard-and-cli.md))
   - make sure the existing collage check `qEnvironmentVariableIsSet("GAV_SUBPROCESS")` does not match `probe` mode
-- [ ] T024 [US1] Create `mediaprobe.h`/`mediaprobe.cpp` (parent side, depends on T021):
+- [X] T024 [US1] Create `mediaprobe.h`/`mediaprobe.cpp` (parent side, depends on T021):
   - Starts `QCoreApplication::applicationFilePath()` with `GAV_SUBPROCESS=probe` through `QProcess`.
   - Parses lines on `readyReadStandardOutput` and forwards stderr to spdlog at debug level.
   - Creates a private temporary fonts directory per probe, passes it as `--fonts-dir`, and deletes it on `stop()`.
@@ -180,52 +180,52 @@ with no comments by default (Constitution: Development Workflow).
   - Signals: `mediaReady(chapters, subtitleStreams, fonts)`, `headerReady(source, assHeader)`, `eventsReady(source, QList<event>)`, `sourceEnded(source)`, `failed(code, detail)`.
   - `start(path, extraSubtitleFiles)`, `loadSubtitleFile(path)` (short-lived probe with `--events all`), and `stop()`, which kills running probes.
   - Treat all fields as untrusted and range-check them.
-- [ ] T025 [P] [US1] Create `subtitlerenderer.h`/`subtitlerenderer.cpp`, a thread-safe libass wrapper:
+- [X] T025 [P] [US1] Create `subtitlerenderer.h`/`subtitlerenderer.cpp`, a thread-safe libass wrapper:
   - `ass_library_init` with `ass_set_fonts(…, ASS_FONTPROVIDER_AUTODETECT …)` and `addFont(name, data)` → `ass_add_font`.
   - `setTrack(header)` → `ass_new_track` + `ass_process_codec_private`, and `addEvents(list)` → `ass_process_chunk`.
   - `setFrameSize(w, h)` and `setScale(real)` → `ass_set_font_scale`, using "0.5–3.0 in 0.1 steps".
   - `render(qint64 timeMs) → QImage` (premultiplied ARGB, compositing the `ASS_Image` list), using `detect_change` to return the cached image when nothing changed.
   - `clear()`.
-- [ ] T026 [US1] Create `subtitleoverlay.h`/`subtitleoverlay.cpp`, a `SubtitleOverlay` `QQuickItem` (`QML_ELEMENT`):
+- [X] T026 [US1] Create `subtitleoverlay.h`/`subtitleoverlay.cpp`, a `SubtitleOverlay` `QQuickItem` (`QML_ELEMENT`):
   - Properties: `videoSink` (`QVideoSink*`), `renderer` (`SubtitleRenderer*`), `delayMs`, `contentRect` (the video's painted rectangle).
   - On `QVideoSink::videoFrameChanged`, render at `frame.startTime()/1000 + delayMs` on a worker thread (dropping requests while one is in flight), then call `update()`.
   - `updatePaintNode` uses a `QSGSimpleTextureNode` positioned at `contentRect`.
   - The overlay is not affected by zoom or pan (research R2).
-- [ ] T027 [US1] In `main.cpp`, on Linux only: before the `QGuiApplication`/libass is created, if `FONTCONFIG_FILE` is unset and `/etc/fonts/fonts.conf` exists, set `FONTCONFIG_FILE` to it (research R2).
-- [ ] T028 [US1] Extend `custommediaplayer.h`/`custommediaplayer.cpp` (depends on T020, T024, T025):
+- [X] T027 [US1] In `main.cpp`, on Linux only: before the `QGuiApplication`/libass is created, if `FONTCONFIG_FILE` is unset and `/etc/fonts/fonts.conf` exists, set `FONTCONFIG_FILE` to it (research R2).
+- [X] T028 [US1] Extend `custommediaplayer.h`/`custommediaplayer.cpp` (depends on T020, T024, T025). The subtitle state lives in a new `SubtitleController` (`subtitlecontroller.h`/`.cpp`) owned by the player and exposed as `subtitles`; audio tracks and `chapters` stay on the player:
   - Own a `MediaProbe` and a `SubtitleRenderer`, and expose the renderer as a `Q_PROPERTY`.
   - On a local-file `source` change: stop the old probe, reset `subtitleDelay` to 0, discover sidecars on a `QtConcurrent` worker, then start the probe with them. Load embedded fonts from the probe's font paths on a worker thread before calling `SubtitleRenderer::addFont`.
   - Expose `subtitleTracks` (QVariantList of `{id, origin, language, title, displayName, codec, loadState, isDefault, isForced}` per [data-model.md](./data-model.md#subtitletrack-story-1)), with `displayName` following "`title (language)`, then `language`, then `Track N`" (FR-007).
   - Expose `activeSubtitleTrackId` (empty means Off), `audioTracks` (from `QMediaPlayer::audioTracks()`), `activeAudioTrack`, `subtitleDelay` ("±100 ms" steps, "clamped to ±600 000 ms") and `chapters`, each with change signals.
   - Turn off Qt's own subtitle drawing (`setActiveSubtitleTrack(-1)`) while GAV renders.
-- [ ] T029 [US1] Add track selection logic to `custommediaplayer.cpp`:
+- [X] T029 [US1] Add track selection logic to `custommediaplayer.cpp`:
   - A track switch requested before `LoadedMedia` is queued and applied once loading completes (spec edge case).
   - Auto-select on load: preferred subtitle language, then forced or default disposition, then the chosen sidecar, then Off. Audio follows the preferred audio language (FR-010).
   - `Q_INVOKABLE selectSubtitleTrack(id)`, `cycleSubtitleTrack()` (includes Off), `selectAudioTrack(index)` (preserving position) and `cycleAudioTrack()`.
   - `Q_INVOKABLE loadSubtitleFile(QUrl)` (FR-004), which rejects extensions not in `AppConstants.subtitleExtensions`.
-- [ ] T030 [US1] Add probe failure handling to `custommediaplayer.cpp`:
+- [X] T030 [US1] Add probe failure handling to `custommediaplayer.cpp`:
   - On `MediaProbe::failed` or a crash, mark `Streaming` tracks `Failed` and emit `subtitleError(message)`.
   - For an embedded active track, switch to `FallbackPlainText` by calling Qt's `setActiveSubtitleTrack` with the matching Qt index, so Qt draws plain text.
   - External failed tracks stay listed but disabled ([data-model.md](./data-model.md#subtitletrack-story-1) state machine).
-- [ ] T031 [P] [US1] Create `TrackMenu.qml`, a `Menu`/`Popup` containing:
+- [X] T031 [P] [US1] Create `TrackMenu.qml`, a `Menu`/`Popup` containing:
   - a subtitle section with each track's `displayName` plus Off
   - "Load subtitle file…", which opens a `FileDialog` filtered to `AppConstants.subtitleExtensions`
   - an audio section
   - subtitle delay −/+ buttons with the current value
   - a subtitle size slider (`subtitleScaleMin`–`subtitleScaleMax`, step `subtitleScaleStep`)
   - When there are no subtitle tracks, the section shows a disabled "No subtitles" row. With one audio track, it shows a disabled "Single audio track" row (acceptance scenario 1.7).
-- [ ] T032 [US1] Add a track-menu button to `MediaControlsComponent.qml` that opens `TrackMenu`, visible when `player.hasVideo` or there is more than one audio track, matching the existing button style and accessibility attributes.
-- [ ] T033 [US1] Add a `SubtitleOverlay` above `VideoOutput` in `MediaComponent.qml`:
+- [X] T032 [US1] Add a track-menu button to `MediaControlsComponent.qml` that opens `TrackMenu`, visible when `player.hasVideo` or there is more than one audio track, matching the existing button style and accessibility attributes.
+- [X] T033 [US1] Add a `SubtitleOverlay` above `VideoOutput` in `MediaComponent.qml`:
   - `videoSink: videoOutput.videoSink`, `contentRect: videoOutput.contentRect`, `renderer: mediaPlayer.subtitleRenderer`, `delayMs: mediaPlayer.subtitleDelay`
   - extend the drop handler so dropped `.srt/.ass/.ssa/.vtt` files call `loadSubtitleFile` instead of joining the playlist
-- [ ] T034 [US1] Add a `SubtitleOverlay` over `miniVideoOutput` in `MiniPlayerWindow.qml`, bound to the same player and renderer (FR-033).
-- [ ] T035 [US1] In `Main.qml`:
+- [X] T034 [US1] Add a `SubtitleOverlay` over `miniVideoOutput` in `MiniPlayerWindow.qml`, bound to the same player and renderer (FR-033).
+- [X] T035 [US1] In `Main.qml`:
   - add `subtitleScale` (default 1.0), `preferredSubtitleLanguage` and `preferredAudioLanguage` (default empty) to `appSettings`, and bind them to the player
   - show `subtitleError` messages in the snackbar
   - add `Shortcut`s (bound to `shortcutsEnabled`) for `V` (cycle subtitle), `B` (cycle audio), `G` (delay −100 ms) and `H` (delay +100 ms), each calling `mediaComponent.showOsd(…)` with e.g. `Subtitle delay: +300 ms` or the track name
-- [ ] T036 [US1] Add preferred subtitle and audio language fields (ISO 639 codes, can be empty) to `SettingsDialog.qml`, and add the V/B/G/H rows to the "Keyboard Shortcuts" grid.
+- [X] T036 [US1] Add preferred subtitle and audio language fields (ISO 639 codes, can be empty) to `SettingsDialog.qml`, and add the V/B/G/H rows to the "Keyboard Shortcuts" grid.
 - [ ] T077 [US1] Package check for US1: build DEB, AppImage, NSIS and DMG from the US1 branch and confirm each starts and renders `multi.en.srt` (quickstart Q1.1, Q1.11), fixing any deploy gaps for libass and its font libraries in `support/cpack.cmake` (Constitution Principle III).
-- [ ] T037 [US1] Register `subtitlefiles`, `probemessage`, `probeworker`, `mediaprobe`, `subtitlerenderer` and `subtitleoverlay` in `qt_add_qml_module`, add `TrackMenu.qml` to `QML_FILES`, and add the pure units plus `tests/test_subtitlefiles.cpp`, `tests/test_probeprotocol.cpp` and `tests/test_subtitlerenderer.cpp` to `gav_tests` in `CMakeLists.txt`.
+- [X] T037 [US1] Register `subtitlefiles`, `probemessage`, `probeworker`, `mediaprobe`, `subtitlerenderer` and `subtitleoverlay` in `qt_add_qml_module`, add `TrackMenu.qml` to `QML_FILES`, and add the pure units plus `tests/test_subtitlefiles.cpp`, `tests/test_probeprotocol.cpp` and `tests/test_subtitlerenderer.cpp` to `gav_tests` in `CMakeLists.txt`.
 
 **Checkpoint**: ctest passes, and quickstart Q1.1–Q1.13 pass on Linux, Windows and macOS. This is the MVP and ships as its own PR.
 
@@ -316,7 +316,7 @@ with no comments by default (Constitution: Development Workflow).
   - inline error text for `malformed` ("Use h:mm:ss, m:ss or seconds") and `outOfRange` ("Beyond the end of the media")
   - OK, which seeks and closes. It accepts on Enter (FR-023)
 - [ ] T056 [US3] Make clicking the elapsed-time label in `MediaControlsComponent.qml` open `GoToTimeDialog`.
-- [ ] T057 [US3] Add an `AppConstants.shortcutReference` array of `{keys, action}` covering every row of the table in [contracts/keyboard-and-cli.md](./contracts/keyboard-and-cli.md), existing bindings included. Replace the hard-coded "Keyboard Shortcuts" grid in `SettingsDialog.qml` with a `Repeater` over it (FR-025).
+- [ ] T057 [US3] Extend `AppConstants.shortcutReference` (added with the Settings redesign in US1; the Shortcuts tab of `SettingsDialog.qml` already repeats over it) so it covers every row of the table in [contracts/keyboard-and-cli.md](./contracts/keyboard-and-cli.md) (FR-025).
 - [ ] T058 [US3] Add the remaining FR-024 `Shortcut`s to `Main.qml`, each with `enabled: shortcutsEnabled` (except the text-safe ones) and `showOsd` feedback:
   - Ctrl+Up/Ctrl+Down: volume ±`AppConstants.volumeStep`
   - M: mute toggle via the audio output's `muted`

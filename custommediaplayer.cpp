@@ -1,5 +1,6 @@
 #include "custommediaplayer.h"
 #include "previewimageprovider.h"
+#include "subtitlefiles.h"
 #include <QVideoSink>
 #include <QVideoFrame>
 #include <QImage>
@@ -10,6 +11,7 @@
 #include <QTimer>
 #include <QDebug>
 #include <QFileInfo>
+#include <QLocale>
 #include <QMediaFormat>
 #include <QVideoFrameFormat>
 
@@ -62,6 +64,98 @@ CustomMediaPlayer::CustomMediaPlayer() {
   connect(m_mediaPlayer, &QMediaPlayer::metaDataChanged, this, &CustomMediaPlayer::updateMediaInfo);
   connect(m_mediaPlayer, &QMediaPlayer::tracksChanged, this, &CustomMediaPlayer::updateMediaInfo);
   connect(m_mediaPlayer, &QMediaPlayer::activeTracksChanged, this, &CustomMediaPlayer::updateMediaInfo);
+
+  m_subtitles = new SubtitleController(m_mediaPlayer, this);
+  connect(m_subtitles, &SubtitleController::chaptersChanged, this, &CustomMediaPlayer::chaptersChanged);
+  connect(m_mediaPlayer, &QMediaPlayer::tracksChanged, this, &CustomMediaPlayer::audioTracksChanged);
+  connect(m_mediaPlayer, &QMediaPlayer::activeTracksChanged, this, &CustomMediaPlayer::audioTracksChanged);
+}
+
+SubtitleController *CustomMediaPlayer::subtitles() const { return m_subtitles; }
+
+QVariantList CustomMediaPlayer::chapters() const { return m_subtitles->chapters(); }
+
+QString CustomMediaPlayer::audioTrackName(int index) const {
+  const QList<QMediaMetaData> tracks = m_mediaPlayer->audioTracks();
+  if (index < 0 || index >= tracks.size()) {
+    return {};
+  }
+  SubtitleController::Track track;
+  track.title = tracks[index].stringValue(QMediaMetaData::Title);
+  const QVariant language = tracks[index].value(QMediaMetaData::Language);
+  if (language.isValid() && language.value<QLocale::Language>() != QLocale::AnyLanguage) {
+    track.language = QLocale::languageToCode(language.value<QLocale::Language>());
+  }
+  return SubtitleController::displayName(track, index + 1);
+}
+
+QVariantList CustomMediaPlayer::audioTracks() const {
+  QVariantList result;
+  const qsizetype count = m_mediaPlayer->audioTracks().size();
+  for (qsizetype i = 0; i < count; ++i) {
+    result.append(QVariantMap{{QStringLiteral("index"), int(i)}, {QStringLiteral("displayName"), audioTrackName(int(i))}});
+  }
+  return result;
+}
+
+int CustomMediaPlayer::activeAudioTrack() const {
+  return m_pendingAudioTrack >= 0 ? m_pendingAudioTrack : m_mediaPlayer->activeAudioTrack();
+}
+
+QString CustomMediaPlayer::activeAudioTrackName() const { return audioTrackName(activeAudioTrack()); }
+
+QString CustomMediaPlayer::preferredAudioLanguage() const { return m_preferredAudioLanguage; }
+
+void CustomMediaPlayer::setPreferredAudioLanguage(const QString &language) {
+  const QString trimmed = language.trimmed();
+  if (trimmed == m_preferredAudioLanguage)
+    return;
+  m_preferredAudioLanguage = trimmed;
+  emit preferredAudioLanguageChanged();
+}
+
+void CustomMediaPlayer::selectAudioTrack(int index) {
+  if (m_mediaPlayer->mediaStatus() < QMediaPlayer::LoadedMedia) {
+    m_pendingAudioTrack = index;
+    emit audioTracksChanged();
+    return;
+  }
+  if (index < 0 || index >= m_mediaPlayer->audioTracks().size() || index == m_mediaPlayer->activeAudioTrack())
+    return;
+  m_mediaPlayer->setActiveAudioTrack(index);
+}
+
+QString CustomMediaPlayer::cycleAudioTrack() {
+  const int count = int(m_mediaPlayer->audioTracks().size());
+  if (count < 2)
+    return activeAudioTrackName();
+  const int next = (qMax(0, activeAudioTrack()) + 1) % count;
+  selectAudioTrack(next);
+  return audioTrackName(next);
+}
+
+void CustomMediaPlayer::applyAudioSelection() {
+  if (m_audioSelectionApplied)
+    return;
+  m_audioSelectionApplied = true;
+
+  int index = m_pendingAudioTrack;
+  m_pendingAudioTrack = -1;
+  const QList<QMediaMetaData> tracks = m_mediaPlayer->audioTracks();
+  if (index < 0 && !m_preferredAudioLanguage.isEmpty()) {
+    for (qsizetype i = 0; i < tracks.size(); ++i) {
+      const QVariant language = tracks[i].value(QMediaMetaData::Language);
+      if (language.isValid() &&
+          SubtitleFiles::languagesMatch(QLocale::languageToCode(language.value<QLocale::Language>()), m_preferredAudioLanguage)) {
+        index = int(i);
+        break;
+      }
+    }
+  }
+  if (index >= 0 && index < tracks.size() && index != m_mediaPlayer->activeAudioTrack()) {
+    m_mediaPlayer->setActiveAudioTrack(index);
+  }
+  emit audioTracksChanged();
 }
 
 QUrl CustomMediaPlayer::source() const { return m_mediaPlayer->source(); }
@@ -84,7 +178,10 @@ void CustomMediaPlayer::setSource(const QUrl &source) {
 
   resetPlaybackStats();
 
+  m_pendingAudioTrack = -1;
+  m_audioSelectionApplied = false;
   m_mediaPlayer->setSource(source);
+  m_subtitles->setSource(source);
 }
 
 QObject *CustomMediaPlayer::videoOutput() const {
@@ -447,6 +544,9 @@ void CustomMediaPlayer::pause() {
 void CustomMediaPlayer::stop() {
   m_playWhenLoaded = false;
   resetPreviewPlayer();
+  m_subtitles->clear();
+  m_pendingAudioTrack = -1;
+  m_audioSelectionApplied = false;
   m_mediaPlayer->stop();
   m_mediaPlayer->setSource(QUrl());
   m_mediaPlayer->setPosition(0);
@@ -495,6 +595,10 @@ void CustomMediaPlayer::onStatusChanged(QMediaPlayer::MediaStatus status) {
   } else if (status == QMediaPlayer::NoMedia ||
              status == QMediaPlayer::InvalidMedia) {
     emit videoVisibilityChanged(false);
+  }
+
+  if (status == QMediaPlayer::LoadedMedia) {
+    applyAudioSelection();
   }
 
   if (status == QMediaPlayer::LoadedMedia && m_playWhenLoaded) {

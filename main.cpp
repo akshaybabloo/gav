@@ -16,6 +16,7 @@
 #include "collage.h"
 #include "instancemanager.h"
 #include "previewimageprovider.h"
+#include "probeworker.h"
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -124,10 +125,30 @@ void logOutput(QtMsgType type, const QMessageLogContext &context, const QString 
     }
 }
 
+static int runProbe(int argc, char *argv[]) {
+    logger = spdlog::stderr_color_mt("gav-probe");
+    spdlog::set_default_logger(logger);
+    logger->set_level(spdlog::level::warn);
+    qInstallMessageHandler(logOutput);
+
+    QCoreApplication app(argc, argv);
+    return ProbeWorker::runFromArguments(QCoreApplication::arguments());
+}
+
 int main(int argc, char *argv[]) {
 #ifdef Q_OS_WIN
     // Enable UTF-8 output on Windows console
     SetConsoleOutputCP(CP_UTF8);
+#endif
+
+    if (qEnvironmentVariable("GAV_SUBPROCESS") == QLatin1String("probe")) {
+        return runProbe(argc, argv);
+    }
+
+#if defined(Q_OS_LINUX)
+    if (!qEnvironmentVariableIsSet("FONTCONFIG_FILE") && QFileInfo::exists(QStringLiteral("/etc/fonts/fonts.conf"))) {
+        qputenv("FONTCONFIG_FILE", "/etc/fonts/fonts.conf");
+    }
 #endif
 
     initLogging();

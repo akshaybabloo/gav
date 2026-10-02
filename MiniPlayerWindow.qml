@@ -34,6 +34,13 @@ Window {
 
         anchors.fill: parent
     }
+    SubtitleOverlay {
+        anchors.fill: miniVideoOutput
+        contentRect: miniVideoOutput.contentRect
+        delayMs: miniPlayerWindow.mediaPlayer.subtitles.delay
+        renderer: miniPlayerWindow.mediaPlayer.subtitles.renderer
+        videoSink: miniVideoOutput.videoSink
+    }
 
     // Full-window drag area (beneath control overlays)
     MouseArea {

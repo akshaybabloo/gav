@@ -102,6 +102,7 @@ convention. Entries are new (`+`) or modified (`~`).
 + subtitlefiles.h/.cpp        # sidecar discovery and preferred-language choice
 + subtitlerenderer.h/.cpp     # libass library/renderer/track wrapper, ASS_Image → QImage
 + subtitleoverlay.h/.cpp      # QQuickItem (QML_ELEMENT) bound to a QVideoSink and SubtitleRenderer
++ subtitlecontroller.h/.cpp   # track list, selection, delay, size, chapters; owns MediaProbe and SubtitleRenderer
 + TrackMenu.qml               # subtitle/audio selection, delay, size, load file…
 ~ custommediaplayer.h/.cpp    # audio/subtitle track lists, active track, probe ownership, chapters
 ~ MediaComponent.qml          # SubtitleOverlay above VideoOutput; drop .srt/.ass/.vtt
