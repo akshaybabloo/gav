@@ -10,7 +10,6 @@
 #include <QSaveFile>
 #include <QStandardPaths>
 #include <QUrl>
-#include <QtConcurrent/QtConcurrentRun>
 
 #include <spdlog/spdlog.h>
 
@@ -212,5 +211,5 @@ void PlaybackHistory::save() {
     const QByteArray data =
         QJsonDocument(QJsonObject{{key("version"), formatVersion}, {key("positions"), positions}, {key("recent"), recent}}).toJson();
 
-    QtConcurrent::run(&m_writer, writeAtomically, m_storagePath, data);
+    m_writer.start([path = m_storagePath, data] { writeAtomically(path, data); });
 }

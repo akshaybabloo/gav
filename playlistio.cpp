@@ -6,6 +6,7 @@
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QStringDecoder>
+#include <QThreadPool>
 #include <QtConcurrent/QtConcurrentRun>
 
 namespace {
@@ -220,5 +221,5 @@ void PlaylistFiles::save(const QUrl &url, const QVariantList &items, int current
 
 void PlaylistFiles::remove(const QUrl &url) {
     const QString path = url.isLocalFile() ? url.toLocalFile() : url.toString();
-    QtConcurrent::run([path] { QFile::remove(path); });
+    QThreadPool::globalInstance()->start([path] { QFile::remove(path); });
 }

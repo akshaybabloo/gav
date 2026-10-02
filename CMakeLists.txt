@@ -92,6 +92,8 @@ target_link_libraries(gav_media_deps INTERFACE
 )
 if (APPLE)
     target_link_libraries(gav_media_deps INTERFACE "-framework CoreText" "-framework CoreFoundation")
+elseif (UNIX)
+    target_link_options(gav_media_deps INTERFACE "LINKER:--exclude-libs,ALL")
 endif ()
 
 qt_standard_project_setup(REQUIRES 6.9)
