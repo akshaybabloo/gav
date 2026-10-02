@@ -36,9 +36,10 @@ Button {
     Popup {
         id: popup
 
+        margins: 8
         padding: 12
-        x: -width / 2 + parent.width / 2
-        y: -height - 10
+        x: root.width / 2 - width / (2 * root.scale)
+        y: -(height + 10) / root.scale
 
         background: Rectangle {
             border.color: Material.dividerColor

@@ -316,7 +316,7 @@ with no comments by default (Constitution: Development Workflow).
   - inline error text for `malformed` ("Use h:mm:ss, m:ss or seconds") and `outOfRange` ("Beyond the end of the media")
   - OK, which seeks and closes. It accepts on Enter (FR-023)
 - [ ] T056 [US3] Make clicking the elapsed-time label in `MediaControlsComponent.qml` open `GoToTimeDialog`.
-- [ ] T057 [US3] Add an `AppConstants.shortcutReference` array of `{keys, action}` covering every row of the table in [contracts/keyboard-and-cli.md](./contracts/keyboard-and-cli.md), existing bindings included. Replace the hard-coded "Keyboard Shortcuts" grid in `SettingsDialog.qml` with a `Repeater` over it (FR-025).
+- [ ] T057 [US3] Extend `AppConstants.shortcutReference` (added with the Settings redesign in US1; the Shortcuts tab of `SettingsDialog.qml` already repeats over it) so it covers every row of the table in [contracts/keyboard-and-cli.md](./contracts/keyboard-and-cli.md) (FR-025).
 - [ ] T058 [US3] Add the remaining FR-024 `Shortcut`s to `Main.qml`, each with `enabled: shortcutsEnabled` (except the text-safe ones) and `showOsd` feedback:
   - Ctrl+Up/Ctrl+Down: volume ±`AppConstants.volumeStep`
   - M: mute toggle via the audio output's `muted`

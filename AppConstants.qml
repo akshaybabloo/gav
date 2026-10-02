@@ -68,6 +68,18 @@ QtObject {
     // Playback speed options
     readonly property var playbackSpeeds: [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
 
+    readonly property var shortcutReference: [
+        { "keys": "Space", "action": qsTr("Play / pause") },
+        { "keys": "Left / Right", "action": qsTr("Seek 5 seconds") },
+        { "keys": "Scroll", "action": qsTr("Volume") },
+        { "keys": "Ctrl+Scroll", "action": qsTr("Zoom") },
+        { "keys": "Double-click", "action": qsTr("Full-screen") },
+        { "keys": "I", "action": qsTr("Stats for nerds") },
+        { "keys": "V", "action": qsTr("Cycle subtitle track") },
+        { "keys": "B", "action": qsTr("Cycle audio track") },
+        { "keys": "G / H", "action": qsTr("Subtitle delay −/+ 100 ms") }
+    ]
+
     // Helper functions
     function formatTime(ms) {
         var value = Number(ms);
