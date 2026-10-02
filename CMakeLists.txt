@@ -85,10 +85,13 @@ target_link_directories(gav_media_deps INTERFACE
         ${LIBASS_STATIC_LIBRARY_DIRS}
         ${UCHARDET_STATIC_LIBRARY_DIRS}
 )
+set(GAV_PKG_STATIC_LIBRARIES ${LIBASS_STATIC_LIBRARIES} ${UCHARDET_STATIC_LIBRARIES})
+if (MSVC)
+    list(REMOVE_ITEM GAV_PKG_STATIC_LIBRARIES stdc++ c++ m)
+endif ()
 target_link_libraries(gav_media_deps INTERFACE
         ${FFMPEG_LIBRARIES}
-        ${LIBASS_STATIC_LIBRARIES}
-        ${UCHARDET_STATIC_LIBRARIES}
+        ${GAV_PKG_STATIC_LIBRARIES}
 )
 if (APPLE)
     target_link_libraries(gav_media_deps INTERFACE "-framework CoreText" "-framework CoreFoundation")
