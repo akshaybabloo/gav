@@ -104,7 +104,7 @@ jobs:
         if: startsWith(matrix.os, 'ubuntu-')
         run: |
           set -e
-          sudo apt-get install -y nasm libdrm-dev libva-dev libpipewire-0.3-dev libpulse-dev
+          sudo apt-get install -y nasm libdrm-dev libva-dev libpipewire-0.3-dev libpulse-dev autoconf autoconf-archive automake libtool
         shell: bash
 
       - name: Install Qt
