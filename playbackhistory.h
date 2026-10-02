@@ -21,7 +21,7 @@ public:
     static constexpr int formatVersion = 1;
 
     struct PositionEntry {
-        QString path;
+        QString key;
         qint64 positionMs = 0;
         qint64 durationMs = 0;
         QDateTime lastPlayed;
@@ -39,6 +39,7 @@ public:
     static QString defaultStoragePath();
     static QString normalizePath(const QString &pathOrUrl);
     static bool isNetworkUrl(const QString &pathOrUrl);
+    static QString positionKey(const QString &pathOrUrl);
 
     QString storagePath() const;
     void waitForPendingWrites();

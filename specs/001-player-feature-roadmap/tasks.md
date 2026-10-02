@@ -261,7 +261,7 @@ with no comments by default (Constitution: Development Workflow).
   - call `PlaybackHistory.recordPosition` when `PlaybackUtils.isResumeEligible(position, duration)`
   - otherwise call `removePosition` when the position is in the last 5%
   - skip `http(s)` sources and skip entirely when `rememberPositions` is off (FR-011, FR-014)
-  - call `PlaybackHistory.recordOpened` on every successful open
+  - call `PlaybackHistory.recordOpened` on every successful open, unless `rememberRecentFiles` is off
 - [X] T043 [P] [US2] Create `RecentFilesMenu.qml`, a `Menu` built from `PlaybackHistory.recentFiles()` (refreshed on `recentChanged`):
   - Choosing an existing file calls `mainWindow.openUrls([url])`.
   - Choosing a missing file shows the snackbar message "File not found" with a "Remove from list" action that calls `removeRecent`.
@@ -282,7 +282,7 @@ with no comments by default (Constitution: Development Workflow).
   - In `Component.onCompleted`, restore it before `openUrls(InstanceManager.takePendingUrls())`, selecting the current item without playing. Pending files are then appended and the first one is played (FR-019a, spec edge case).
   - If the restored current item is an `http(s)` URL, highlight it in the playlist but do not set it as the player source until the user presses play, so GAV makes no network connection at startup (Constitution Principle I).
 - [X] T049 [US2] Add to `SettingsDialog.qml`:
-  - a "Remember playback position" switch (`rememberPositions`, default on)
+  - a "Resume where I left off" switch (`rememberPositions`, default on) and a "Remember recent files" switch (`rememberRecentFiles`, default on)
   - a "Restore last playlist on startup" switch (`restoreLastPlaylist`, default off)
   - a "Clear history" button that calls `PlaybackHistory.clear()` and deletes `session.m3u8`, then confirms with the snackbar (FR-014, FR-016)
 - [X] T050 [US2] Register `shuffleorder` in `qt_add_qml_module` and `gav_tests`, add `ResumeDialog.qml` and `RecentFilesMenu.qml` to `QML_FILES`, and add `tests/test_shuffleorder.cpp` in `CMakeLists.txt`.

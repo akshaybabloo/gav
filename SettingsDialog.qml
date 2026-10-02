@@ -13,6 +13,7 @@ Dialog {
     required property bool isDarkTheme
     required property bool checkUpdatesOnStartup
     required property bool rememberPositions
+    required property bool rememberRecentFiles
     required property bool restoreLastPlaylist
 
     signal themeToggled(bool isDark)
@@ -21,6 +22,7 @@ Dialog {
     signal preferredAudioLanguageEdited(string language)
     signal preferredSubtitleLanguageEdited(string language)
     signal rememberPositionsToggled(bool enabled)
+    signal rememberRecentFilesToggled(bool enabled)
     signal restoreLastPlaylistToggled(bool enabled)
     signal clearHistoryRequested
 
@@ -290,13 +292,38 @@ Dialog {
                     spacing: 10
 
                     SettingLabel {
-                        text: qsTr("Remember playback position")
+                        text: qsTr("Resume where I left off")
                     }
                     Switch {
-                        Accessible.name: qsTr("Remember playback position")
+                        Accessible.name: qsTr("Resume where I left off")
                         checked: root.rememberPositions
 
                         onToggled: root.rememberPositionsToggled(checked)
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    Layout.rightMargin: 12
+                    Layout.topMargin: -8
+                    color: Material.foreground
+                    font.pixelSize: 12
+                    opacity: 0.5
+                    text: qsTr("Positions are stored against a hash of the file path, not the path itself.")
+                    wrapMode: Text.WordWrap
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.rightMargin: 12
+                    spacing: 10
+
+                    SettingLabel {
+                        text: qsTr("Remember recent files")
+                    }
+                    Switch {
+                        Accessible.name: qsTr("Remember recent files")
+                        checked: root.rememberRecentFiles
+
+                        onToggled: root.rememberRecentFilesToggled(checked)
                     }
                 }
                 RowLayout {

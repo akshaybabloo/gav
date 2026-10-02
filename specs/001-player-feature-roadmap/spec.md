@@ -150,8 +150,9 @@ A user listening to music or a podcast in GAV while working in another applicati
 - **FR-011**: The system MUST remember the playback position of a file when playback stops, a different file is opened, or the application closes, provided the position is beyond the first 5% and before the last 5% of the file's duration.
 - **FR-012**: On reopening a file with a remembered position, the system MUST ask the user whether to resume from that position or start over, and MUST NOT begin playback until the user chooses. The prompt MUST be answerable from the keyboard (Enter resumes, Esc starts over).
 - **FR-013**: The system MUST retain remembered positions for at least the 200 most recently played files, discarding the oldest beyond that.
-- **FR-014**: Users MUST be able to turn position remembering off in settings.
+- **FR-014**: Users MUST be able to turn off resuming (saved positions) and recent files separately in settings. While either is off, nothing new is recorded for it. Existing history is kept until the user clears it (FR-016).
 - **FR-015**: The system MUST maintain a list of the 10 most recently opened files, accessible from the main interface, newest first.
+- **FR-015a**: Saved positions MUST NOT store file paths or names. They are keyed by a SHA-256 hash of the normalised full path, so a file is matched by hashing its path when it is opened. Full paths are stored only in the recent files list.
 - **FR-016**: Users MUST be able to clear the recent files list, all remembered positions and the stored last-session playlist from settings.
 - **FR-017**: Users MUST be able to toggle shuffle for the playlist. With shuffle on, each item plays exactly once before any item repeats.
 - **FR-018**: Users MUST be able to save the current playlist to a file in the widely supported M3U playlist format, and to open such a file to restore the playlist.

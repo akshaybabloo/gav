@@ -3,6 +3,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTemporaryDir>
@@ -125,6 +126,43 @@ TEST_F(PlaybackHistoryTest, ClearEmptiesEverything) {
     history.clear();
     EXPECT_EQ(history.savedPosition("/videos/a.mp4"), -1);
     EXPECT_TRUE(history.recentFiles().isEmpty());
+}
+
+TEST_F(PlaybackHistoryTest, PositionKeyIsSha256OfNormalisedPath) {
+    const QString key = PlaybackHistory::positionKey("/videos/a.mp4");
+    EXPECT_EQ(key.size(), 64);
+    EXPECT_EQ(key, PlaybackHistory::positionKey("file:///videos/a.mp4"));
+    EXPECT_EQ(key, PlaybackHistory::positionKey("/videos/./a.mp4"));
+    EXPECT_NE(key, PlaybackHistory::positionKey("/videos/b.mp4"));
+}
+
+TEST_F(PlaybackHistoryTest, PositionsAreStoredWithoutPaths) {
+    {
+        PlaybackHistory history(storagePath());
+        history.recordPosition("/videos/secret-episode.mkv", 720000, 1800000);
+    }
+    QFile file(storagePath());
+    ASSERT_TRUE(file.open(QIODevice::ReadOnly));
+    const QByteArray data = file.readAll();
+    EXPECT_FALSE(data.contains("secret-episode"));
+    EXPECT_TRUE(data.contains(PlaybackHistory::positionKey("/videos/secret-episode.mkv").toLatin1()));
+
+    PlaybackHistory reloaded(storagePath());
+    EXPECT_EQ(reloaded.savedPosition("/videos/secret-episode.mkv"), 720000);
+}
+
+TEST_F(PlaybackHistoryTest, MalformedKeysAreDropped) {
+    {
+        QFile file(storagePath());
+        ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+        file.write(R"({"version": 1, "positions": [{"key": "not-a-hash", "positionMs": 600000, "durationMs": 1800000}], "recent": []})");
+    }
+    PlaybackHistory history(storagePath());
+    history.recordPosition("/videos/a.mp4", 50000, 100000);
+    history.waitForPendingWrites();
+    QFile file(storagePath());
+    ASSERT_TRUE(file.open(QIODevice::ReadOnly));
+    EXPECT_EQ(QJsonDocument::fromJson(file.readAll()).object().value("positions").toArray().size(), 1);
 }
 
 TEST_F(PlaybackHistoryTest, RemoveRecentDropsOnlyThatEntry) {

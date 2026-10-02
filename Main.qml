@@ -268,6 +268,7 @@ ApplicationWindow {
         property string preferredAudioLanguage: ""
         property string preferredSubtitleLanguage: ""
         property bool rememberPositions: true
+        property bool rememberRecentFiles: true
         property bool restoreLastPlaylist: false
         property bool shuffle: false
         property real subtitleScale: 1.0
@@ -1047,6 +1048,7 @@ ApplicationWindow {
         isDarkTheme: mainWindow.isDarkTheme
         mediaPlayer: mediaComponent.mediaPlayer
         rememberPositions: appSettings.rememberPositions
+        rememberRecentFiles: appSettings.rememberRecentFiles
         restoreLastPlaylist: appSettings.restoreLastPlaylist
 
         onCheckUpdatesOnStartupToggled: function (enabled) {
@@ -1063,6 +1065,9 @@ ApplicationWindow {
         }
         onRememberPositionsToggled: function (enabled) {
             appSettings.rememberPositions = enabled;
+        }
+        onRememberRecentFilesToggled: function (enabled) {
+            appSettings.rememberRecentFiles = enabled;
         }
         onRestoreLastPlaylistToggled: function (enabled) {
             appSettings.restoreLastPlaylist = enabled;
@@ -1176,7 +1181,8 @@ ApplicationWindow {
         onMediaLoadedChanged: {
             if (mediaLoaded) {
                 mediaPlayer.playbackRate = appSettings.playbackRate;
-                PlaybackHistory.recordOpened(mediaPlayer.source.toString());
+                if (appSettings.rememberRecentFiles)
+                    PlaybackHistory.recordOpened(mediaPlayer.source.toString());
                 if (mainWindow.promptResumeIfSaved())
                     shouldAutoPlay = false;
                 var subtitleUrls = mainWindow.pendingSubtitleUrls;
