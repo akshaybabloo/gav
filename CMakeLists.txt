@@ -69,6 +69,36 @@ find_package(fmt CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Core Quick Multimedia Widgets Concurrent Network)
 
+find_package(FFMPEG REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBASS REQUIRED libass)
+pkg_check_modules(UCHARDET REQUIRED uchardet)
+
+add_library(gav_media_deps INTERFACE)
+target_include_directories(gav_media_deps INTERFACE
+        ${FFMPEG_INCLUDE_DIRS}
+        ${LIBASS_STATIC_INCLUDE_DIRS}
+        ${UCHARDET_STATIC_INCLUDE_DIRS}
+)
+target_link_directories(gav_media_deps INTERFACE
+        ${FFMPEG_LIBRARY_DIRS}
+        ${LIBASS_STATIC_LIBRARY_DIRS}
+        ${UCHARDET_STATIC_LIBRARY_DIRS}
+)
+set(GAV_PKG_STATIC_LIBRARIES ${LIBASS_STATIC_LIBRARIES} ${UCHARDET_STATIC_LIBRARIES})
+if (MSVC)
+    list(REMOVE_ITEM GAV_PKG_STATIC_LIBRARIES stdc++ c++ m)
+endif ()
+target_link_libraries(gav_media_deps INTERFACE
+        ${FFMPEG_LIBRARIES}
+        ${GAV_PKG_STATIC_LIBRARIES}
+)
+if (APPLE)
+    target_link_libraries(gav_media_deps INTERFACE "-framework CoreText" "-framework CoreFoundation")
+elseif (UNIX)
+    target_link_options(gav_media_deps INTERFACE "LINKER:--exclude-libs,ALL")
+endif ()
+
 qt_standard_project_setup(REQUIRES 6.9)
 
 if (WIN32)
@@ -152,6 +182,9 @@ qt_add_qml_module(appgav
         systemstats.h systemstats.cpp
         SOURCES updates.h updates.cpp
         SOURCES instancemanager.h instancemanager.cpp
+        SOURCES playbackutils.h playbackutils.cpp
+        SOURCES playbackhistory.h playbackhistory.cpp
+        SOURCES playlistio.h playlistio.cpp
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
@@ -169,6 +202,7 @@ set_target_properties(appgav PROPERTIES OUTPUT_NAME "gav")
 
 target_link_libraries(appgav
         PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Qml Qt6::Multimedia Qt6::Widgets spdlog::spdlog fmt::fmt Qt6::Concurrent Qt6::Network
+        gav_media_deps
 )
 
 if (WIN32 AND DEFINED ENV{CLION_IDE})
@@ -213,8 +247,17 @@ if (BUILD_TESTS)
             tests/test_main.cpp
             tests/test_path_conversion.cpp
             tests/test_collage.cpp
+            tests/test_playbackutils.cpp
+            tests/test_playbackhistory.cpp
+            tests/test_playlistio.cpp
             collage.cpp
             collage.h
+            playbackutils.cpp
+            playbackutils.h
+            playbackhistory.cpp
+            playbackhistory.h
+            playlistio.cpp
+            playlistio.h
     )
 
     target_link_libraries(gav_tests
@@ -228,10 +271,13 @@ if (BUILD_TESTS)
         spdlog::spdlog
         fmt::fmt
         Qt6::Test
+        Qt6::Qml
+        gav_media_deps
     )
 
     target_compile_definitions(gav_tests PRIVATE
             APP_VERSION="${GAV_FULL_VERSION}"
+            GAV_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/tests/data"
             _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
     )
 

@@ -89,9 +89,14 @@ with `QProcess` for each opened local file.
 isolated subprocess. GAV already has a subprocess mode for collage, so this extends an existing
 pattern.
 
-Static FFmpeg in the executable is not exported (no `ENABLE_EXPORTS`/`-rdynamic`), so it does not
-clash with the multimedia plugin's own FFmpeg, whether that is the custom static one or Qt's
-shared one in local development.
+Static libraries in the executable must not be exported. On Linux, `ld` exports any executable
+symbol that a shared library on the link line also references, so the static fontconfig and
+FreeType pulled in by libass were exported and Qt's own calls into the system fontconfig were
+bound to them, crashing the file dialog. `gav_media_deps` therefore links with
+`-Wl,--exclude-libs,ALL` on Linux, which keeps every static archive's symbols private: Qt keeps
+using the system libraries, libass keeps its own copies, and FFmpeg does not clash with the
+multimedia plugin's FFmpeg. macOS (two-level namespace) and Windows (DLL imports) do not have
+this interposition problem.
 
 **Alternatives considered**
 

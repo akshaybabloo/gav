@@ -5,6 +5,8 @@ QtObject {
     // Supported file extensions
     readonly property var videoExtensions: ["mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "m4v", "mpg"]
     readonly property var audioExtensions: ["mp3", "wav", "ogg", "flac", "aac", "wma", "m4a"]
+    readonly property var subtitleExtensions: ["srt", "ass", "ssa", "vtt"]
+    readonly property var playlistExtensions: ["m3u", "m3u8"]
 
     // UI timing constants
     readonly property int controlsHideDelay: 3000
@@ -32,6 +34,17 @@ QtObject {
     readonly property real contrastMin: -1.0
     readonly property real contrastMax: 1.0
     readonly property real brightnessContrastStep: 0.01
+
+    // Subtitle constants
+    readonly property int subtitleDelayStep: 100
+    readonly property int subtitleDelayLimit: 600000
+    readonly property real subtitleScaleMin: 0.5
+    readonly property real subtitleScaleMax: 3.0
+    readonly property real subtitleScaleStep: 0.1
+
+    // Navigation and streaming constants (in milliseconds)
+    readonly property int chapterPreviousThreshold: 3000
+    readonly property int streamLoadTimeout: 15000
 
     // Seek constants (in milliseconds)
     readonly property int seekStep: 5000

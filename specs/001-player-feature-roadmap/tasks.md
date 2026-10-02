@@ -34,19 +34,19 @@ with no comments by default (Constitution: Development Workflow).
 
 **Purpose**: Dependencies, build wiring and test fixtures that every story needs
 
-- [ ] T001 Update `vcpkg.json`:
+- [X] T001 Update `vcpkg.json`:
   - Add top-level dependencies `libass` and `uchardet`.
   - In the `ffmpeg` feature, add the ffmpeg features `iconv` (all platforms) and `openssl` with `"platform": "linux | osx"`.
   - Update the `ffmpeg` feature description to say FFmpeg is also linked into `gav` for the probe subprocess (research R3, R4, R11).
-- [ ] T002 Update `CMakeLists.txt` so `appgav` links FFmpeg (`avformat`, `avcodec`, `avutil`) through vcpkg's `find_package(FFMPEG REQUIRED)` wrapper (`FFMPEG_INCLUDE_DIRS`/`FFMPEG_LIBRARIES`).
+- [X] T002 Update `CMakeLists.txt` so `appgav` links FFmpeg (`avformat`, `avcodec`, `avutil`) through vcpkg's `find_package(FFMPEG REQUIRED)` wrapper (`FFMPEG_INCLUDE_DIRS`/`FFMPEG_LIBRARIES`).
   - Also link libass (via `PkgConfig` `pkg_check_modules(LIBASS REQUIRED IMPORTED_TARGET libass)` unless the port's `usage` file says otherwise) and uchardet (the CMake config target named in `~/vcpkg/ports/uchardet/usage`).
   - Keep the existing `GAV_FFMPEG_INCLUDE_DIR` lookup working.
   - Do not set `ENABLE_EXPORTS` on `appgav` (research R3: FFmpeg symbols must stay unexported).
-- [ ] T003 Update `.github/workflows/build.yaml`:
+- [X] T003 Update `.github/workflows/build.yaml`:
   - Remove the plugin-cache-hit shortcut that appends `--x-no-default-features` (line ~172), so FFmpeg is always installed for `gav` itself.
   - Keep the vcpkg binary cache keys as they are.
   - Confirm `GAV_FFMPEG_INCLUDE_DIR` is still passed or found.
-- [ ] T004 [P] Create test fixtures in `tests/data/`, with a `tests/data/README.md` giving the exact `ffmpeg`/`mkvmerge` commands used to generate them:
+- [X] T004 [P] Create test fixtures in `tests/data/`, with a `tests/data/README.md` giving the exact `ffmpeg`/`mkvmerge` commands used to generate them:
   - `multi.mkv`: 30 s, 25 fps constant frame rate, 2 audio tracks tagged `eng`/`jpn`, 1 ASS subtitle track titled "Signs" tagged `eng` with an attached TTF font, 3 chapters titled "One", "Two", "Three"
   - `multi.en.srt`: UTF-8
   - `multi.fr.srt`: Windows-1252 with accented characters
@@ -54,7 +54,7 @@ with no comments by default (Constitution: Development Workflow).
   - `playlist-relative.m3u8`: 2 relative entries pointing at the fixtures plus 1 missing entry
   - `corrupt.mkv`: truncated header
   - `long.mp4` (30 min) is not committed. The README explains how to generate it locally for quickstart Q2.x.
-- [ ] T005 Add a `GAV_TEST_DATA_DIR` compile definition (`${CMAKE_SOURCE_DIR}/tests/data`) and link FFmpeg, libass and uchardet to `gav_tests` in `CMakeLists.txt`, so later test tasks can just append their sources.
+- [X] T005 Add a `GAV_TEST_DATA_DIR` compile definition (`${CMAKE_SOURCE_DIR}/tests/data`) and link FFmpeg, libass and uchardet to `gav_tests` in `CMakeLists.txt`, so later test tasks can just append their sources.
 
 ---
 
@@ -64,7 +64,7 @@ with no comments by default (Constitution: Development Workflow).
 
 **⚠️ CRITICAL**: No user story work starts until this phase is done
 
-- [ ] T006 [P] Create `playbackutils.h`/`playbackutils.cpp` with a `PlaybackUtils` QObject (`QML_ELEMENT`, `QML_SINGLETON`) exposing these `Q_INVOKABLE` functions:
+- [X] T006 [P] Create `playbackutils.h`/`playbackutils.cpp` with a `PlaybackUtils` QObject (`QML_ELEMENT`, `QML_SINGLETON`) exposing these `Q_INVOKABLE` functions:
   - `parseTime(QString text, qint64 durationMs) → QVariantMap {ok, ms, error}`:
     - Accepts `h:mm:ss`, `m:ss`, `mm:ss` and plain seconds, each with optional `.fff`.
     - Minutes and seconds fields must be under 60 when a larger unit is present.
@@ -73,12 +73,12 @@ with no comments by default (Constitution: Development Workflow).
     - Previous goes to the current chapter's start, or to the previous chapter "if the position is within 3 s of the current chapter's start".
     - Next goes to the next chapter's start and does nothing in the last chapter (research R12).
   - `isResumeEligible(qint64 positionMs, qint64 durationMs) → bool`: true only when `0.05 × duration < position < 0.95 × duration` (FR-011).
-- [ ] T007 [P] Write `tests/test_playbackutils.cpp`, covering:
+- [X] T007 [P] Write `tests/test_playbackutils.cpp`, covering:
   - every accepted time form (`1:05`, `65`, `1:05.250`, `1:02:03`)
   - rejections (`1:75`, `9:99:99`, `abc`, negative, past the duration)
   - chapter previous/next at the boundaries (0 s, exactly 3 s, the last chapter, no chapters)
   - the resume window edges at exactly 5% and 95%
-- [ ] T008 [P] Create `playbackhistory.h`/`playbackhistory.cpp` with a `PlaybackHistory` QObject (`QML_ELEMENT`, `QML_SINGLETON`) backed by `<AppDataLocation>/history.json`, using the shape in [data-model.md](./data-model.md#recentfile-story-2-persisted-in-historyjson) (`"version": 1`, `positions[]`, `recent[]`).
+- [X] T008 [P] Create `playbackhistory.h`/`playbackhistory.cpp` with a `PlaybackHistory` QObject (`QML_ELEMENT`, `QML_SINGLETON`) backed by `<AppDataLocation>/history.json`, using the shape in [data-model.md](./data-model.md#recentfile-story-2-persisted-in-historyjson) (`"version": 1`, `positions[]`, `recent[]`).
   - `Q_INVOKABLE` API: `savedPosition(path) → qint64` (−1 if none), `recordPosition(path, positionMs, durationMs)`, `removePosition(path)`, `recordOpened(pathOrUrl)`, `recentFiles() → QStringList`, `removeRecent(path)`, `clear()`, and a `recentChanged` signal.
   - "Keep at most 200 entries, evicting the oldest `lastPlayed` first" (FR-013).
   - Recent files: "Up to 10 entries, newest first, without duplicates".
@@ -86,19 +86,19 @@ with no comments by default (Constitution: Development Workflow).
   - Writes use `QSaveFile` via `QtConcurrent::run` so they never block the UI thread.
   - On a parse failure or unknown `version`, log with spdlog, rename to `history.json.bak`, and start empty.
   - The constructor takes an optional storage path so tests can use a temporary directory.
-- [ ] T009 [P] Write `tests/test_playbackhistory.cpp`, covering:
+- [X] T009 [P] Write `tests/test_playbackhistory.cpp`, covering:
   - eviction at 201 entries
   - recent-list de-duplication and the cap of 10
   - a URL never storing a position
   - a round trip through a temp directory
   - recovery from a corrupt file, including the `.bak` file being created
   - `clear()` emptying both lists
-- [ ] T010 [P] Create `playlistio.h`/`playlistio.cpp`, following [contracts/playlist-format.md](./contracts/playlist-format.md):
+- [X] T010 [P] Create `playlistio.h`/`playlistio.cpp`, following [contracts/playlist-format.md](./contracts/playlist-format.md):
   - A plain `PlaylistDocument`/`PlaylistEntry` struct per [data-model.md](./data-model.md#playlistdocument-story-2).
   - `PlaylistIO::read(path, supportedExtensions) → {entries, currentIndex, skippedMissing, skippedUnsupported}`.
   - `PlaylistIO::write(path, document)`, which writes UTF-8 without a BOM and `#GAV-CURRENT:<n>` only when `currentIndex` is set.
   - A QObject wrapper `PlaylistFiles` (`QML_ELEMENT`, `QML_SINGLETON`) with asynchronous `Q_INVOKABLE load(QUrl, QStringList supportedExtensions, QString tag)` and `save(QUrl, QVariantList items, int currentIndex, QString tag)`. Both run on `QtConcurrent` and report back with `loaded(tag, QVariantMap result)` and `saved(tag, bool ok)` signals, so playlist I/O and existence checks never run on the UI thread (Constitution Principle II). Items are objects `{name, path}`, matching the existing `playList` model in `Main.qml`.
-- [ ] T011 [P] Write `tests/test_playlistio.cpp`, covering:
+- [X] T011 [P] Write `tests/test_playlistio.cpp`, covering:
   - a round trip of 100 entries (SC-006)
   - relative path resolution
   - BOM and CRLF input
@@ -107,8 +107,8 @@ with no comments by default (Constitution: Development Workflow).
   - unsupported schemes and extensions counted
   - missing files counted
   - `#GAV-CURRENT` clamped when entries are skipped
-- [ ] T012 Register `playbackutils`, `playbackhistory` and `playlistio` sources in `qt_add_qml_module` and in `gav_tests`, and add `tests/test_playbackutils.cpp`, `tests/test_playbackhistory.cpp` and `tests/test_playlistio.cpp` to `gav_tests` in `CMakeLists.txt`.
-- [ ] T013 [P] Add to `AppConstants.qml`:
+- [X] T012 Register `playbackutils`, `playbackhistory` and `playlistio` sources in `qt_add_qml_module` and in `gav_tests`, and add `tests/test_playbackutils.cpp`, `tests/test_playbackhistory.cpp` and `tests/test_playlistio.cpp` to `gav_tests` in `CMakeLists.txt`.
+- [X] T013 [P] Add to `AppConstants.qml`:
   - `subtitleExtensions: ["srt","ass","ssa","vtt"]`
   - `playlistExtensions: ["m3u","m3u8"]`
   - `subtitleDelayStep: 100`
@@ -116,8 +116,8 @@ with no comments by default (Constitution: Development Workflow).
   - `subtitleScaleMin: 0.5`, `subtitleScaleMax: 3.0`, `subtitleScaleStep: 0.1`
   - `streamLoadTimeout: 15000`
   - `chapterPreviousThreshold: 3000`
-- [ ] T014 Add a reusable on-screen indicator to `MediaComponent.qml`: a `function showOsd(text)` that reuses the existing zoom indicator's style and `AppConstants.volumeDisplayDuration` auto-hide. Stories use it for the subtitle delay, track name, speed, volume and mute messages ([contracts/keyboard-and-cli.md](./contracts/keyboard-and-cli.md)).
-- [ ] T015 Add `readonly property bool shortcutsEnabled` to `Main.qml`. It is `false` when `activeFocusItem` is a text input (`TextInput`/`TextField`/`TextArea`) or when any `Popup`/`Dialog` is open (research R14, FR-026). Bind `enabled` on the existing Space/Left/Right/I `Shortcut`s to it.
+- [X] T014 Add a reusable on-screen indicator to `MediaComponent.qml`: a `function showOsd(text)` that reuses the existing zoom indicator's style and `AppConstants.volumeDisplayDuration` auto-hide. Stories use it for the subtitle delay, track name, speed, volume and mute messages ([contracts/keyboard-and-cli.md](./contracts/keyboard-and-cli.md)).
+- [X] T015 Add `readonly property bool shortcutsEnabled` to `Main.qml`. It is `false` when `activeFocusItem` is a text input (`TextInput`/`TextField`/`TextArea`) or when any `Popup`/`Dialog` is open (research R14, FR-026). Bind `enabled` on the existing Space/Left/Right/I `Shortcut`s to it.
 
 **Checkpoint**: `ctest --output-on-failure` passes, the app builds and runs unchanged on all CI targets, and user stories can start
 
