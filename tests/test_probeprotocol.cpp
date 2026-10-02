@@ -242,7 +242,7 @@ TEST(ProbeWorkerFixtures, DetectEncodingLeavesUtf8Alone) {
     EXPECT_TRUE(ProbeWorker::detectEncoding("plain ascii").isEmpty());
     EXPECT_TRUE(ProbeWorker::detectEncoding("caf\xc3\xa9").isEmpty());
     EXPECT_TRUE(ProbeWorker::detectEncoding("\xEF\xBB\xBFwith bom").isEmpty());
-    EXPECT_FALSE(ProbeWorker::detectEncoding("caf\xe9 cr\xe8me br\xfbl\xe9e").isEmpty());
+    EXPECT_FALSE(ProbeWorker::detectEncoding("caf\xe9 cr\xe8me br\xfbl\xe9" "e").isEmpty());
 }
 
 TEST(ProbeWorkerFixtures, SidecarsStillLoadWhenMediaCannotBeOpened) {
