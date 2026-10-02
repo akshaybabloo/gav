@@ -92,7 +92,8 @@ PlaylistReadResult parse(const QByteArray &data, const QString &baseDirectory, c
                 continue;
             }
         } else {
-            const QString path = QDir::fromNativeSeparators(line);
+            QString path = line;
+            path.replace(QLatin1Char('\\'), QLatin1Char('/'));
             localPath = QDir::isAbsolutePath(path) ? path : base.absoluteFilePath(path);
         }
 
@@ -197,7 +198,9 @@ PlaylistDocument PlaylistFiles::fromVariant(const QVariantList &items, int curre
             continue;
         }
         const int duration = item.contains(QStringLiteral("durationSec")) ? item.value(QStringLiteral("durationSec")).toInt() : -1;
-        document.entries.append({url, item.value(QStringLiteral("name")).toString(), duration});
+        const QString title = item.contains(QStringLiteral("title")) ? item.value(QStringLiteral("title")).toString()
+                                                                      : item.value(QStringLiteral("name")).toString();
+        document.entries.append({url, title, duration});
     }
     if (currentIndex >= 0 && currentIndex < document.entries.size()) {
         document.currentIndex = currentIndex;

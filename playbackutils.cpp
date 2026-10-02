@@ -1,6 +1,7 @@
 #include "playbackutils.h"
 
 #include <QRegularExpression>
+#include <QtNumeric>
 
 #include <algorithm>
 
@@ -15,7 +16,12 @@ PlaybackUtils::ParsedTime PlaybackUtils::parseTimeText(const QString &text, qint
         return result;
     }
 
-    QList<qint64> fields{match.captured(1).toLongLong()};
+    bool converted = false;
+    QList<qint64> fields{match.captured(1).toLongLong(&converted)};
+    if (!converted) {
+        result.error = TimeError::OutOfRange;
+        return result;
+    }
     if (match.hasCaptured(2)) {
         fields.append(match.captured(2).toLongLong());
     }
@@ -29,9 +35,12 @@ PlaybackUtils::ParsedTime PlaybackUtils::parseTimeText(const QString &text, qint
         }
     }
 
-    qint64 seconds = 0;
-    for (const qint64 field : fields) {
-        seconds = seconds * 60 + field;
+    qint64 seconds = fields.first();
+    for (qsizetype i = 1; i < fields.size(); ++i) {
+        if (qMulOverflow(seconds, qint64(60), &seconds) || qAddOverflow(seconds, fields[i], &seconds)) {
+            result.error = TimeError::OutOfRange;
+            return result;
+        }
     }
 
     qint64 millis = 0;
@@ -39,7 +48,11 @@ PlaybackUtils::ParsedTime PlaybackUtils::parseTimeText(const QString &text, qint
         millis = match.captured(4).leftJustified(3, QLatin1Char('0')).toLongLong();
     }
 
-    const qint64 ms = seconds * 1000 + millis;
+    qint64 ms = 0;
+    if (qMulOverflow(seconds, qint64(1000), &ms) || qAddOverflow(ms, millis, &ms)) {
+        result.error = TimeError::OutOfRange;
+        return result;
+    }
     if (durationMs > 0 && ms > durationMs) {
         result.error = TimeError::OutOfRange;
         return result;

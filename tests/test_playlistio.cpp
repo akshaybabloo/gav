@@ -155,6 +155,16 @@ TEST_F(PlaylistIOTest, ReadReportsUnreadableFile) {
     EXPECT_FALSE(result.error.isEmpty());
 }
 
+TEST_F(PlaylistIOTest, VariantConversionPrefersTitleOverName) {
+    PlaylistReadResult read;
+    read.ok = true;
+    read.document.entries.append({QUrl("https://example.org/live"), "Radio", -1});
+    const QVariantList entries = PlaylistFiles::toVariant(read).value("entries").toList();
+    const PlaylistDocument document = PlaylistFiles::fromVariant(entries, -1);
+    ASSERT_EQ(document.entries.size(), 1);
+    EXPECT_EQ(document.entries[0].title, "Radio");
+}
+
 TEST_F(PlaylistIOTest, VariantConversionKeepsOrderAndCurrentIndex) {
     const QVariantList items{QVariantMap{{"name", "A"}, {"path", "file:///videos/a.mp4"}},
                              QVariantMap{{"name", "Live"}, {"path", "https://example.org/live"}}};

@@ -2,6 +2,8 @@
 
 #include "../playbackutils.h"
 
+#include <limits>
+
 namespace {
 
 using Chapter = PlaybackUtils::Chapter;
@@ -58,6 +60,24 @@ TEST(PlaybackUtilsParseTime, RejectsBeyondDuration) {
     EXPECT_FALSE(parsed.ok);
     EXPECT_EQ(parsed.error, TimeError::OutOfRange);
     EXPECT_TRUE(PlaybackUtils::parseTimeText("1:30", 90000).ok);
+}
+
+TEST(PlaybackUtilsParseTime, RejectsOversizedLeadingField) {
+    const auto parsed = PlaybackUtils::parseTimeText("99999999999999999999", 0);
+    EXPECT_FALSE(parsed.ok);
+    EXPECT_EQ(parsed.error, TimeError::OutOfRange);
+}
+
+TEST(PlaybackUtilsParseTime, AcceptsMaximumRepresentableSeconds) {
+    const auto parsed = PlaybackUtils::parseTimeText("9223372036854775.807", 0);
+    EXPECT_TRUE(parsed.ok);
+    EXPECT_EQ(parsed.ms, std::numeric_limits<qint64>::max());
+}
+
+TEST(PlaybackUtilsParseTime, RejectsArithmeticOverflow) {
+    EXPECT_EQ(PlaybackUtils::parseTimeText("9223372036854775.808", 0).error, TimeError::OutOfRange);
+    EXPECT_EQ(PlaybackUtils::parseTimeText("9223372036854776", 0).error, TimeError::OutOfRange);
+    EXPECT_EQ(PlaybackUtils::parseTimeText("2562047788015216:00:00", 0).error, TimeError::OutOfRange);
 }
 
 TEST(PlaybackUtilsParseTime, VariantResultCarriesErrorCode) {
