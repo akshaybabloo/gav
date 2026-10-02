@@ -8,14 +8,16 @@
       "version>=": "1.17.0"
     },
     "vulkan-headers",
-    "gtest"
+    "gtest",
+    "libass",
+    "uchardet"
   ],
   "default-features": [
     "ffmpeg"
   ],
   "features": {
     "ffmpeg": {
-      "description": "FFmpeg for the custom Qt multimedia plugin and the About dialog version string",
+      "description": "FFmpeg for the custom Qt multimedia plugin, the About dialog version string, and the media probe subprocess linked into gav",
       "dependencies": [
         {
           "name": "ffmpeg",
@@ -27,7 +29,8 @@
             "avdevice",
             "swresample",
             "swscale",
-            "vulkan"
+            "vulkan",
+            "iconv"
           ]
         },
         {
@@ -53,6 +56,14 @@
             "qsv"
           ],
           "platform": "(x64 | x86) & (windows | linux) & !uwp"
+        },
+        {
+          "name": "ffmpeg",
+          "default-features": false,
+          "features": [
+            "openssl"
+          ],
+          "platform": "linux | osx"
         }
       ]
     }

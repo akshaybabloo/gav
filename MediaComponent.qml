@@ -19,6 +19,12 @@ Item {
     signal stopped
     signal fullscreenToggleRequested
 
+    function showOsd(text) {
+        osdText.text = text;
+        osdIndicator.visible = true;
+        osdTimer.restart();
+    }
+
     onPathChanged: {
         if (path === "")
             errorPath = "";
@@ -174,6 +180,39 @@ Item {
                     zoomIndicator.visible = false;
                 }
             }
+        }
+    }
+    Rectangle {
+        id: osdIndicator
+
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: zoomIndicator.visible ? zoomIndicator.height + 30 : 20
+        border.color: AppConstants.overlayTextColor
+        border.width: 2
+        color: AppConstants.overlayBackgroundColor
+        height: osdText.height + 20
+        opacity: 0.8
+        radius: 8
+        visible: false
+        width: osdText.width + 30
+        z: 100
+
+        Text {
+            id: osdText
+
+            anchors.centerIn: parent
+            color: AppConstants.overlayTextColor
+            font.bold: true
+            font.pixelSize: 18
+        }
+        Timer {
+            id: osdTimer
+
+            interval: AppConstants.volumeDisplayDuration
+            repeat: false
+
+            onTriggered: osdIndicator.visible = false
         }
     }
     AudioOutput {

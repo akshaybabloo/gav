@@ -17,7 +17,9 @@ ApplicationWindow {
     property bool mediaControlsContainsMouse: false
     property bool playlistManualVisible: false
     property int repeatMode: 0
+    readonly property bool shortcutsEnabled: !textInputFocused && !aboutDialog.opened && !playbackErrorDialog.opened && !updateDialog.opened && !settingsDialog.opened
     property bool shouldAutoPlay: false
+    readonly property bool textInputFocused: activeFocusItem instanceof TextInput || activeFocusItem instanceof TextEdit
 
     function exitMiniPlayer() {
         if (!miniPlayerWindow.visible)
@@ -855,6 +857,7 @@ ApplicationWindow {
         }
 
         Shortcut {
+            enabled: mainWindow.shortcutsEnabled
             sequence: "Space"
 
             onActivated: {
@@ -867,6 +870,7 @@ ApplicationWindow {
             }
         }
         Shortcut {
+            enabled: mainWindow.shortcutsEnabled
             sequence: "Left"
 
             onActivated: {
@@ -875,6 +879,7 @@ ApplicationWindow {
             }
         }
         Shortcut {
+            enabled: mainWindow.shortcutsEnabled
             sequence: "Right"
 
             onActivated: {
@@ -883,7 +888,7 @@ ApplicationWindow {
             }
         }
         Shortcut {
-            enabled: mediaComponent.isVideo || nerdStats.visible
+            enabled: mainWindow.shortcutsEnabled && (mediaComponent.isVideo || nerdStats.visible)
             sequence: "I"
 
             onActivated: nerdStats.visible = !nerdStats.visible

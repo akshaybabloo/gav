@@ -168,20 +168,15 @@ jobs:
           set -euo pipefail
           find vcpkg-bincache -name '*.zip' | sort > "$RUNNER_TEMP/bincache-before.txt"
           ARGS=(--triplet="${{ matrix.triplet }}" --host-triplet="${{ matrix.host_triplet }}")
-          if [[ "${{ steps.cache-qtmm.outputs.cache-hit }}" == "true" ]]; then
-            ARGS+=(--x-no-default-features)
-          fi
           ./vcpkg/vcpkg install "${ARGS[@]}"
           find vcpkg-bincache -name '*.zip' | sort > "$RUNNER_TEMP/bincache-after.txt"
           if [[ "$(cat "$RUNNER_TEMP/bincache-before.txt")" == "$(cat "$RUNNER_TEMP/bincache-after.txt")" ]]; then
             exit 0
           fi
-          if [[ "${{ steps.cache-qtmm.outputs.cache-hit }}" != "true" ]]; then
-            sha() { if command -v sha256sum >/dev/null; then sha256sum; else shasum -a 256; fi; }
-            for f in vcpkg_installed/*/share/*/vcpkg_abi_info.txt; do sha < "$f" | cut -d' ' -f1; done > "$RUNNER_TEMP/abi-keep.txt"
-            if [[ -s "$RUNNER_TEMP/abi-keep.txt" ]]; then
-              { grep -vFf "$RUNNER_TEMP/abi-keep.txt" "$RUNNER_TEMP/bincache-after.txt" || true; } | while read -r f; do rm -f "$f"; done
-            fi
+          sha() { if command -v sha256sum >/dev/null; then sha256sum; else shasum -a 256; fi; }
+          for f in vcpkg_installed/*/share/*/vcpkg_abi_info.txt; do sha < "$f" | cut -d' ' -f1; done > "$RUNNER_TEMP/abi-keep.txt"
+          if [[ -s "$RUNNER_TEMP/abi-keep.txt" ]]; then
+            { grep -vFf "$RUNNER_TEMP/abi-keep.txt" "$RUNNER_TEMP/bincache-after.txt" || true; } | while read -r f; do rm -f "$f"; done
           fi
           echo "save=true" >> "$GITHUB_OUTPUT"
         shell: bash
