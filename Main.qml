@@ -267,8 +267,8 @@ ApplicationWindow {
         property real playbackRate: 1.0
         property string preferredAudioLanguage: ""
         property string preferredSubtitleLanguage: ""
-        property bool rememberPositions: true
-        property bool rememberRecentFiles: true
+        property bool rememberPositions: false
+        property bool rememberRecentFiles: false
         property bool restoreLastPlaylist: false
         property bool shuffle: false
         property real subtitleScale: 1.0

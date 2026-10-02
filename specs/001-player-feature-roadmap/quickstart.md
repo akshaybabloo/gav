@@ -60,7 +60,7 @@ These must pass on all CI platforms:
 
 | # | Steps | Expected |
 |---|-------|----------|
-| Q2.1 | Play `long.mp4` to 12:00, then quit | `history.json` in the app data folder has an entry around 720000 ms |
+| Q2.1 | Turn on "Resume where I left off" and "Remember recent files" in Settings → Playback, play `long.mp4` to 12:00, then quit | `history.json` in the app data folder has an entry around 720000 ms |
 | Q2.2 | Reopen `long.mp4` | Playback is held and the prompt reads "Resume from 12:00?" Enter resumes within 2 s of 12:00 (SC-004) |
 | Q2.3 | Reopen it and press Esc | Plays from 0:00 and the entry is removed |
 | Q2.4 | Seek to the last 5% and quit, then reopen | No prompt appears (FR-011) |
