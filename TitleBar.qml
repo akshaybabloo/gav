@@ -19,6 +19,10 @@ Rectangle {
     signal checkUpdatesRequested
     signal exitRequested
     signal openFileRequested
+    signal openPlaylistRequested
+    signal openRecentRequested(url url)
+    signal recentFileMissing(string path)
+    signal savePlaylistRequested
     signal settingsRequested
 
     function toggleMaximize() {
@@ -135,6 +139,28 @@ Rectangle {
                         text: qsTr("Open")
 
                         onTriggered: root.openFileRequested()
+                    }
+                    RecentFilesMenu {
+                        onMissingFile: function (path) {
+                            fileMenu.close();
+                            root.recentFileMissing(path);
+                        }
+                        onOpenRequested: function (url) {
+                            fileMenu.close();
+                            root.openRecentRequested(url);
+                        }
+                    }
+                    MenuSeparator {
+                    }
+                    Action {
+                        text: qsTr("Open Playlist…")
+
+                        onTriggered: root.openPlaylistRequested()
+                    }
+                    Action {
+                        text: qsTr("Save Playlist…")
+
+                        onTriggered: root.savePlaylistRequested()
                     }
                     MenuSeparator {
                     }

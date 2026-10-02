@@ -176,7 +176,9 @@ bool write(const QString &path, const PlaylistDocument &document, QString *error
 
 }
 
-PlaylistFiles::PlaylistFiles(QObject *parent) : QObject(parent) {}
+PlaylistFiles::PlaylistFiles(QObject *parent) : QObject(parent) { m_writer.setMaxThreadCount(1); }
+
+PlaylistFiles::~PlaylistFiles() { m_writer.waitForDone(); }
 
 QVariantMap PlaylistFiles::toVariant(const PlaylistReadResult &result) {
     QVariantList entries;
@@ -221,12 +223,12 @@ void PlaylistFiles::load(const QUrl &url, const QStringList &supportedExtensions
 void PlaylistFiles::save(const QUrl &url, const QVariantList &items, int currentIndex, const QString &tag) {
     const QString path = url.isLocalFile() ? url.toLocalFile() : url.toString();
     const PlaylistDocument document = fromVariant(items, currentIndex);
-    QtConcurrent::run([path, document] { return PlaylistIO::write(path, document); }).then(this, [this, tag](bool ok) {
+    QtConcurrent::run(&m_writer, [path, document] { return PlaylistIO::write(path, document); }).then(this, [this, tag](bool ok) {
         emit saved(tag, ok);
     });
 }
 
 void PlaylistFiles::remove(const QUrl &url) {
     const QString path = url.isLocalFile() ? url.toLocalFile() : url.toString();
-    QThreadPool::globalInstance()->start([path] { QFile::remove(path); });
+    m_writer.start([path] { QFile::remove(path); });
 }

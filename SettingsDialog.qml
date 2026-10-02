@@ -12,12 +12,17 @@ Dialog {
     required property var mediaPlayer
     required property bool isDarkTheme
     required property bool checkUpdatesOnStartup
+    required property bool rememberPositions
+    required property bool restoreLastPlaylist
 
     signal themeToggled(bool isDark)
     signal defaultSpeedChanged(real speed)
     signal checkUpdatesOnStartupToggled(bool enabled)
     signal preferredAudioLanguageEdited(string language)
     signal preferredSubtitleLanguageEdited(string language)
+    signal rememberPositionsToggled(bool enabled)
+    signal restoreLastPlaylistToggled(bool enabled)
+    signal clearHistoryRequested
 
     component SectionTitle: Text {
         Layout.topMargin: 6
@@ -271,6 +276,58 @@ Dialog {
                             root.mediaPlayer.playbackRate = AppConstants.playbackSpeeds[index];
                             root.defaultSpeedChanged(AppConstants.playbackSpeeds[index]);
                         }
+                    }
+                }
+                Divider {
+                    Layout.rightMargin: 12
+                }
+                SectionTitle {
+                    text: qsTr("History")
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.rightMargin: 12
+                    spacing: 10
+
+                    SettingLabel {
+                        text: qsTr("Remember playback position")
+                    }
+                    Switch {
+                        Accessible.name: qsTr("Remember playback position")
+                        checked: root.rememberPositions
+
+                        onToggled: root.rememberPositionsToggled(checked)
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.rightMargin: 12
+                    spacing: 10
+
+                    SettingLabel {
+                        text: qsTr("Restore last playlist on startup")
+                    }
+                    Switch {
+                        Accessible.name: qsTr("Restore last playlist on startup")
+                        checked: root.restoreLastPlaylist
+
+                        onToggled: root.restoreLastPlaylistToggled(checked)
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.rightMargin: 12
+                    spacing: 10
+
+                    SettingLabel {
+                        text: qsTr("Recent files, saved positions and the saved playlist")
+                        wrapMode: Text.WordWrap
+                    }
+                    Button {
+                        flat: true
+                        text: qsTr("Clear history")
+
+                        onClicked: root.clearHistoryRequested()
                     }
                 }
             }

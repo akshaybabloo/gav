@@ -239,7 +239,7 @@ with no comments by default (Constitution: Development Workflow).
 
 ### Tests for User Story 2
 
-- [ ] T038 [P] [US2] Write `tests/test_shuffleorder.cpp`, covering:
+- [X] T038 [P] [US2] Write `tests/test_shuffleorder.cpp`, covering:
   - every index played exactly once per cycle for sizes 1, 2 and 50
   - turning shuffle on mid-playlist keeps the current item
   - removal and move remapping
@@ -248,44 +248,44 @@ with no comments by default (Constitution: Development Workflow).
 
 ### Implementation for User Story 2
 
-- [ ] T039 [P] [US2] Create `shuffleorder.h`/`shuffleorder.cpp`, a `ShuffleOrder` QObject (`QML_ELEMENT`) using Fisher–Yates with `QRandomGenerator` (research R9):
+- [X] T039 [P] [US2] Create `shuffleorder.h`/`shuffleorder.cpp`, a `ShuffleOrder` QObject (`QML_ELEMENT`) using Fisher–Yates with `QRandomGenerator` (research R9):
   - `Q_INVOKABLE reset(int count, int currentIndex)`, `next(bool repeatPlaylist) → int` (−1 when done), `previous() → int`, `itemInserted(int index)`, `itemRemoved(int index)` and `itemMoved(int from, int to)`
   - `enabled` property
-- [ ] T040 [P] [US2] Create `ResumeDialog.qml`, a modal `Dialog` titled "Resume from <time>?" (formatted with `AppConstants.formatTime`), with Resume (default, Enter) and Start over (Esc) buttons, and signals `resumeChosen()`/`startOverChosen()` (FR-012, [data-model.md ResumePrompt](./data-model.md#resumeprompt-story-2-ui-state)).
-- [ ] T041 [US2] Wire resume into `Main.qml` (depends on T040). When a local file reaches `LoadedMedia`:
+- [X] T040 [P] [US2] Create `ResumeDialog.qml`, a modal `Dialog` titled "Resume from <time>?" (formatted with `AppConstants.formatTime`), with Resume (default, Enter) and Start over (Esc) buttons, and signals `resumeChosen()`/`startOverChosen()` (FR-012, [data-model.md ResumePrompt](./data-model.md#resumeprompt-story-2-ui-state)).
+- [X] T041 [US2] Wire resume into `Main.qml` (depends on T040). When a local file reaches `LoadedMedia`:
   - If `appSettings.rememberPositions` is on, `PlaybackHistory.savedPosition(path)` is at least 0, and `savedPosition < duration`: hold playback paused at the saved position and open `ResumeDialog`. Resume means play. Start over means seek to 0, `removePosition` and play.
   - If the saved position is at or past the duration, discard it silently.
   - If another file opens while the dialog is up, close it without changes.
   - Playlist auto-advance also waits for the dialog (spec edge case).
-- [ ] T042 [US2] Record positions in `Main.qml`. On stop, before the source changes, and in `onClosing`:
+- [X] T042 [US2] Record positions in `Main.qml`. On stop, before the source changes, and in `onClosing`:
   - call `PlaybackHistory.recordPosition` when `PlaybackUtils.isResumeEligible(position, duration)`
   - otherwise call `removePosition` when the position is in the last 5%
   - skip `http(s)` sources and skip entirely when `rememberPositions` is off (FR-011, FR-014)
   - call `PlaybackHistory.recordOpened` on every successful open
-- [ ] T043 [P] [US2] Create `RecentFilesMenu.qml`, a `Menu` built from `PlaybackHistory.recentFiles()` (refreshed on `recentChanged`):
+- [X] T043 [P] [US2] Create `RecentFilesMenu.qml`, a `Menu` built from `PlaybackHistory.recentFiles()` (refreshed on `recentChanged`):
   - Choosing an existing file calls `mainWindow.openUrls([url])`.
   - Choosing a missing file shows the snackbar message "File not found" with a "Remove from list" action that calls `removeRecent`.
   - Ends with a "Clear recent files" item.
-- [ ] T044 [US2] Add "Open Recent" (a `RecentFilesMenu` submenu, two clicks from the main window per SC-005), "Open Playlist…" and "Save Playlist…" to `fileMenu` in `TitleBar.qml`, as new signals handled in `Main.qml`.
-- [ ] T045 [US2] Add playlist save and open to `Main.qml`:
+- [X] T044 [US2] Add "Open Recent" (a `RecentFilesMenu` submenu, two clicks from the main window per SC-005), "Open Playlist…" and "Save Playlist…" to `fileMenu` in `TitleBar.qml`, as new signals handled in `Main.qml`.
+- [X] T045 [US2] Add playlist save and open to `Main.qml`:
   - `FileDialog`s filtered to `AppConstants.playlistExtensions` (save defaults to `.m3u8`)
   - save calls `PlaylistFiles.save`
   - open calls `PlaylistFiles.load`, replaces `playList` with entries built through `getMediaInfo`, and shows "Loaded N items, skipped M (missing or unsupported)" when either skipped count is above zero (FR-018, FR-019)
   - `openUrls` treats dropped or passed `.m3u/.m3u8` files as playlists to load rather than media
-- [ ] T046 [US2] Add a shuffle toggle button to `PlayListComponent.qml`, bound to `appSettings.shuffle`, and keep a `ShuffleOrder` in sync with `playList` changes (insert, remove and drag-reorder hooks).
-- [ ] T047 [US2] Route next/previous through shuffle in `Main.qml` and `MediaControlsComponent.qml` (depends on T039, T046):
+- [X] T046 [US2] Add a shuffle toggle button to `PlayListComponent.qml`, bound to `appSettings.shuffle`, and keep a `ShuffleOrder` in sync with `playList` changes (insert, remove and drag-reorder hooks).
+- [X] T047 [US2] Route next/previous through shuffle in `Main.qml` and `MediaControlsComponent.qml` (depends on T039, T046):
   - make the `nextTrack`/`previousTrack` handlers in `Main.qml` and the `EndOfMedia` branch in `MediaControlsComponent.qml` use `ShuffleOrder.next()`/`previous()` when shuffle is on
   - when it's off, keep the current sequential behaviour (FR-017)
-- [ ] T048 [US2] Add session restore to `Main.qml`:
+- [X] T048 [US2] Add session restore to `Main.qml`:
   - Add `restoreLastPlaylist: false` to `appSettings`.
   - In `onClosing`, when it's on and `playList.count > 0`, write `<AppDataLocation>/session.m3u8` with `#GAV-CURRENT` via `PlaylistFiles.save`. When it's off, delete that file.
   - In `Component.onCompleted`, restore it before `openUrls(InstanceManager.takePendingUrls())`, selecting the current item without playing. Pending files are then appended and the first one is played (FR-019a, spec edge case).
   - If the restored current item is an `http(s)` URL, highlight it in the playlist but do not set it as the player source until the user presses play, so GAV makes no network connection at startup (Constitution Principle I).
-- [ ] T049 [US2] Add to `SettingsDialog.qml`:
+- [X] T049 [US2] Add to `SettingsDialog.qml`:
   - a "Remember playback position" switch (`rememberPositions`, default on)
   - a "Restore last playlist on startup" switch (`restoreLastPlaylist`, default off)
   - a "Clear history" button that calls `PlaybackHistory.clear()` and deletes `session.m3u8`, then confirms with the snackbar (FR-014, FR-016)
-- [ ] T050 [US2] Register `shuffleorder` in `qt_add_qml_module` and `gav_tests`, add `ResumeDialog.qml` and `RecentFilesMenu.qml` to `QML_FILES`, and add `tests/test_shuffleorder.cpp` in `CMakeLists.txt`.
+- [X] T050 [US2] Register `shuffleorder` in `qt_add_qml_module` and `gav_tests`, add `ResumeDialog.qml` and `RecentFilesMenu.qml` to `QML_FILES`, and add `tests/test_shuffleorder.cpp` in `CMakeLists.txt`.
 
 **Checkpoint**: ctest passes and quickstart Q2.1–Q2.12 pass. This ships as its own PR.
 

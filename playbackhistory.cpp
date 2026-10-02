@@ -149,6 +149,14 @@ void PlaybackHistory::clear() {
     emit recentChanged();
 }
 
+QUrl PlaybackHistory::urlFor(const QString &pathOrUrl) const {
+    return isNetworkUrl(pathOrUrl) ? QUrl(pathOrUrl) : QUrl::fromLocalFile(normalizePath(pathOrUrl));
+}
+
+bool PlaybackHistory::exists(const QString &pathOrUrl) const {
+    return isNetworkUrl(pathOrUrl) || QFileInfo::exists(normalizePath(pathOrUrl));
+}
+
 void PlaybackHistory::load() {
     QFile file(m_storagePath);
     if (!file.exists()) {

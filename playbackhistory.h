@@ -7,6 +7,7 @@
 #include <QString>
 #include <QStringList>
 #include <QThreadPool>
+#include <QUrl>
 #include <QtQml/qqmlregistration.h>
 
 class PlaybackHistory : public QObject {
@@ -50,6 +51,8 @@ public:
     Q_INVOKABLE void removeRecent(const QString &pathOrUrl);
     Q_INVOKABLE void clearRecent();
     Q_INVOKABLE void clear();
+    Q_INVOKABLE QUrl urlFor(const QString &pathOrUrl) const;
+    Q_INVOKABLE bool exists(const QString &pathOrUrl) const;
 
 signals:
     void recentChanged();
