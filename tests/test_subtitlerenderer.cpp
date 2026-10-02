@@ -109,6 +109,12 @@ TEST_F(SubtitleRendererTest, ResetDropsTrackAndCanBeReused) {
     EXPECT_GT(coveredPixels(engine.render(5000, frameSize), QRect(150, 150, 800, 150)), 100);
 }
 
+TEST_F(SubtitleRendererTest, SettingTheSameTrackAgainStillRenders) {
+    SetUp();
+    SetUp();
+    EXPECT_GT(coveredPixels(engine.render(5000, frameSize), QRect(150, 150, 800, 150)), 100);
+}
+
 TEST_F(SubtitleRendererTest, RenderTimeIsLogged) {
     engine.render(5000, frameSize);
     constexpr int frames = 120;

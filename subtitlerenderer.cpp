@@ -108,8 +108,12 @@ void SubtitleEngine::setTrack(const QByteArray &header) {
     m_track = ass_new_track(m_library);
     if (m_track) {
         const QByteArray &codecPrivate = header.trimmed().isEmpty() ? defaultHeader : header;
+        const bool extracted = m_extractedHeaders.contains(codecPrivate);
+        ass_set_extract_fonts(m_library, extracted ? 0 : 1);
         QByteArray copy = codecPrivate;
         ass_process_codec_private(m_track, copy.data(), int(copy.size()));
+        ass_set_extract_fonts(m_library, 1);
+        m_extractedHeaders.insert(codecPrivate);
     }
     m_dirty = true;
 }
@@ -136,6 +140,7 @@ void SubtitleEngine::reset() {
     if (m_library) {
         ass_clear_fonts(m_library);
     }
+    m_extractedHeaders.clear();
     m_frameSize = QSize();
     m_last = SubtitleFrame();
     m_dirty = true;

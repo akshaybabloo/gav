@@ -8,6 +8,7 @@
 #include <QMutex>
 #include <QObject>
 #include <QPoint>
+#include <QSet>
 #include <QSize>
 #include <QtQml/qqmlregistration.h>
 
@@ -48,6 +49,7 @@ private:
     ass_library *m_library = nullptr;
     ass_renderer *m_renderer = nullptr;
     ass_track *m_track = nullptr;
+    QSet<QByteArray> m_extractedHeaders;
     QSize m_frameSize;
     double m_scale = 1.0;
     bool m_dirty = true;
