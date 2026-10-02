@@ -92,9 +92,13 @@ PlaylistReadResult parse(const QByteArray &data, const QString &baseDirectory, c
                 continue;
             }
         } else {
-            QString path = line;
-            path.replace(QLatin1Char('\\'), QLatin1Char('/'));
-            localPath = QDir::isAbsolutePath(path) ? path : base.absoluteFilePath(path);
+            const auto resolve = [&base](const QString &path) { return QDir::isAbsolutePath(path) ? path : base.absoluteFilePath(path); };
+            localPath = resolve(line);
+            if (line.contains(QLatin1Char('\\')) && !QFileInfo::exists(localPath)) {
+                QString converted = line;
+                converted.replace(QLatin1Char('\\'), QLatin1Char('/'));
+                localPath = resolve(converted);
+            }
         }
 
         if (!localPath.isEmpty()) {
@@ -191,8 +195,8 @@ QVariantMap PlaylistFiles::toVariant(const PlaylistReadResult &result) {
 
 PlaylistDocument PlaylistFiles::fromVariant(const QVariantList &items, int currentIndex) {
     PlaylistDocument document;
-    for (const QVariant &value : items) {
-        const QVariantMap item = value.toMap();
+    for (qsizetype i = 0; i < items.size(); ++i) {
+        const QVariantMap item = items[i].toMap();
         const QUrl url(item.value(QStringLiteral("path")).toString());
         if (!url.isValid() || url.isEmpty()) {
             continue;
@@ -200,10 +204,10 @@ PlaylistDocument PlaylistFiles::fromVariant(const QVariantList &items, int curre
         const int duration = item.contains(QStringLiteral("durationSec")) ? item.value(QStringLiteral("durationSec")).toInt() : -1;
         const QString title = item.contains(QStringLiteral("title")) ? item.value(QStringLiteral("title")).toString()
                                                                       : item.value(QStringLiteral("name")).toString();
+        if (i == currentIndex) {
+            document.currentIndex = int(document.entries.size());
+        }
         document.entries.append({url, title, duration});
-    }
-    if (currentIndex >= 0 && currentIndex < document.entries.size()) {
-        document.currentIndex = currentIndex;
     }
     return document;
 }

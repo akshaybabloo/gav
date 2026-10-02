@@ -64,6 +64,15 @@ TEST_F(PlaylistIOTest, ResolvesRelativePaths) {
     EXPECT_EQ(result.document.entries[2].location, QUrl::fromLocalFile(b));
 }
 
+#ifndef Q_OS_WIN
+TEST_F(PlaylistIOTest, KeepsLiteralBackslashInExistingPosixFilename) {
+    const QString literal = touch("part\\one.mp4");
+    const PlaylistReadResult result = parse("part\\one.mp4\n");
+    ASSERT_EQ(result.document.entries.size(), 1);
+    EXPECT_EQ(result.document.entries[0].location, QUrl::fromLocalFile(literal));
+}
+#endif
+
 TEST_F(PlaylistIOTest, ToleratesBomCrlfAndMissingHeader) {
     touch("a.mp4");
     const PlaylistReadResult result = parse("\xEF\xBB\xBF#EXTINF:12,Title A\r\na.mp4\r\n");
@@ -163,6 +172,14 @@ TEST_F(PlaylistIOTest, VariantConversionPrefersTitleOverName) {
     const PlaylistDocument document = PlaylistFiles::fromVariant(entries, -1);
     ASSERT_EQ(document.entries.size(), 1);
     EXPECT_EQ(document.entries[0].title, "Radio");
+}
+
+TEST_F(PlaylistIOTest, VariantConversionRemapsCurrentIndexPastInvalidItems) {
+    const QVariantList items{QVariantMap{{"name", "Broken"}, {"path", ""}},
+                             QVariantMap{{"name", "A"}, {"path", "file:///videos/a.mp4"}},
+                             QVariantMap{{"name", "B"}, {"path", "file:///videos/b.mp4"}}};
+    EXPECT_EQ(PlaylistFiles::fromVariant(items, 2).currentIndex, 1);
+    EXPECT_EQ(PlaylistFiles::fromVariant(items, 0).currentIndex, -1);
 }
 
 TEST_F(PlaylistIOTest, VariantConversionKeepsOrderAndCurrentIndex) {
