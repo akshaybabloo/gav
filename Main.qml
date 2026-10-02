@@ -15,10 +15,15 @@ ApplicationWindow {
     property bool controlsVisibleAlias: mediaComponent.controlsAreVisible
     property bool isDarkTheme: true
     property bool mediaControlsContainsMouse: false
+    property var pendingStartupUrls: []
     property var pendingSubtitleUrls: []
+    readonly property bool hasNextItem: appSettings.shuffle ? shuffleOrder.remaining > 0 : playlistComponent.playListView.currentIndex >= 0 && playlistComponent.playListView.currentIndex < playList.count - 1
+    readonly property bool hasPreviousItem: appSettings.shuffle ? shuffleOrder.canGoBack : playlistComponent.playListView.currentIndex > 0
+    property bool restoringSession: false
+    readonly property url sessionPlaylistUrl: StandardPaths.writableLocation(StandardPaths.AppDataLocation) + "/session.m3u8"
     property bool playlistManualVisible: false
     property int repeatMode: 0
-    readonly property bool shortcutsEnabled: !textInputFocused && !aboutDialog.opened && !playbackErrorDialog.opened && !updateDialog.opened && !settingsDialog.opened
+    readonly property bool shortcutsEnabled: !textInputFocused && !aboutDialog.opened && !playbackErrorDialog.opened && !updateDialog.opened && !settingsDialog.opened && !resumeDialog.opened
     property bool shouldAutoPlay: false
     readonly property bool textInputFocused: activeFocusItem instanceof TextInput || activeFocusItem instanceof TextEdit
 
@@ -72,6 +77,101 @@ ApplicationWindow {
             "icon": "\ueb87"
         };
     }
+    function isPlaylistUrl(url) {
+        var name = url.toString();
+        return AppConstants.isPlaylistExtension(name.substring(name.lastIndexOf('.') + 1));
+    }
+    function isStreamUrl(url) {
+        var name = url.toString();
+        return name.startsWith("http://") || name.startsWith("https://");
+    }
+    function supportedMediaExtensions() {
+        return AppConstants.videoExtensions.concat(AppConstants.audioExtensions);
+    }
+    function playlistItems() {
+        var items = [];
+        for (var i = 0; i < playList.count; i++) {
+            var item = playList.get(i);
+            items.push({
+                "name": item.name,
+                "path": item.path
+            });
+        }
+        return items;
+    }
+    function selectPlaylistItem(index) {
+        if (index < 0 || index >= playList.count)
+            return;
+        if (playlistComponent.playListView.currentIndex === index) {
+            var item = playList.get(index);
+            mediaComponent.path = item.path;
+            mainWindow.title = appTitle + " - " + item.name;
+            mediaComponent.mediaPlayer.play();
+        } else {
+            playlistComponent.playListView.currentIndex = index;
+        }
+    }
+    function nextItem() {
+        if (appSettings.shuffle) {
+            selectPlaylistItem(shuffleOrder.next(false));
+        } else if (hasNextItem) {
+            selectPlaylistItem(playlistComponent.playListView.currentIndex + 1);
+        }
+    }
+    function previousItem() {
+        if (appSettings.shuffle) {
+            selectPlaylistItem(shuffleOrder.previous());
+        } else if (hasPreviousItem) {
+            selectPlaylistItem(playlistComponent.playListView.currentIndex - 1);
+        }
+    }
+    function applyLoadedPlaylist(tag, result) {
+        if (!result.ok) {
+            if (tag !== "session") {
+                captureSnackbar.message = qsTr("Could not open playlist: ") + result.error;
+                captureSnackbar.show();
+            }
+            return -1;
+        }
+        if (tag === "replace")
+            playList.clear();
+        var firstIndex = playList.count;
+        for (var i = 0; i < result.entries.length; i++) {
+            var mediaInfo = getMediaInfo(result.entries[i].path);
+            if (mediaInfo)
+                playList.append(mediaInfo);
+        }
+        var skipped = result.skippedMissing + result.skippedUnsupported;
+        if (skipped > 0) {
+            captureSnackbar.message = qsTr("Loaded %1 items, skipped %2 (missing or unsupported)").arg(result.entries.length).arg(skipped);
+            captureSnackbar.show();
+        }
+        return result.entries.length > 0 ? firstIndex : -1;
+    }
+    function promptResumeIfSaved() {
+        var player = mediaComponent.mediaPlayer;
+        var source = player.source.toString();
+        if (!appSettings.rememberPositions || source === "" || isStreamUrl(source))
+            return false;
+        var saved = PlaybackHistory.savedPosition(source);
+        if (saved < 0)
+            return false;
+        if (saved >= player.duration) {
+            PlaybackHistory.removePosition(source);
+            return false;
+        }
+        player.pause();
+        player.position = saved;
+        resumeDialog.positionMs = saved;
+        resumeDialog.open();
+        return true;
+    }
+    function saveSession() {
+        if (appSettings.restoreLastPlaylist && playList.count > 0)
+            PlaylistFiles.save(sessionPlaylistUrl, playlistItems(), playlistComponent.playListView.currentIndex, "session");
+        else
+            PlaylistFiles.remove(sessionPlaylistUrl);
+    }
     function isSubtitleUrl(url) {
         var name = url.toString();
         return AppConstants.isSubtitleExtension(name.substring(name.lastIndexOf('.') + 1));
@@ -93,6 +193,10 @@ ApplicationWindow {
     function openUrls(urls) {
         var startPlayback = mediaComponent.path === "";
         for (var i = 0; i < urls.length; i++) {
+            if (isPlaylistUrl(urls[i])) {
+                PlaylistFiles.load(urls[i], supportedMediaExtensions(), "append");
+                continue;
+            }
             var mediaInfo = getMediaInfo(urls[i]);
             if (!mediaInfo)
                 continue;
@@ -147,7 +251,12 @@ ApplicationWindow {
             updateDialog.manualCheck = false;
             updates.checkUpdates();
         }
-        openUrls(InstanceManager.takePendingUrls());
+        if (appSettings.restoreLastPlaylist) {
+            pendingStartupUrls = InstanceManager.takePendingUrls();
+            PlaylistFiles.load(sessionPlaylistUrl, supportedMediaExtensions(), "session");
+        } else {
+            openUrls(InstanceManager.takePendingUrls());
+        }
     }
 
     Settings {
@@ -158,6 +267,10 @@ ApplicationWindow {
         property real playbackRate: 1.0
         property string preferredAudioLanguage: ""
         property string preferredSubtitleLanguage: ""
+        property bool rememberPositions: false
+        property bool rememberRecentFiles: false
+        property bool restoreLastPlaylist: false
+        property bool shuffle: false
         property real subtitleScale: 1.0
         property real volume: AppConstants.defaultVolume
     }
@@ -189,6 +302,24 @@ ApplicationWindow {
         }
         onExitRequested: Qt.quit()
         onOpenFileRequested: fileDialog.open()
+        onOpenPlaylistRequested: openPlaylistDialog.open()
+        onOpenRecentRequested: function (url) {
+            if (mainWindow.isPlaylistUrl(url)) {
+                PlaylistFiles.load(url, mainWindow.supportedMediaExtensions(), "append");
+                return;
+            }
+            var mediaInfo = mainWindow.getMediaInfo(url);
+            if (!mediaInfo)
+                return;
+            playList.append(mediaInfo);
+            mainWindow.selectPlaylistItem(playList.count - 1);
+        }
+        onRecentFileMissing: function (path) {
+            recentSnackbar.missingPath = path;
+            recentSnackbar.message = qsTr("File not found: ") + path;
+            recentSnackbar.show();
+        }
+        onSavePlaylistRequested: savePlaylistDialog.open()
         onSettingsRequested: settingsDialog.open()
     }
 
@@ -291,6 +422,110 @@ ApplicationWindow {
     }
     CustomSnackbar {
         id: subtitleSnackbar
+    }
+    CustomSnackbar {
+        id: recentSnackbar
+
+        property string missingPath: ""
+
+        actionText: qsTr("Remove from list")
+
+        onActionTriggered: PlaybackHistory.removeRecent(missingPath)
+    }
+    ResumeDialog {
+        id: resumeDialog
+
+        onResumeChosen: mediaComponent.mediaPlayer.play()
+        onStartOverChosen: {
+            PlaybackHistory.removePosition(mediaComponent.mediaPlayer.source.toString());
+            mediaComponent.mediaPlayer.position = 0;
+            mediaComponent.mediaPlayer.play();
+        }
+    }
+    ShuffleOrder {
+        id: shuffleOrder
+
+        enabled: appSettings.shuffle
+
+        onEnabledChanged: {
+            if (enabled)
+                reset(playList.count, playlistComponent.playListView.currentIndex);
+        }
+    }
+    Connections {
+        function onModelReset() {
+            shuffleOrder.reset(playList.count, playlistComponent.playListView.currentIndex);
+        }
+        function onRowsInserted(parent, first, last) {
+            for (var i = first; i <= last; i++)
+                shuffleOrder.itemInserted(i);
+        }
+        function onRowsMoved() {
+            shuffleOrder.reset(playList.count, playlistComponent.playListView.currentIndex);
+        }
+        function onRowsRemoved(parent, first, last) {
+            for (var i = last; i >= first; i--)
+                shuffleOrder.itemRemoved(i);
+        }
+
+        target: playList
+    }
+    Connections {
+        function onPathChanged() {
+            if (resumeDialog.opened)
+                resumeDialog.close();
+        }
+
+        target: mediaComponent
+    }
+    Connections {
+        function onPositionCheckpoint(source, position, duration) {
+            if (appSettings.rememberPositions)
+                PlaybackHistory.recordPosition(source.toString(), position, duration);
+        }
+
+        target: mediaComponent.mediaPlayer
+    }
+    Connections {
+        function onLoaded(tag, result) {
+            if (tag === "session") {
+                mainWindow.restoringSession = true;
+                var restoredStart = mainWindow.applyLoadedPlaylist(tag, result);
+                if (restoredStart >= 0 && result.currentIndex >= 0)
+                    playlistComponent.playListView.currentIndex = restoredStart + result.currentIndex;
+                mainWindow.restoringSession = false;
+                var startupUrls = mainWindow.pendingStartupUrls;
+                mainWindow.pendingStartupUrls = [];
+                var firstPending = playList.count;
+                mainWindow.openUrls(startupUrls);
+                if (playList.count > firstPending)
+                    mainWindow.selectPlaylistItem(firstPending);
+                return;
+            }
+            var start = mainWindow.applyLoadedPlaylist(tag, result);
+            if (start < 0)
+                return;
+            if (tag === "replace")
+                mainWindow.selectPlaylistItem(result.currentIndex >= 0 ? result.currentIndex : 0);
+            else if (mediaComponent.path === "")
+                mainWindow.selectPlaylistItem(start);
+        }
+        function onSaved(tag, ok) {
+            if (tag === "save") {
+                captureSnackbar.message = ok ? qsTr("Playlist saved") : qsTr("Could not save playlist");
+                captureSnackbar.show();
+            }
+        }
+
+        target: PlaylistFiles
+    }
+    Connections {
+        function onAboutToQuit() {
+            mediaComponent.mediaPlayer.checkpoint();
+            mainWindow.saveSession();
+        }
+
+        target: Qt.application
     }
     Connections {
         function onErrorOccurred(message) {
@@ -812,12 +1047,30 @@ ApplicationWindow {
         checkUpdatesOnStartup: appSettings.checkUpdatesOnStartup
         isDarkTheme: mainWindow.isDarkTheme
         mediaPlayer: mediaComponent.mediaPlayer
+        rememberPositions: appSettings.rememberPositions
+        rememberRecentFiles: appSettings.rememberRecentFiles
+        restoreLastPlaylist: appSettings.restoreLastPlaylist
 
         onCheckUpdatesOnStartupToggled: function (enabled) {
             appSettings.checkUpdatesOnStartup = enabled;
         }
         onDefaultSpeedChanged: function (speed) {
             appSettings.playbackRate = speed;
+        }
+        onClearHistoryRequested: {
+            PlaybackHistory.clear();
+            PlaylistFiles.remove(mainWindow.sessionPlaylistUrl);
+            captureSnackbar.message = qsTr("History cleared");
+            captureSnackbar.show();
+        }
+        onRememberPositionsToggled: function (enabled) {
+            appSettings.rememberPositions = enabled;
+        }
+        onRememberRecentFilesToggled: function (enabled) {
+            appSettings.rememberRecentFiles = enabled;
+        }
+        onRestoreLastPlaylistToggled: function (enabled) {
+            appSettings.restoreLastPlaylist = enabled;
         }
         onPreferredAudioLanguageEdited: function (language) {
             appSettings.preferredAudioLanguage = language;
@@ -851,6 +1104,10 @@ ApplicationWindow {
                         subtitleUrls.push(drop.urls[i]);
                         continue;
                     }
+                    if (isPlaylistUrl(drop.urls[i])) {
+                        PlaylistFiles.load(drop.urls[i], supportedMediaExtensions(), "append");
+                        continue;
+                    }
                     var mediaInfo = getMediaInfo(drop.urls[i]);
                     console.debug("Media info for dropped file:", JSON.stringify(mediaInfo));
                     if (!mediaInfo)
@@ -871,6 +1128,24 @@ ApplicationWindow {
                 }
             }
         }
+    }
+    FileDialog {
+        id: openPlaylistDialog
+
+        nameFilters: [AppConstants.getPlaylistExtensionsFilter(), qsTr("All files (*)")]
+        title: qsTr("Open Playlist")
+
+        onAccepted: PlaylistFiles.load(selectedFile, mainWindow.supportedMediaExtensions(), "replace")
+    }
+    FileDialog {
+        id: savePlaylistDialog
+
+        defaultSuffix: "m3u8"
+        fileMode: FileDialog.SaveFile
+        nameFilters: [AppConstants.getPlaylistExtensionsFilter()]
+        title: qsTr("Save Playlist")
+
+        onAccepted: PlaylistFiles.save(selectedFile, mainWindow.playlistItems(), playlistComponent.playListView.currentIndex, "save")
     }
     FileDialog {
         id: fileDialog
@@ -906,6 +1181,10 @@ ApplicationWindow {
         onMediaLoadedChanged: {
             if (mediaLoaded) {
                 mediaPlayer.playbackRate = appSettings.playbackRate;
+                if (appSettings.rememberRecentFiles)
+                    PlaybackHistory.recordOpened(mediaPlayer.source.toString());
+                if (mainWindow.promptResumeIfSaved())
+                    shouldAutoPlay = false;
                 var subtitleUrls = mainWindow.pendingSubtitleUrls;
                 mainWindow.pendingSubtitleUrls = [];
                 for (var i = 0; i < subtitleUrls.length; i++)
@@ -928,7 +1207,9 @@ ApplicationWindow {
 
             onActivated: {
                 // Play/Pause
-                if (mediaComponent.mediaPlayer.playbackState === MediaPlayer.PlayingState) {
+                if (mediaComponent.path === "" && playlistComponent.playListView.currentIndex >= 0) {
+                    mainWindow.selectPlaylistItem(playlistComponent.playListView.currentIndex);
+                } else if (mediaComponent.mediaPlayer.playbackState === MediaPlayer.PlayingState) {
                     mediaComponent.mediaPlayer.pause();
                 } else {
                     mediaComponent.mediaPlayer.play();
@@ -1023,12 +1304,25 @@ ApplicationWindow {
         anchors.top: mainWindow.visibility === Window.FullScreen ? parent.top : titleBar.bottom
         collageTarget: collage
         playList: playList
+        shuffleEnabled: appSettings.shuffle
         visible: (!mediaComponent.isVideoAndPlaying && !loadingScreen.visible) || mainWindow.playlistManualVisible
 
         onItemSelected: function (path, name) {
+            if (appSettings.shuffle)
+                shuffleOrder.setCurrent(playListView.currentIndex);
+            if (mainWindow.restoringSession) {
+                if (!mainWindow.isStreamUrl(path)) {
+                    mediaComponent.path = path;
+                    mainWindow.title = appTitle + " - " + name;
+                }
+                return;
+            }
             mediaComponent.path = path;
             mainWindow.title = appTitle + " - " + name;
             mediaComponent.mediaPlayer.play();
+        }
+        onShuffleToggled: function (enabled) {
+            appSettings.shuffle = enabled;
         }
         onPlayRequested: {
             if (mediaComponent.path === "" && playlistComponent.playListView.currentIndex !== -1) {
@@ -1068,6 +1362,8 @@ ApplicationWindow {
             miniPlayerActive: miniPlayerWindow.visible
             nerdStatsActive: nerdStats.visible
             player: mediaComponent.mediaPlayer
+            hasNextTrack: mainWindow.hasNextItem
+            hasPreviousTrack: mainWindow.hasPreviousItem
             playlistCount: playList.count
             playlistCurrentIndex: playlistComponent.playListView.currentIndex
             repeatMode: mainWindow.repeatMode
@@ -1085,9 +1381,9 @@ ApplicationWindow {
                 mediaComponent.mediaPlayer.videoOutput = miniPlayerWindow.miniVideoOutput;
                 mainWindow.hide();
             }
-            onNextTrack: playlistComponent.playListView.currentIndex++
+            onNextTrack: mainWindow.nextItem()
             onPlaylistToggleRequested: mainWindow.playlistManualVisible = !mainWindow.playlistManualVisible
-            onPreviousTrack: playlistComponent.playListView.currentIndex--
+            onPreviousTrack: mainWindow.previousItem()
         }
     }
     MiniPlayerWindow {

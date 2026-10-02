@@ -106,6 +106,14 @@ QtObject {
         return "Subtitle Files (*." + subtitleExtensions.join(" *.") + ")";
     }
 
+    function getPlaylistExtensionsFilter(): string {
+        return "Playlists (*." + playlistExtensions.join(" *.") + ")";
+    }
+
+    function isPlaylistExtension(ext: string): bool {
+        return playlistExtensions.indexOf(ext.toLowerCase()) !== -1;
+    }
+
     function isSubtitleExtension(ext: string): bool {
         return subtitleExtensions.indexOf(ext.toLowerCase()) !== -1;
     }

@@ -6,6 +6,7 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QThreadPool>
 #include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
@@ -46,6 +47,7 @@ class PlaylistFiles : public QObject {
 
 public:
     explicit PlaylistFiles(QObject *parent = nullptr);
+    ~PlaylistFiles() override;
 
     static QVariantMap toVariant(const PlaylistReadResult &result);
     static PlaylistDocument fromVariant(const QVariantList &items, int currentIndex);
@@ -57,6 +59,9 @@ public:
 signals:
     void loaded(const QString &tag, const QVariantMap &result);
     void saved(const QString &tag, bool ok);
+
+private:
+    QThreadPool m_writer;
 };
 
 #endif // PLAYLISTIO_H

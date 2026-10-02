@@ -12,10 +12,12 @@ Item {
     required property ListModel playList
     property alias playListView: playListView
     property string searchFilter: ""
+    property bool shuffleEnabled: false
 
     // Signals for decoupling from parent components
     signal itemSelected(string path, string name)
     signal playRequested()
+    signal shuffleToggled(bool enabled)
 
     // Full background
     Rectangle {
@@ -248,6 +250,41 @@ Item {
                     }
                     Item {
                         Layout.fillWidth: true
+                    }
+                    Button {
+                        id: shuffleButton
+
+                        Accessible.description: qsTr("Play the playlist in random order")
+                        Accessible.name: qsTr("Shuffle")
+                        Accessible.role: Accessible.Button
+                        Layout.preferredHeight: 30
+                        Layout.preferredWidth: 25
+                        Material.roundedScale: Material.NotRounded
+                        checkable: true
+                        checked: root.shuffleEnabled
+                        font.family: materialSymbolsOutlined.name
+                        font.weight: Font.Light
+                        hoverEnabled: true
+                        scale: 1.5
+                        text: "\ue043"
+
+                        contentItem: Text {
+                            color: shuffleButton.checked ? Material.accent : Material.foreground
+                            font: shuffleButton.font
+                            horizontalAlignment: Text.AlignHCenter
+                            opacity: shuffleButton.checked ? 1.0 : 0.5
+                            text: shuffleButton.text
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        onToggled: root.shuffleToggled(checked)
+
+                        ToolTip {
+                            delay: AppConstants.tooltipDelay
+                            text: shuffleButton.checked ? qsTr("Shuffle: On") : qsTr("Shuffle: Off")
+                            timeout: AppConstants.tooltipTimeout
+                            visible: shuffleButton.hovered
+                        }
                     }
                     Button {
                         id: clearButton

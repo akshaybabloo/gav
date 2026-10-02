@@ -48,6 +48,7 @@ public:
   Q_INVOKABLE void captureFrame();
   Q_INVOKABLE void requestPreviewAt(qint64 position);
   Q_INVOKABLE void selectAudioTrack(int index);
+  Q_INVOKABLE void checkpoint();
   Q_INVOKABLE QString cycleAudioTrack();
 
   QUrl source() const;
@@ -110,6 +111,7 @@ signals:
   void frameCaptured(bool success, const QString &path);
   void previewReady(qint64 position, const QString &imageDataUrl);
   void audioTracksChanged();
+  void positionCheckpoint(const QUrl &source, qint64 position, qint64 duration);
   void preferredAudioLanguageChanged();
   void chaptersChanged();
 

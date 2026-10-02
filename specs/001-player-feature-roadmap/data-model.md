@@ -77,7 +77,7 @@ research R12.
 
 | Field | Type | Notes |
 |-------|------|-------|
-| path | string | Absolute local path as opened. This is the identity key; different paths to the same file are separate entries, as the spec's edge cases accept. |
+| key | string | Lower-case hex SHA-256 of the normalised absolute path (local paths cleaned, `file://` URLs converted). The path itself is never stored (FR-015a). Different paths to the same file are separate entries, as the spec's edge cases accept. Entries whose key is not 64 hex characters are dropped on load. |
 | positionMs | int64 | Last saved position |
 | durationMs | int64 | Duration when saved, used to detect changed files |
 | lastPlayed | ISO-8601 UTC datetime | Ordering for eviction and for recent files |
@@ -107,7 +107,7 @@ list" action.
 ```json
 {
   "version": 1,
-  "positions": [{ "path": "...", "positionMs": 0, "durationMs": 0, "lastPlayed": "..." }],
+  "positions": [{ "key": "<sha256 hex>", "positionMs": 0, "durationMs": 0, "lastPlayed": "..." }],
   "recent": [{ "path": "...", "lastOpened": "..." }]
 }
 ```
