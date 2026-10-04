@@ -14,6 +14,18 @@ RowLayout {
     required property int repeatMode
     property alias rangeSlider: internalRangeSlider
 
+    signal goToTimeRequested
+
+    function chapterTitleAt(positionMs) {
+        var chapters = player.chapters;
+        var title = "";
+        for (var i = 0; i < chapters.length; i++) {
+            if (chapters[i].startMs <= positionMs)
+                title = chapters[i].title;
+        }
+        return title;
+    }
+
     spacing: 15
 
     Text {
@@ -24,6 +36,25 @@ RowLayout {
             ? AppConstants.formatTime(Math.round(rangeSlider.first.value)) + " \u2500 " + AppConstants.formatTime(Math.round(rangeSlider.second.value))
             : AppConstants.formatTime(player.position) + " / " + AppConstants.formatTime(player.duration)
         verticalAlignment: Text.AlignVCenter
+
+        MouseArea {
+            id: timeLabelArea
+
+            Accessible.name: qsTr("Go to time")
+            Accessible.role: Accessible.Button
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            enabled: mediaLoaded
+            hoverEnabled: true
+
+            onClicked: root.goToTimeRequested()
+        }
+        ToolTip {
+            delay: AppConstants.tooltipDelay
+            text: qsTr("Go to time (Ctrl+T)")
+            timeout: AppConstants.tooltipTimeout
+            visible: timeLabelArea.containsMouse
+        }
     }
     Slider {
         id: seekSlider
@@ -42,6 +73,22 @@ RowLayout {
 
         onMoved: player.position = value
 
+        Repeater {
+            model: player.duration > 0 ? player.chapters : []
+
+            Rectangle {
+                required property var modelData
+
+                color: Material.foreground
+                height: 10
+                opacity: 0.7
+                visible: modelData.startMs > 0 && modelData.startMs < player.duration
+                width: 2
+                x: seekSlider.leftPadding + (modelData.startMs / player.duration) * seekSlider.availableWidth - width / 2
+                y: seekSlider.topPadding + seekSlider.availableHeight / 2 - height / 2
+            }
+        }
+
         // Seek preview popup
         Rectangle {
             id: seekPreview
@@ -51,7 +98,7 @@ RowLayout {
             border.color: Material.dividerColor
             border.width: 1
             color: Qt.rgba(Material.background.r, Material.background.g, Material.background.b, 0.9)
-            height: 115
+            height: previewChapter.visible ? 132 : 115
             radius: 6
             visible: seekSlider.previewVisible && mediaLoaded && player.duration > 0
             width: 170
@@ -150,6 +197,19 @@ RowLayout {
                     font.bold: true
                     font.pixelSize: 12
                     text: AppConstants.formatTime(seekSlider.previewPosition)
+                }
+                Text {
+                    id: previewChapter
+
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    color: Material.foreground
+                    elide: Text.ElideRight
+                    font.pixelSize: 11
+                    horizontalAlignment: Text.AlignHCenter
+                    opacity: 0.7
+                    text: root.chapterTitleAt(seekSlider.previewPosition)
+                    visible: text !== ""
+                    width: 160
                 }
             }
         }

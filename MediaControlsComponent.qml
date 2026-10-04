@@ -29,6 +29,8 @@ Item {
     property int rewindMultiplier: 1
     required property var videoOutput
 
+    signal chapterJumped(string title)
+    signal goToTimeRequested
     signal miniPlayerRequested
     signal nerdStatsToggleRequested
     signal nextTrack
@@ -157,6 +159,8 @@ Item {
                 mediaLoaded: root.mediaLoaded
                 player: root.player
                 repeatMode: root.repeatMode
+
+                onGoToTimeRequested: root.goToTimeRequested()
             }
             RowLayout {
                 // Play/pause buttons
@@ -613,6 +617,64 @@ Item {
                             text: qsTr("Skip next")
                             timeout: AppConstants.tooltipTimeout
                             visible: nextTrackButton.hovered
+                        }
+                    }
+                    Rectangle {
+                        Layout.preferredHeight: parent.height
+                        Layout.preferredWidth: 2
+                        color: Material.dividerColor
+                        visible: player.chapters.length > 0
+                    }
+                    Button {
+                        id: previousChapterButton
+
+                        Accessible.description: qsTr("Jump to the start of this chapter, or the previous one")
+                        Accessible.name: qsTr("Previous chapter")
+                        Accessible.role: Accessible.Button
+                        Layout.preferredHeight: 30
+                        Layout.preferredWidth: 25
+                        Material.roundedScale: Material.NotRounded
+                        enabled: mediaLoaded
+                        font.family: materialSymbolsOutlined.name
+                        font.weight: Font.Light
+                        hoverEnabled: true
+                        scale: 1.5
+                        text: "\ueac3"
+                        visible: player.chapters.length > 0
+
+                        onClicked: root.chapterJumped(player.previousChapter())
+
+                        ToolTip {
+                            delay: AppConstants.tooltipDelay
+                            text: qsTr("Previous chapter (Shift+P)")
+                            timeout: AppConstants.tooltipTimeout
+                            visible: previousChapterButton.hovered
+                        }
+                    }
+                    Button {
+                        id: nextChapterButton
+
+                        Accessible.description: qsTr("Jump to the next chapter")
+                        Accessible.name: qsTr("Next chapter")
+                        Accessible.role: Accessible.Button
+                        Layout.preferredHeight: 30
+                        Layout.preferredWidth: 25
+                        Material.roundedScale: Material.NotRounded
+                        enabled: mediaLoaded
+                        font.family: materialSymbolsOutlined.name
+                        font.weight: Font.Light
+                        hoverEnabled: true
+                        scale: 1.5
+                        text: "\ueac9"
+                        visible: player.chapters.length > 0
+
+                        onClicked: root.chapterJumped(player.nextChapter())
+
+                        ToolTip {
+                            delay: AppConstants.tooltipDelay
+                            text: qsTr("Next chapter (Shift+N)")
+                            timeout: AppConstants.tooltipTimeout
+                            visible: nextChapterButton.hovered
                         }
                     }
                 }

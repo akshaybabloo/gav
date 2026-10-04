@@ -23,7 +23,8 @@ ApplicationWindow {
     readonly property url sessionPlaylistUrl: StandardPaths.writableLocation(StandardPaths.AppDataLocation) + "/session.m3u8"
     property bool playlistManualVisible: false
     property int repeatMode: 0
-    readonly property bool shortcutsEnabled: !textInputFocused && !aboutDialog.opened && !playbackErrorDialog.opened && !updateDialog.opened && !settingsDialog.opened && !resumeDialog.opened
+    readonly property bool dialogOpen: aboutDialog.opened || playbackErrorDialog.opened || updateDialog.opened || settingsDialog.opened || resumeDialog.opened || goToTimeDialog.opened
+    readonly property bool shortcutsEnabled: !textInputFocused && !dialogOpen
     property bool shouldAutoPlay: false
     readonly property bool textInputFocused: activeFocusItem instanceof TextInput || activeFocusItem instanceof TextEdit
 
@@ -76,6 +77,32 @@ ApplicationWindow {
             "type": "video",
             "icon": "\ueb87"
         };
+    }
+    function showOsd(text) {
+        if (miniPlayerWindow.visible)
+            miniPlayerWindow.showOsd(text);
+        else
+            mediaComponent.showOsd(text);
+    }
+    function toggleFullScreen() {
+        mainWindow.visibility = mainWindow.visibility === Window.FullScreen ? Window.Windowed : Window.FullScreen;
+    }
+    function changeVolume(delta) {
+        var output = mediaComponent.audioOutput;
+        output.volume = Math.max(0, Math.min(1, output.volume + delta));
+        showOsd(qsTr("Volume: %1%").arg(Math.round(output.volume * 100)));
+    }
+    function changeSpeed(direction) {
+        var speeds = AppConstants.playbackSpeeds;
+        var player = mediaComponent.mediaPlayer;
+        var index = 0;
+        for (var i = 1; i < speeds.length; i++) {
+            if (Math.abs(speeds[i] - player.playbackRate) < Math.abs(speeds[index] - player.playbackRate))
+                index = i;
+        }
+        var target = direction === 0 ? 1.0 : speeds[Math.max(0, Math.min(speeds.length - 1, index + direction))];
+        player.playbackRate = target;
+        showOsd(qsTr("Speed: %1x").arg(target));
     }
     function isPlaylistUrl(url) {
         var name = url.toString();
@@ -444,8 +471,16 @@ ApplicationWindow {
 
         onActionTriggered: PlaybackHistory.removeRecent(missingPath)
     }
+    GoToTimeDialog {
+        id: goToTimeDialog
+
+        parent: miniPlayerWindow.visible ? miniPlayerWindow.contentItem : mainWindow.contentItem
+        player: mediaComponent.mediaPlayer
+    }
     ResumeDialog {
         id: resumeDialog
+
+        parent: miniPlayerWindow.visible ? miniPlayerWindow.contentItem : mainWindow.contentItem
 
         onResumeChosen: mediaComponent.mediaPlayer.play()
         onStartOverChosen: {
@@ -1189,9 +1224,7 @@ ApplicationWindow {
         focus: true
         path: ""
 
-        onFullscreenToggleRequested: {
-            mainWindow.visibility = mainWindow.visibility === Window.FullScreen ? Window.Windowed : Window.FullScreen;
-        }
+        onFullscreenToggleRequested: mainWindow.toggleFullScreen()
         onMediaLoadedChanged: {
             if (mediaLoaded) {
                 mediaPlayer.playbackRate = appSettings.playbackRate;
@@ -1216,6 +1249,7 @@ ApplicationWindow {
         }
 
         Shortcut {
+            context: Qt.ApplicationShortcut
             enabled: mainWindow.shortcutsEnabled
             sequence: "Space"
 
@@ -1231,6 +1265,7 @@ ApplicationWindow {
             }
         }
         Shortcut {
+            context: Qt.ApplicationShortcut
             enabled: mainWindow.shortcutsEnabled
             sequence: "Left"
 
@@ -1240,6 +1275,7 @@ ApplicationWindow {
             }
         }
         Shortcut {
+            context: Qt.ApplicationShortcut
             enabled: mainWindow.shortcutsEnabled
             sequence: "Right"
 
@@ -1249,34 +1285,162 @@ ApplicationWindow {
             }
         }
         Shortcut {
+            context: Qt.ApplicationShortcut
             enabled: mainWindow.shortcutsEnabled && (mediaComponent.isVideo || nerdStats.visible)
             sequence: "I"
 
             onActivated: nerdStats.visible = !nerdStats.visible
         }
         Shortcut {
+            context: Qt.ApplicationShortcut
             enabled: mainWindow.shortcutsEnabled && mediaComponent.isVideo && mediaComponent.mediaPlayer.subtitles.tracks.length > 0
             sequence: "V"
 
-            onActivated: mediaComponent.showOsd(qsTr("Subtitles: ") + mediaComponent.mediaPlayer.subtitles.cycleTrack())
+            onActivated: mainWindow.showOsd(qsTr("Subtitles: ") + mediaComponent.mediaPlayer.subtitles.cycleTrack())
         }
         Shortcut {
+            context: Qt.ApplicationShortcut
             enabled: mainWindow.shortcutsEnabled && mediaComponent.mediaPlayer.audioTracks.length > 1
             sequence: "B"
 
-            onActivated: mediaComponent.showOsd(qsTr("Audio: ") + mediaComponent.mediaPlayer.cycleAudioTrack())
+            onActivated: mainWindow.showOsd(qsTr("Audio: ") + mediaComponent.mediaPlayer.cycleAudioTrack())
         }
         Shortcut {
+            context: Qt.ApplicationShortcut
             enabled: mainWindow.shortcutsEnabled && mediaComponent.mediaPlayer.subtitles.activeTrackId !== ""
             sequence: "G"
 
-            onActivated: mediaComponent.showOsd(qsTr("Subtitle delay: ") + AppConstants.formatDelay(mediaComponent.mediaPlayer.subtitles.adjustDelay(-AppConstants.subtitleDelayStep)))
+            onActivated: mainWindow.showOsd(qsTr("Subtitle delay: ") + AppConstants.formatDelay(mediaComponent.mediaPlayer.subtitles.adjustDelay(-AppConstants.subtitleDelayStep)))
         }
         Shortcut {
+            context: Qt.ApplicationShortcut
             enabled: mainWindow.shortcutsEnabled && mediaComponent.mediaPlayer.subtitles.activeTrackId !== ""
             sequence: "H"
 
-            onActivated: mediaComponent.showOsd(qsTr("Subtitle delay: ") + AppConstants.formatDelay(mediaComponent.mediaPlayer.subtitles.adjustDelay(AppConstants.subtitleDelayStep)))
+            onActivated: mainWindow.showOsd(qsTr("Subtitle delay: ") + AppConstants.formatDelay(mediaComponent.mediaPlayer.subtitles.adjustDelay(AppConstants.subtitleDelayStep)))
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: mainWindow.shortcutsEnabled
+            sequence: "Ctrl+Up"
+
+            onActivated: mainWindow.changeVolume(AppConstants.volumeStep)
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: mainWindow.shortcutsEnabled
+            sequence: "Ctrl+Down"
+
+            onActivated: mainWindow.changeVolume(-AppConstants.volumeStep)
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: mainWindow.shortcutsEnabled
+            sequence: "M"
+
+            onActivated: {
+                mediaComponent.audioOutput.muted = !mediaComponent.audioOutput.muted;
+                mainWindow.showOsd(mediaComponent.audioOutput.muted ? qsTr("Muted") : qsTr("Unmuted"));
+            }
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: mainWindow.shortcutsEnabled && mediaComponent.isVideo && !miniPlayerWindow.visible
+            sequence: "F"
+
+            onActivated: mainWindow.toggleFullScreen()
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: mainWindow.shortcutsEnabled && mainWindow.visibility === Window.FullScreen
+            sequence: "Esc"
+
+            onActivated: mainWindow.visibility = Window.Windowed
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: mainWindow.shortcutsEnabled && mediaComponent.mediaLoaded
+            sequence: "["
+
+            onActivated: mainWindow.changeSpeed(-1)
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: mainWindow.shortcutsEnabled && mediaComponent.mediaLoaded
+            sequence: "]"
+
+            onActivated: mainWindow.changeSpeed(1)
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: mainWindow.shortcutsEnabled && mediaComponent.mediaLoaded
+            sequence: "="
+
+            onActivated: mainWindow.changeSpeed(0)
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: mainWindow.shortcutsEnabled && mediaComponent.isVideo && mediaComponent.mediaLoaded
+            sequence: "E"
+
+            onActivated: mediaComponent.mediaPlayer.stepFrame(1)
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: mainWindow.shortcutsEnabled && mediaComponent.isVideo && mediaComponent.mediaLoaded
+            sequence: "Shift+E"
+
+            onActivated: mediaComponent.mediaPlayer.stepFrame(-1)
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: mainWindow.shortcutsEnabled && mediaComponent.mediaPlayer.chapters.length > 0
+            sequence: "Shift+N"
+
+            onActivated: {
+                var title = mediaComponent.mediaPlayer.nextChapter();
+                if (title !== "")
+                    mainWindow.showOsd(qsTr("Chapter: ") + title);
+            }
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: mainWindow.shortcutsEnabled && mediaComponent.mediaPlayer.chapters.length > 0
+            sequence: "Shift+P"
+
+            onActivated: {
+                var title = mediaComponent.mediaPlayer.previousChapter();
+                if (title !== "")
+                    mainWindow.showOsd(qsTr("Chapter: ") + title);
+            }
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: mainWindow.shortcutsEnabled && mainWindow.hasNextItem
+            sequence: "N"
+
+            onActivated: mainWindow.nextItem()
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: mainWindow.shortcutsEnabled && mainWindow.hasPreviousItem
+            sequence: "P"
+
+            onActivated: mainWindow.previousItem()
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: !mainWindow.dialogOpen && mediaComponent.mediaLoaded
+            sequence: "Ctrl+T"
+
+            onActivated: goToTimeDialog.open()
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: !mainWindow.dialogOpen && !miniPlayerWindow.visible
+            sequence: "Ctrl+O"
+
+            onActivated: fileDialog.open()
         }
     }
     ListModel {
@@ -1395,6 +1559,11 @@ ApplicationWindow {
                 mediaComponent.mediaPlayer.videoOutput = miniPlayerWindow.miniVideoOutput;
                 mainWindow.hide();
             }
+            onChapterJumped: function (title) {
+                if (title !== "")
+                    mainWindow.showOsd(qsTr("Chapter: ") + title);
+            }
+            onGoToTimeRequested: goToTimeDialog.open()
             onNextTrack: mainWindow.nextItem()
             onPlaylistToggleRequested: mainWindow.playlistManualVisible = !mainWindow.playlistManualVisible
             onPreviousTrack: mainWindow.previousItem()

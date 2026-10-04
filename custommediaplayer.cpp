@@ -1,4 +1,5 @@
 #include "custommediaplayer.h"
+#include "playbackutils.h"
 #include "previewimageprovider.h"
 #include "subtitlefiles.h"
 #include <QVideoSink>
@@ -14,6 +15,10 @@
 #include <QLocale>
 #include <QMediaFormat>
 #include <QVideoFrameFormat>
+
+#include <spdlog/spdlog.h>
+
+#include <memory>
 
 CustomMediaPlayer::CustomMediaPlayer() {
   m_mediaPlayer = new QMediaPlayer(this);
@@ -72,6 +77,70 @@ CustomMediaPlayer::CustomMediaPlayer() {
 }
 
 SubtitleController *CustomMediaPlayer::subtitles() const { return m_subtitles; }
+
+double CustomMediaPlayer::frameDurationUs() const {
+  double frameRate = 0;
+  if (QVideoSink *sink = m_mediaPlayer->videoSink()) {
+    frameRate = sink->videoFrame().streamFrameRate();
+  }
+  if (frameRate <= 0) {
+    const QList<QMediaMetaData> tracks = m_mediaPlayer->videoTracks();
+    const int active = m_mediaPlayer->activeVideoTrack();
+    if (active >= 0 && active < tracks.size()) {
+      frameRate = tracks[active].value(QMediaMetaData::VideoFrameRate).toDouble();
+    }
+  }
+  return 1e6 / (frameRate > 0 ? frameRate : 25.0);
+}
+
+bool CustomMediaPlayer::stepFrame(int direction) {
+  if (!m_hasVideo || !m_mediaLoaded || direction == 0)
+    return false;
+  if (m_mediaPlayer->playbackState() == QMediaPlayer::PlayingState) {
+    m_mediaPlayer->pause();
+  }
+
+  QVideoSink *sink = m_mediaPlayer->videoSink();
+  const qint64 frameStartUs = sink && sink->videoFrame().isValid() && sink->videoFrame().startTime() >= 0
+      ? sink->videoFrame().startTime()
+      : m_mediaPlayer->position() * 1000;
+  const double frameUs = frameDurationUs();
+  if (direction < 0 && frameStartUs < frameUs / 2)
+    return false;
+
+  const double targetUs = direction > 0 ? frameStartUs + frameUs * 1.5 : frameStartUs - frameUs * 0.5;
+  const qint64 targetMs = qBound<qint64>(0, qRound64(targetUs / 1000.0), m_mediaPlayer->duration());
+  spdlog::debug("stepFrame {}: frame at {} us, frame duration {:.0f} us, seeking to {} ms", direction, frameStartUs, frameUs, targetMs);
+
+  if (sink) {
+    auto connection = std::make_shared<QMetaObject::Connection>();
+    *connection = connect(sink, &QVideoSink::videoFrameChanged, this, [connection, frameStartUs](const QVideoFrame &frame) {
+      if (!frame.isValid())
+        return;
+      spdlog::debug("stepFrame result: frame at {} us ({:+} us)", frame.startTime(), frame.startTime() - frameStartUs);
+      QObject::disconnect(*connection);
+    });
+  }
+  setPosition(targetMs);
+  return true;
+}
+
+QString CustomMediaPlayer::jumpChapter(int direction) {
+  const QList<PlaybackUtils::Chapter> chapters = PlaybackUtils::chaptersFromVariant(m_subtitles->chapters());
+  const qint64 target = PlaybackUtils::chapterTargetFor(chapters, m_mediaPlayer->position(), direction);
+  if (target < 0)
+    return {};
+  setPosition(target);
+  for (const PlaybackUtils::Chapter &chapter : chapters) {
+    if (chapter.startMs == target)
+      return chapter.title;
+  }
+  return {};
+}
+
+QString CustomMediaPlayer::nextChapter() { return jumpChapter(1); }
+
+QString CustomMediaPlayer::previousChapter() { return jumpChapter(-1); }
 
 void CustomMediaPlayer::checkpoint() {
   const QUrl current = m_mediaPlayer->source();
