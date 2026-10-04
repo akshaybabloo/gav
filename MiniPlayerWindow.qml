@@ -15,6 +15,12 @@ Window {
     signal closeRequested
     signal restoreRequested
 
+    function showOsd(text) {
+        osdText.text = text;
+        osdIndicator.visible = true;
+        osdTimer.restart();
+    }
+
     color: "black"
     flags: Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool
     height: 200
@@ -40,6 +46,38 @@ Window {
         delayMs: miniPlayerWindow.mediaPlayer.subtitles.delay
         renderer: miniPlayerWindow.mediaPlayer.subtitles.renderer
         videoSink: miniVideoOutput.videoSink
+    }
+    Rectangle {
+        id: osdIndicator
+
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: 36
+        color: AppConstants.overlayBackgroundColor
+        height: osdText.height + 10
+        opacity: 0.8
+        radius: 6
+        visible: false
+        width: Math.min(osdText.implicitWidth + 16, parent.width - 16)
+        z: 3
+
+        Text {
+            id: osdText
+
+            anchors.centerIn: parent
+            color: AppConstants.overlayTextColor
+            elide: Text.ElideRight
+            font.bold: true
+            font.pixelSize: 12
+            width: Math.min(implicitWidth, miniPlayerWindow.width - 32)
+        }
+        Timer {
+            id: osdTimer
+
+            interval: AppConstants.volumeDisplayDuration
+
+            onTriggered: osdIndicator.visible = false
+        }
     }
 
     // Full-window drag area (beneath control overlays)

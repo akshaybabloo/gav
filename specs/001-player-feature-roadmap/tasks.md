@@ -301,23 +301,23 @@ with no comments by default (Constitution: Development Workflow).
 
 ### Implementation for User Story 3
 
-- [ ] T051 [US3] Add `Q_INVOKABLE stepFrame(int direction)` to `custommediaplayer.h`/`custommediaplayer.cpp`:
+- [X] T051 [US3] Add `Q_INVOKABLE stepFrame(int direction)` to `custommediaplayer.h`/`custommediaplayer.cpp`:
   - Pause first if playing.
   - Frame duration is `1000 / fps`, using the stream frame rate from `mediaInfo`.
   - Target is the last displayed `QVideoFrame::startTime()` ± one frame duration. Clamp to `[0, duration]` and do nothing at frame 0 going backwards (research R6, FR-020).
   - Log the requested and resulting frame times at debug level, for measuring SC-007.
-- [ ] T052 [US3] Add `Q_INVOKABLE nextChapter()`/`previousChapter()` to `custommediaplayer.cpp`, using `PlaybackUtils::chapterTarget` with the `chapters` property (FR-022). Both do nothing when there are no chapters.
-- [ ] T053 [P] [US3] Draw chapter markers in `SeekBarComponent.qml`:
+- [X] T052 [US3] Add `Q_INVOKABLE nextChapter()`/`previousChapter()` to `custommediaplayer.cpp`, using `PlaybackUtils::chapterTarget` with the `chapters` property (FR-022). Both do nothing when there are no chapters.
+- [X] T053 [P] [US3] Draw chapter markers in `SeekBarComponent.qml`:
   - draw a thin tick at `startMs / duration` for each entry in `player.chapters` except the first
   - hovering a tick shows a `ToolTip` with the chapter title, which works alongside the existing hover preview (FR-021)
-- [ ] T054 [US3] Add previous/next chapter buttons to `MediaControlsComponent.qml`, visible only when `player.chapters.length > 0`, calling `previousChapter()`/`nextChapter()`.
-- [ ] T055 [P] [US3] Create `GoToTimeDialog.qml`, a `Dialog` containing:
+- [X] T054 [US3] Add previous/next chapter buttons to `MediaControlsComponent.qml`, visible only when `player.chapters.length > 0`, calling `previousChapter()`/`nextChapter()`.
+- [X] T055 [P] [US3] Create `GoToTimeDialog.qml`, a `Dialog` containing:
   - a `TextField` validated with `PlaybackUtils.parseTime(text, player.duration)`
   - inline error text for `malformed` ("Use h:mm:ss, m:ss or seconds") and `outOfRange` ("Beyond the end of the media")
   - OK, which seeks and closes. It accepts on Enter (FR-023)
-- [ ] T056 [US3] Make clicking the elapsed-time label in `MediaControlsComponent.qml` open `GoToTimeDialog`.
-- [ ] T057 [US3] Extend `AppConstants.shortcutReference` (added with the Settings redesign in US1; the Shortcuts tab of `SettingsDialog.qml` already repeats over it) so it covers every row of the table in [contracts/keyboard-and-cli.md](./contracts/keyboard-and-cli.md) (FR-025).
-- [ ] T058 [US3] Add the remaining FR-024 `Shortcut`s to `Main.qml`, each with `enabled: shortcutsEnabled` (except the text-safe ones) and `showOsd` feedback:
+- [X] T056 [US3] Make clicking the elapsed-time label in `MediaControlsComponent.qml` open `GoToTimeDialog`.
+- [X] T057 [US3] Extend `AppConstants.shortcutReference` (added with the Settings redesign in US1; the Shortcuts tab of `SettingsDialog.qml` already repeats over it) so it covers every row of the table in [contracts/keyboard-and-cli.md](./contracts/keyboard-and-cli.md) (FR-025).
+- [X] T058 [US3] Add the remaining FR-024 `Shortcut`s to `Main.qml`, each with `enabled: shortcutsEnabled` (except the text-safe ones) and `showOsd` feedback:
   - Ctrl+Up/Ctrl+Down: volume ±`AppConstants.volumeStep`
   - M: mute toggle via the audio output's `muted`
   - F: full-screen toggle
@@ -328,11 +328,11 @@ with no comments by default (Constitution: Development Workflow).
   - N / P: playlist next/previous (reusing the `nextTrack`/`previousTrack` handlers)
   - Ctrl+T: go to time (text-safe)
   - Ctrl+O: open file (text-safe)
-- [ ] T079 [US3] Make shortcuts, the on-screen indicator and dialogs work from the mini player (FR-033):
+- [X] T079 [US3] Make shortcuts, the on-screen indicator and dialogs work from the mini player (FR-033):
   - set `context: Qt.ApplicationShortcut` on every `Shortcut` in `Main.qml` so they fire while `MiniPlayerWindow.qml` has focus
   - add a `showOsd(text)` equivalent to `MiniPlayerWindow.qml` and route `mediaComponent.showOsd` calls to whichever window is visible
   - parent `ResumeDialog` and `GoToTimeDialog` to the visible window
-- [ ] T059 [US3] Add `GoToTimeDialog.qml` to `QML_FILES` in `CMakeLists.txt`.
+- [X] T059 [US3] Add `GoToTimeDialog.qml` to `QML_FILES` in `CMakeLists.txt`.
 
 **Checkpoint**: Quickstart Q3.1–Q3.7 pass, Q3.1 included (≥48/50 exact steps). If Q3.1 fails, open a follow-up for a qtmultimedia patch (plan Risks). This ships as its own PR.
 

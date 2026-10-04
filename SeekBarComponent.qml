@@ -14,6 +14,26 @@ RowLayout {
     required property int repeatMode
     property alias rangeSlider: internalRangeSlider
 
+    signal goToTimeRequested
+
+    function markerNear(positionMs, toleranceMs) {
+        var chapters = player.chapters;
+        for (var i = 0; i < chapters.length; i++) {
+            if (chapters[i].startMs > 0 && Math.abs(chapters[i].startMs - positionMs) <= toleranceMs)
+                return chapters[i];
+        }
+        return null;
+    }
+    function chapterTitleAt(positionMs) {
+        var chapters = player.chapters;
+        var title = "";
+        for (var i = 0; i < chapters.length; i++) {
+            if (chapters[i].startMs <= positionMs)
+                title = chapters[i].title;
+        }
+        return title;
+    }
+
     spacing: 15
 
     Text {
@@ -24,6 +44,25 @@ RowLayout {
             ? AppConstants.formatTime(Math.round(rangeSlider.first.value)) + " \u2500 " + AppConstants.formatTime(Math.round(rangeSlider.second.value))
             : AppConstants.formatTime(player.position) + " / " + AppConstants.formatTime(player.duration)
         verticalAlignment: Text.AlignVCenter
+
+        MouseArea {
+            id: timeLabelArea
+
+            Accessible.name: qsTr("Go to time")
+            Accessible.role: Accessible.Button
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            enabled: mediaLoaded
+            hoverEnabled: true
+
+            onClicked: root.goToTimeRequested()
+        }
+        ToolTip {
+            delay: AppConstants.tooltipDelay
+            text: qsTr("Go to time (Ctrl+T)")
+            timeout: AppConstants.tooltipTimeout
+            visible: timeLabelArea.containsMouse
+        }
     }
     Slider {
         id: seekSlider
@@ -32,6 +71,7 @@ RowLayout {
         property int previewPosition: 0
         property int requestedPreviewPosition: -1
         property bool previewVisible: false
+        property var hoveredMarker: null
 
         Layout.fillWidth: true
         Layout.preferredHeight: 10
@@ -42,6 +82,22 @@ RowLayout {
 
         onMoved: player.position = value
 
+        Repeater {
+            model: player.duration > 0 ? player.chapters : []
+
+            Rectangle {
+                required property var modelData
+
+                color: seekSlider.hoveredMarker !== null && seekSlider.hoveredMarker.startMs === modelData.startMs ? Material.accent : Material.foreground
+                height: 10
+                opacity: 0.7
+                visible: modelData.startMs > 0 && modelData.startMs < player.duration
+                width: 2
+                x: seekSlider.leftPadding + (modelData.startMs / player.duration) * seekSlider.availableWidth - width / 2
+                y: seekSlider.topPadding + seekSlider.availableHeight / 2 - height / 2
+            }
+        }
+
         // Seek preview popup
         Rectangle {
             id: seekPreview
@@ -51,7 +107,7 @@ RowLayout {
             border.color: Material.dividerColor
             border.width: 1
             color: Qt.rgba(Material.background.r, Material.background.g, Material.background.b, 0.9)
-            height: 115
+            height: previewChapter.visible ? 132 : 115
             radius: 6
             visible: seekSlider.previewVisible && mediaLoaded && player.duration > 0
             width: 170
@@ -151,6 +207,20 @@ RowLayout {
                     font.pixelSize: 12
                     text: AppConstants.formatTime(seekSlider.previewPosition)
                 }
+                Text {
+                    id: previewChapter
+
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    color: Material.foreground
+                    elide: Text.ElideRight
+                    font.bold: seekSlider.hoveredMarker !== null
+                    font.pixelSize: 11
+                    horizontalAlignment: Text.AlignHCenter
+                    opacity: seekSlider.hoveredMarker !== null ? 1.0 : 0.7
+                    text: seekSlider.hoveredMarker !== null ? seekSlider.hoveredMarker.title : root.chapterTitleAt(seekSlider.previewPosition)
+                    visible: text !== ""
+                    width: 160
+                }
             }
         }
 
@@ -194,13 +264,15 @@ RowLayout {
             onExited: {
                 seekSlider.previewVisible = false;
                 seekSlider.previewImageUrl = "";
+                seekSlider.hoveredMarker = null;
             }
             onPositionChanged: function (mouse) {
                 if (mediaLoaded && player.duration > 0) {
                     var ratio = mouse.x / width;
                     ratio = Math.max(0, Math.min(1, ratio));
                     var pos = Math.floor(ratio * player.duration);
-                    seekSlider.previewPosition = pos;
+                    seekSlider.hoveredMarker = root.markerNear(pos, 5 * player.duration / Math.max(1, width));
+                    seekSlider.previewPosition = seekSlider.hoveredMarker !== null ? seekSlider.hoveredMarker.startMs : pos;
                     seekPreview.hoverX = mouse.x;
 
                     // Request thumbnail from backend (throttled)

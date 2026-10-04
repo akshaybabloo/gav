@@ -49,6 +49,9 @@ public:
   Q_INVOKABLE void requestPreviewAt(qint64 position);
   Q_INVOKABLE void selectAudioTrack(int index);
   Q_INVOKABLE void checkpoint();
+  Q_INVOKABLE bool stepFrame(int direction);
+  Q_INVOKABLE QString nextChapter();
+  Q_INVOKABLE QString previousChapter();
   Q_INVOKABLE QString cycleAudioTrack();
 
   QUrl source() const;
@@ -136,6 +139,9 @@ private:
   void updateAudioProbe();
   void onAudioBufferReceived(const QAudioBuffer &buffer);
   void applyAudioSelection();
+  QString jumpChapter(int direction);
+  double frameDurationUs() const;
+  void clearPendingStep();
   QString audioTrackName(int index) const;
 
   QMediaPlayer *m_mediaPlayer;
@@ -169,6 +175,10 @@ private:
   QString m_preferredAudioLanguage;
   int m_pendingAudioTrack = -1;
   bool m_audioSelectionApplied = false;
+
+  qint64 m_stepBaseUs = -1;
+  QMetaObject::Connection m_stepConnection;
+  QTimer *m_stepTimer = nullptr;
 };
 
 #endif // CUSTOMMEDIAPLAYER_H

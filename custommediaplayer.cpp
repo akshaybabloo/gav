@@ -1,4 +1,5 @@
 #include "custommediaplayer.h"
+#include "playbackutils.h"
 #include "previewimageprovider.h"
 #include "subtitlefiles.h"
 #include <QVideoSink>
@@ -14,6 +15,10 @@
 #include <QLocale>
 #include <QMediaFormat>
 #include <QVideoFrameFormat>
+
+#include <spdlog/spdlog.h>
+
+#include <memory>
 
 CustomMediaPlayer::CustomMediaPlayer() {
   m_mediaPlayer = new QMediaPlayer(this);
@@ -72,6 +77,94 @@ CustomMediaPlayer::CustomMediaPlayer() {
 }
 
 SubtitleController *CustomMediaPlayer::subtitles() const { return m_subtitles; }
+
+double CustomMediaPlayer::frameDurationUs() const {
+  double frameRate = 0;
+  if (QVideoSink *sink = m_mediaPlayer->videoSink()) {
+    frameRate = sink->videoFrame().streamFrameRate();
+  }
+  if (frameRate <= 0) {
+    const QList<QMediaMetaData> tracks = m_mediaPlayer->videoTracks();
+    const int active = m_mediaPlayer->activeVideoTrack();
+    if (active >= 0 && active < tracks.size()) {
+      frameRate = tracks[active].value(QMediaMetaData::VideoFrameRate).toDouble();
+    }
+  }
+  if (frameRate <= 0) {
+    frameRate = m_mediaPlayer->metaData().value(QMediaMetaData::VideoFrameRate).toDouble();
+  }
+  return 1e6 / (frameRate > 0 ? frameRate : 25.0);
+}
+
+bool CustomMediaPlayer::stepFrame(int direction) {
+  if (!m_hasVideo || !m_mediaLoaded || direction == 0)
+    return false;
+  if (m_mediaPlayer->playbackState() == QMediaPlayer::PlayingState) {
+    m_mediaPlayer->pause();
+  }
+
+  QVideoSink *sink = m_mediaPlayer->videoSink();
+  const qint64 displayedUs = sink && sink->videoFrame().isValid() && sink->videoFrame().startTime() >= 0
+      ? sink->videoFrame().startTime()
+      : m_mediaPlayer->position() * 1000;
+  const qint64 frameStartUs = m_stepBaseUs >= 0 ? m_stepBaseUs : displayedUs;
+  const double frameUs = frameDurationUs();
+  if (direction < 0 && frameStartUs < frameUs / 2)
+    return false;
+
+  const qint64 expectedUs = qMax<qint64>(0, qRound64(frameStartUs + (direction > 0 ? frameUs : -frameUs)));
+  const qint64 targetMs = qBound<qint64>(0, qRound64((expectedUs + frameUs * 0.5) / 1000.0), m_mediaPlayer->duration());
+  spdlog::debug("stepFrame {}: frame at {} us, frame duration {:.0f} us, seeking to {} ms", direction, frameStartUs, frameUs, targetMs);
+
+  m_stepBaseUs = expectedUs;
+  if (!m_stepTimer) {
+    m_stepTimer = new QTimer(this);
+    m_stepTimer->setSingleShot(true);
+    m_stepTimer->setInterval(1000);
+    connect(m_stepTimer, &QTimer::timeout, this, &CustomMediaPlayer::clearPendingStep);
+  }
+  m_stepTimer->start();
+  if (sink && !m_stepConnection) {
+    m_stepConnection = connect(sink, &QVideoSink::videoFrameChanged, this, [this, frameUs](const QVideoFrame &frame) {
+      if (!frame.isValid() || m_stepBaseUs < 0)
+        return;
+      spdlog::debug("stepFrame result: frame at {} us (expected {} us)", frame.startTime(), m_stepBaseUs);
+      if (qAbs(frame.startTime() - m_stepBaseUs) < frameUs * 0.5)
+        clearPendingStep();
+    });
+  }
+
+  resetDroppedFrameWindow();
+  m_mediaPlayer->setPosition(targetMs);
+  return true;
+}
+
+void CustomMediaPlayer::clearPendingStep() {
+  m_stepBaseUs = -1;
+  if (m_stepConnection) {
+    QObject::disconnect(m_stepConnection);
+    m_stepConnection = {};
+  }
+  if (m_stepTimer)
+    m_stepTimer->stop();
+}
+
+QString CustomMediaPlayer::jumpChapter(int direction) {
+  const QList<PlaybackUtils::Chapter> chapters = PlaybackUtils::chaptersFromVariant(m_subtitles->chapters());
+  const qint64 target = PlaybackUtils::chapterTargetFor(chapters, m_mediaPlayer->position(), direction);
+  if (target < 0)
+    return {};
+  setPosition(target);
+  for (const PlaybackUtils::Chapter &chapter : chapters) {
+    if (chapter.startMs == target)
+      return chapter.title;
+  }
+  return {};
+}
+
+QString CustomMediaPlayer::nextChapter() { return jumpChapter(1); }
+
+QString CustomMediaPlayer::previousChapter() { return jumpChapter(-1); }
 
 void CustomMediaPlayer::checkpoint() {
   const QUrl current = m_mediaPlayer->source();
@@ -187,6 +280,7 @@ void CustomMediaPlayer::setSource(const QUrl &source) {
 
   resetPlaybackStats();
 
+  clearPendingStep();
   m_pendingAudioTrack = -1;
   m_audioSelectionApplied = false;
   m_mediaPlayer->setSource(source);
@@ -528,6 +622,7 @@ qint64 CustomMediaPlayer::duration() const { return m_mediaPlayer->duration(); }
 qint64 CustomMediaPlayer::position() const { return m_mediaPlayer->position(); }
 
 void CustomMediaPlayer::setPosition(qint64 position) {
+  clearPendingStep();
   resetDroppedFrameWindow();
   m_mediaPlayer->setPosition(position);
 }
@@ -538,6 +633,7 @@ void CustomMediaPlayer::play() {
   if (m_mediaPlayer->source().isEmpty()) {
     return;
   }
+  clearPendingStep();
   if (m_mediaPlayer->mediaStatus() < QMediaPlayer::LoadedMedia) {
     m_playWhenLoaded = true;
   } else {

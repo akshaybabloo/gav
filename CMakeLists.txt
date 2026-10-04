@@ -177,6 +177,7 @@ qt_add_qml_module(appgav
         TrackMenu.qml
         ResumeDialog.qml
         RecentFilesMenu.qml
+        GoToTimeDialog.qml
         SOURCES
         custommediaplayer.h custommediaplayer.cpp
         collage.h collage.cpp

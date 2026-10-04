@@ -71,13 +71,22 @@ QtObject {
     readonly property var shortcutReference: [
         { "keys": "Space", "action": qsTr("Play / pause") },
         { "keys": "Left / Right", "action": qsTr("Seek 5 seconds") },
+        { "keys": "E / Shift+E", "action": qsTr("Next / previous frame") },
+        { "keys": "Ctrl+T", "action": qsTr("Go to time") },
+        { "keys": "Shift+N / Shift+P", "action": qsTr("Next / previous chapter") },
+        { "keys": "N / P", "action": qsTr("Next / previous playlist item") },
+        { "keys": "[ / ] / =", "action": qsTr("Slower / faster / normal speed") },
         { "keys": "Scroll", "action": qsTr("Volume") },
-        { "keys": "Ctrl+Scroll", "action": qsTr("Zoom") },
-        { "keys": "Double-click", "action": qsTr("Full-screen") },
-        { "keys": "I", "action": qsTr("Stats for nerds") },
+        { "keys": "Ctrl+Up / Ctrl+Down", "action": qsTr("Volume up / down") },
+        { "keys": "M", "action": qsTr("Mute") },
         { "keys": "V", "action": qsTr("Cycle subtitle track") },
         { "keys": "B", "action": qsTr("Cycle audio track") },
-        { "keys": "G / H", "action": qsTr("Subtitle delay −/+ 100 ms") }
+        { "keys": "G / H", "action": qsTr("Subtitle delay −/+ 100 ms") },
+        { "keys": "F / Double-click", "action": qsTr("Full-screen") },
+        { "keys": "Esc", "action": qsTr("Exit full-screen") },
+        { "keys": "Ctrl+Scroll", "action": qsTr("Zoom") },
+        { "keys": "I", "action": qsTr("Stats for nerds") },
+        { "keys": "Ctrl+O", "action": qsTr("Open file") }
     ]
 
     // Helper functions

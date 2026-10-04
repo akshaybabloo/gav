@@ -416,22 +416,46 @@ Dialog {
                         Layout.rightMargin: 12
                         spacing: 16
 
-                        Rectangle {
-                            Layout.preferredHeight: keyText.implicitHeight + 8
-                            Layout.preferredWidth: 130
-                            border.color: Material.dividerColor
-                            border.width: 1
-                            color: "transparent"
-                            radius: 4
+                        Row {
+                            Layout.alignment: Qt.AlignVCenter
+                            Layout.preferredWidth: 210
+                            spacing: 6
 
-                            Text {
-                                id: keyText
+                            Repeater {
+                                model: modelData.keys.split(" / ")
 
-                                anchors.centerIn: parent
-                                color: Material.foreground
-                                font.family: "monospace"
-                                font.pixelSize: 12
-                                text: modelData.keys
+                                Row {
+                                    required property int index
+                                    required property string modelData
+
+                                    spacing: 6
+
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        color: Material.foreground
+                                        opacity: 0.5
+                                        text: "/"
+                                        visible: index > 0
+                                    }
+                                    Rectangle {
+                                        border.color: Material.dividerColor
+                                        border.width: 1
+                                        color: "transparent"
+                                        height: keyText.implicitHeight + 8
+                                        radius: 4
+                                        width: keyText.implicitWidth + 14
+
+                                        Text {
+                                            id: keyText
+
+                                            anchors.centerIn: parent
+                                            color: Material.foreground
+                                            font.family: "monospace"
+                                            font.pixelSize: 12
+                                            text: modelData
+                                        }
+                                    }
+                                }
                             }
                         }
                         SettingLabel {
