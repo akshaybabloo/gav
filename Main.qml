@@ -131,22 +131,34 @@ ApplicationWindow {
                 captureSnackbar.message = qsTr("Could not open playlist: ") + result.error;
                 captureSnackbar.show();
             }
-            return -1;
+            return {
+                "first": -1,
+                "positions": []
+            };
         }
         if (tag === "replace")
             playList.clear();
         var firstIndex = playList.count;
+        var positions = [];
         for (var i = 0; i < result.entries.length; i++) {
             var mediaInfo = getMediaInfo(result.entries[i].path);
-            if (mediaInfo)
+            if (mediaInfo) {
+                positions.push(playList.count);
                 playList.append(mediaInfo);
+            } else {
+                positions.push(-1);
+            }
         }
-        var skipped = result.skippedMissing + result.skippedUnsupported;
+        var added = playList.count - firstIndex;
+        var skipped = result.skippedMissing + result.skippedUnsupported + (result.entries.length - added);
         if (skipped > 0) {
-            captureSnackbar.message = qsTr("Loaded %1 items, skipped %2 (missing or unsupported)").arg(result.entries.length).arg(skipped);
+            captureSnackbar.message = qsTr("Loaded %1 items, skipped %2 (missing or unsupported)").arg(added).arg(skipped);
             captureSnackbar.show();
         }
-        return result.entries.length > 0 ? firstIndex : -1;
+        return {
+            "first": added > 0 ? firstIndex : -1,
+            "positions": positions
+        };
     }
     function promptResumeIfSaved() {
         var player = mediaComponent.mediaPlayer;
@@ -490,9 +502,10 @@ ApplicationWindow {
         function onLoaded(tag, result) {
             if (tag === "session") {
                 mainWindow.restoringSession = true;
-                var restoredStart = mainWindow.applyLoadedPlaylist(tag, result);
-                if (restoredStart >= 0 && result.currentIndex >= 0)
-                    playlistComponent.playListView.currentIndex = restoredStart + result.currentIndex;
+                var restored = mainWindow.applyLoadedPlaylist(tag, result);
+                var restoredCurrent = result.currentIndex >= 0 && result.currentIndex < restored.positions.length ? restored.positions[result.currentIndex] : -1;
+                if (restoredCurrent >= 0)
+                    playlistComponent.playListView.currentIndex = restoredCurrent;
                 mainWindow.restoringSession = false;
                 var startupUrls = mainWindow.pendingStartupUrls;
                 mainWindow.pendingStartupUrls = [];
@@ -502,13 +515,14 @@ ApplicationWindow {
                     mainWindow.selectPlaylistItem(firstPending);
                 return;
             }
-            var start = mainWindow.applyLoadedPlaylist(tag, result);
-            if (start < 0)
+            var loaded = mainWindow.applyLoadedPlaylist(tag, result);
+            if (loaded.first < 0)
                 return;
+            var loadedCurrent = result.currentIndex >= 0 && result.currentIndex < loaded.positions.length ? loaded.positions[result.currentIndex] : -1;
             if (tag === "replace")
-                mainWindow.selectPlaylistItem(result.currentIndex >= 0 ? result.currentIndex : 0);
+                mainWindow.selectPlaylistItem(loadedCurrent >= 0 ? loadedCurrent : loaded.first);
             else if (mediaComponent.path === "")
-                mainWindow.selectPlaylistItem(start);
+                mainWindow.selectPlaylistItem(loaded.first);
         }
         function onSaved(tag, ok) {
             if (tag === "save") {

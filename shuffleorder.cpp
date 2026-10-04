@@ -1,5 +1,6 @@
 #include "shuffleorder.h"
 
+#include <algorithm>
 #include <utility>
 
 ShuffleOrder::ShuffleOrder(QObject *parent) : QObject(parent), m_random(QRandomGenerator::securelySeeded()) {}
@@ -76,7 +77,6 @@ void ShuffleOrder::setCurrent(int index) {
         return;
     }
     m_remaining.removeAll(index);
-    m_history.removeAll(index);
     m_history.append(index);
     emit orderChanged();
 }
@@ -117,6 +117,7 @@ void ShuffleOrder::itemRemoved(int index) {
             --value;
         }
     }
+    m_history.erase(std::unique(m_history.begin(), m_history.end()), m_history.end());
     emit orderChanged();
 }
 

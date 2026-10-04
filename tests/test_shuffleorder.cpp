@@ -110,6 +110,29 @@ TEST(ShuffleOrder, InsertedItemsGetPlayed) {
     EXPECT_TRUE(all.contains(4));
 }
 
+TEST(ShuffleOrder, RevisitingAPlayedItemKeepsEarlierHistory) {
+    ShuffleOrder order;
+    order.reset(4, 0);
+    const int second = order.next(false);
+    const int third = order.next(false);
+    order.setCurrent(second);
+    EXPECT_EQ(order.current(), second);
+    EXPECT_EQ(order.previous(), third);
+    EXPECT_EQ(order.previous(), second);
+    EXPECT_EQ(order.previous(), 0);
+    EXPECT_EQ(order.previous(), -1);
+}
+
+TEST(ShuffleOrder, RemovingAnItemBetweenRepeatVisitsLeavesNoDuplicateStep) {
+    ShuffleOrder order;
+    order.reset(3, 0);
+    order.setCurrent(1);
+    order.setCurrent(0);
+    order.itemRemoved(1);
+    EXPECT_EQ(order.current(), 0);
+    EXPECT_FALSE(order.canGoBack());
+}
+
 TEST(ShuffleOrder, ManualSelectionIsNotReplayed) {
     ShuffleOrder order;
     order.reset(6, 0);
