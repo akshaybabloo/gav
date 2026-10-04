@@ -90,6 +90,9 @@ double CustomMediaPlayer::frameDurationUs() const {
       frameRate = tracks[active].value(QMediaMetaData::VideoFrameRate).toDouble();
     }
   }
+  if (frameRate <= 0) {
+    frameRate = m_mediaPlayer->metaData().value(QMediaMetaData::VideoFrameRate).toDouble();
+  }
   return 1e6 / (frameRate > 0 ? frameRate : 25.0);
 }
 
@@ -101,28 +104,49 @@ bool CustomMediaPlayer::stepFrame(int direction) {
   }
 
   QVideoSink *sink = m_mediaPlayer->videoSink();
-  const qint64 frameStartUs = sink && sink->videoFrame().isValid() && sink->videoFrame().startTime() >= 0
+  const qint64 displayedUs = sink && sink->videoFrame().isValid() && sink->videoFrame().startTime() >= 0
       ? sink->videoFrame().startTime()
       : m_mediaPlayer->position() * 1000;
+  const qint64 frameStartUs = m_stepBaseUs >= 0 ? m_stepBaseUs : displayedUs;
   const double frameUs = frameDurationUs();
   if (direction < 0 && frameStartUs < frameUs / 2)
     return false;
 
-  const double targetUs = direction > 0 ? frameStartUs + frameUs * 1.5 : frameStartUs - frameUs * 0.5;
-  const qint64 targetMs = qBound<qint64>(0, qRound64(targetUs / 1000.0), m_mediaPlayer->duration());
+  const qint64 expectedUs = qMax<qint64>(0, qRound64(frameStartUs + (direction > 0 ? frameUs : -frameUs)));
+  const qint64 targetMs = qBound<qint64>(0, qRound64((expectedUs + frameUs * 0.5) / 1000.0), m_mediaPlayer->duration());
   spdlog::debug("stepFrame {}: frame at {} us, frame duration {:.0f} us, seeking to {} ms", direction, frameStartUs, frameUs, targetMs);
 
-  if (sink) {
-    auto connection = std::make_shared<QMetaObject::Connection>();
-    *connection = connect(sink, &QVideoSink::videoFrameChanged, this, [connection, frameStartUs](const QVideoFrame &frame) {
-      if (!frame.isValid())
+  m_stepBaseUs = expectedUs;
+  if (!m_stepTimer) {
+    m_stepTimer = new QTimer(this);
+    m_stepTimer->setSingleShot(true);
+    m_stepTimer->setInterval(1000);
+    connect(m_stepTimer, &QTimer::timeout, this, &CustomMediaPlayer::clearPendingStep);
+  }
+  m_stepTimer->start();
+  if (sink && !m_stepConnection) {
+    m_stepConnection = connect(sink, &QVideoSink::videoFrameChanged, this, [this, frameUs](const QVideoFrame &frame) {
+      if (!frame.isValid() || m_stepBaseUs < 0)
         return;
-      spdlog::debug("stepFrame result: frame at {} us ({:+} us)", frame.startTime(), frame.startTime() - frameStartUs);
-      QObject::disconnect(*connection);
+      spdlog::debug("stepFrame result: frame at {} us (expected {} us)", frame.startTime(), m_stepBaseUs);
+      if (qAbs(frame.startTime() - m_stepBaseUs) < frameUs * 0.5)
+        clearPendingStep();
     });
   }
-  setPosition(targetMs);
+
+  resetDroppedFrameWindow();
+  m_mediaPlayer->setPosition(targetMs);
   return true;
+}
+
+void CustomMediaPlayer::clearPendingStep() {
+  m_stepBaseUs = -1;
+  if (m_stepConnection) {
+    QObject::disconnect(m_stepConnection);
+    m_stepConnection = {};
+  }
+  if (m_stepTimer)
+    m_stepTimer->stop();
 }
 
 QString CustomMediaPlayer::jumpChapter(int direction) {
@@ -256,6 +280,7 @@ void CustomMediaPlayer::setSource(const QUrl &source) {
 
   resetPlaybackStats();
 
+  clearPendingStep();
   m_pendingAudioTrack = -1;
   m_audioSelectionApplied = false;
   m_mediaPlayer->setSource(source);
@@ -597,6 +622,7 @@ qint64 CustomMediaPlayer::duration() const { return m_mediaPlayer->duration(); }
 qint64 CustomMediaPlayer::position() const { return m_mediaPlayer->position(); }
 
 void CustomMediaPlayer::setPosition(qint64 position) {
+  clearPendingStep();
   resetDroppedFrameWindow();
   m_mediaPlayer->setPosition(position);
 }
@@ -607,6 +633,7 @@ void CustomMediaPlayer::play() {
   if (m_mediaPlayer->source().isEmpty()) {
     return;
   }
+  clearPendingStep();
   if (m_mediaPlayer->mediaStatus() < QMediaPlayer::LoadedMedia) {
     m_playWhenLoaded = true;
   } else {

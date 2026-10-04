@@ -1204,6 +1204,7 @@ ApplicationWindow {
 
         currentFolder: StandardPaths.standardLocations(StandardPaths.DownloadLocation)[0]
         nameFilters: ["All files (*)"]
+        parentWindow: miniPlayerWindow.visible ? miniPlayerWindow : mainWindow
 
         onAccepted: {
             if (loadSubtitleUrl(selectedFile))
@@ -1440,7 +1441,7 @@ ApplicationWindow {
         }
         Shortcut {
             context: Qt.ApplicationShortcut
-            enabled: !mainWindow.dialogOpen && !miniPlayerWindow.visible
+            enabled: !mainWindow.dialogOpen
             sequence: "Ctrl+O"
 
             onActivated: fileDialog.open()

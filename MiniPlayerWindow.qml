@@ -52,7 +52,7 @@ Window {
 
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
-        anchors.topMargin: 8
+        anchors.topMargin: 36
         color: AppConstants.overlayBackgroundColor
         height: osdText.height + 10
         opacity: 0.8

@@ -99,6 +99,16 @@ Item {
                 seekBar.rangeSlider.setValues(0, player.duration);
             }
         }
+        function onPlaybackRateChanged() {
+            if (isFastForwarding)
+                return;
+            for (var i = 0; i < AppConstants.playbackSpeeds.length; i++) {
+                if (Math.abs(AppConstants.playbackSpeeds[i] - player.playbackRate) < 0.01) {
+                    currentSpeedIndex = i;
+                    return;
+                }
+            }
+        }
         function onMediaStatusChanged(status) {
             if (status === MediaPlayer.EndOfMedia) {
                 stopFastForwarding();

@@ -141,6 +141,7 @@ private:
   void applyAudioSelection();
   QString jumpChapter(int direction);
   double frameDurationUs() const;
+  void clearPendingStep();
   QString audioTrackName(int index) const;
 
   QMediaPlayer *m_mediaPlayer;
@@ -174,6 +175,10 @@ private:
   QString m_preferredAudioLanguage;
   int m_pendingAudioTrack = -1;
   bool m_audioSelectionApplied = false;
+
+  qint64 m_stepBaseUs = -1;
+  QMetaObject::Connection m_stepConnection;
+  QTimer *m_stepTimer = nullptr;
 };
 
 #endif // CUSTOMMEDIAPLAYER_H

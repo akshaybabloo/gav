@@ -16,6 +16,14 @@ RowLayout {
 
     signal goToTimeRequested
 
+    function markerNear(positionMs, toleranceMs) {
+        var chapters = player.chapters;
+        for (var i = 0; i < chapters.length; i++) {
+            if (chapters[i].startMs > 0 && Math.abs(chapters[i].startMs - positionMs) <= toleranceMs)
+                return chapters[i];
+        }
+        return null;
+    }
     function chapterTitleAt(positionMs) {
         var chapters = player.chapters;
         var title = "";
@@ -63,6 +71,7 @@ RowLayout {
         property int previewPosition: 0
         property int requestedPreviewPosition: -1
         property bool previewVisible: false
+        property var hoveredMarker: null
 
         Layout.fillWidth: true
         Layout.preferredHeight: 10
@@ -79,7 +88,7 @@ RowLayout {
             Rectangle {
                 required property var modelData
 
-                color: Material.foreground
+                color: seekSlider.hoveredMarker !== null && seekSlider.hoveredMarker.startMs === modelData.startMs ? Material.accent : Material.foreground
                 height: 10
                 opacity: 0.7
                 visible: modelData.startMs > 0 && modelData.startMs < player.duration
@@ -204,10 +213,11 @@ RowLayout {
                     anchors.horizontalCenter: parent.horizontalCenter
                     color: Material.foreground
                     elide: Text.ElideRight
+                    font.bold: seekSlider.hoveredMarker !== null
                     font.pixelSize: 11
                     horizontalAlignment: Text.AlignHCenter
-                    opacity: 0.7
-                    text: root.chapterTitleAt(seekSlider.previewPosition)
+                    opacity: seekSlider.hoveredMarker !== null ? 1.0 : 0.7
+                    text: seekSlider.hoveredMarker !== null ? seekSlider.hoveredMarker.title : root.chapterTitleAt(seekSlider.previewPosition)
                     visible: text !== ""
                     width: 160
                 }
@@ -254,13 +264,15 @@ RowLayout {
             onExited: {
                 seekSlider.previewVisible = false;
                 seekSlider.previewImageUrl = "";
+                seekSlider.hoveredMarker = null;
             }
             onPositionChanged: function (mouse) {
                 if (mediaLoaded && player.duration > 0) {
                     var ratio = mouse.x / width;
                     ratio = Math.max(0, Math.min(1, ratio));
                     var pos = Math.floor(ratio * player.duration);
-                    seekSlider.previewPosition = pos;
+                    seekSlider.hoveredMarker = root.markerNear(pos, 5 * player.duration / Math.max(1, width));
+                    seekSlider.previewPosition = seekSlider.hoveredMarker !== null ? seekSlider.hoveredMarker.startMs : pos;
                     seekPreview.hoverX = mouse.x;
 
                     // Request thumbnail from backend (throttled)
