@@ -19,6 +19,10 @@ Item {
     signal stopped
     signal fullscreenToggleRequested
 
+    function showVolume() {
+        volumeColumn.visible = true;
+        volumeDisplayTimer.restart();
+    }
     function showOsd(text) {
         osdText.text = text;
         osdIndicator.visible = true;
@@ -378,12 +382,10 @@ Item {
                 // Regular Scroll = Volume
             } else if (wheel.angleDelta.y > 0 && videoOutput.visible && isActive) {
                 audioOutput.volume = Math.min(audioOutput.volume + AppConstants.volumeStep, 1.0);
-                volumeColumn.visible = true;
-                volumeDisplayTimer.restart();
+                showVolume();
             } else if (wheel.angleDelta.y < 0 && videoOutput.visible && isActive) {
                 audioOutput.volume = Math.max(audioOutput.volume - AppConstants.volumeStep, 0.0);
-                volumeColumn.visible = true;
-                volumeDisplayTimer.restart();
+                showVolume();
             }
         }
     }

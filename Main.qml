@@ -90,7 +90,10 @@ ApplicationWindow {
     function changeVolume(delta) {
         var output = mediaComponent.audioOutput;
         output.volume = Math.max(0, Math.min(1, output.volume + delta));
-        showOsd(qsTr("Volume: %1%").arg(Math.round(output.volume * 100)));
+        if (miniPlayerWindow.visible)
+            miniPlayerWindow.showOsd(qsTr("Volume: %1%").arg(Math.round(output.volume * 100)));
+        else
+            mediaComponent.showVolume();
     }
     function changeSpeed(direction) {
         var speeds = AppConstants.playbackSpeeds;
