@@ -5,6 +5,7 @@
 #include <QAudioBufferOutput>
 #include <QAudioOutput>
 #include <QElapsedTimer>
+#include <QImage>
 #include <QMediaPlayer>
 #include <QMediaMetaData>
 #include <QPointer>
@@ -38,6 +39,12 @@ class CustomMediaPlayer : public QQuickItem {
   Q_PROPERTY(QString activeAudioTrackName READ activeAudioTrackName NOTIFY audioTracksChanged)
   Q_PROPERTY(QString preferredAudioLanguage READ preferredAudioLanguage WRITE setPreferredAudioLanguage NOTIFY preferredAudioLanguageChanged)
   Q_PROPERTY(QVariantList chapters READ chapters NOTIFY chaptersChanged)
+  Q_PROPERTY(bool seekable READ seekable NOTIFY liveChanged)
+  Q_PROPERTY(bool isLive READ isLive NOTIFY liveChanged)
+  Q_PROPERTY(QString mediaTitle READ mediaTitle NOTIFY nowPlayingChanged)
+  Q_PROPERTY(QString mediaArtist READ mediaArtist NOTIFY nowPlayingChanged)
+  Q_PROPERTY(QString mediaAlbum READ mediaAlbum NOTIFY nowPlayingChanged)
+  Q_PROPERTY(QImage coverArt READ coverArt NOTIFY nowPlayingChanged)
 
 public:
   CustomMediaPlayer();
@@ -93,6 +100,14 @@ public:
   QString preferredAudioLanguage() const;
   void setPreferredAudioLanguage(const QString &language);
   QVariantList chapters() const;
+  bool seekable() const;
+  bool isLive() const;
+  QString mediaTitle() const;
+  QString mediaArtist() const;
+  QString mediaAlbum() const;
+  QImage coverArt() const;
+
+  static constexpr int streamLoadTimeoutMs = 15000;
 
 signals:
   void sourceChanged();
@@ -117,6 +132,8 @@ signals:
   void positionCheckpoint(const QUrl &source, qint64 position, qint64 duration);
   void preferredAudioLanguageChanged();
   void chaptersChanged();
+  void liveChanged();
+  void nowPlayingChanged();
 
 private slots:
   void onPreviewPlayerStatusChanged(QMediaPlayer::MediaStatus status);
@@ -142,6 +159,7 @@ private:
   QString jumpChapter(int direction);
   double frameDurationUs() const;
   void clearPendingStep();
+  void onStreamLoadTimeout();
   QString audioTrackName(int index) const;
 
   QMediaPlayer *m_mediaPlayer;
@@ -179,6 +197,7 @@ private:
   qint64 m_stepBaseUs = -1;
   QMetaObject::Connection m_stepConnection;
   QTimer *m_stepTimer = nullptr;
+  QTimer *m_streamLoadTimer = nullptr;
 };
 
 #endif // CUSTOMMEDIAPLAYER_H

@@ -70,6 +70,18 @@ CustomMediaPlayer::CustomMediaPlayer() {
   connect(m_mediaPlayer, &QMediaPlayer::tracksChanged, this, &CustomMediaPlayer::updateMediaInfo);
   connect(m_mediaPlayer, &QMediaPlayer::activeTracksChanged, this, &CustomMediaPlayer::updateMediaInfo);
 
+  connect(m_mediaPlayer, &QMediaPlayer::seekableChanged, this, &CustomMediaPlayer::liveChanged);
+  connect(m_mediaPlayer, &QMediaPlayer::durationChanged, this, &CustomMediaPlayer::liveChanged);
+  connect(m_mediaPlayer, &QMediaPlayer::sourceChanged, this, &CustomMediaPlayer::liveChanged);
+  connect(this, &CustomMediaPlayer::mediaLoadedChanged, this, &CustomMediaPlayer::liveChanged);
+  connect(m_mediaPlayer, &QMediaPlayer::metaDataChanged, this, &CustomMediaPlayer::nowPlayingChanged);
+  connect(m_mediaPlayer, &QMediaPlayer::sourceChanged, this, &CustomMediaPlayer::nowPlayingChanged);
+
+  m_streamLoadTimer = new QTimer(this);
+  m_streamLoadTimer->setSingleShot(true);
+  m_streamLoadTimer->setInterval(streamLoadTimeoutMs);
+  connect(m_streamLoadTimer, &QTimer::timeout, this, &CustomMediaPlayer::onStreamLoadTimeout);
+
   m_subtitles = new SubtitleController(m_mediaPlayer, this);
   connect(m_subtitles, &SubtitleController::chaptersChanged, this, &CustomMediaPlayer::chaptersChanged);
   connect(m_mediaPlayer, &QMediaPlayer::tracksChanged, this, &CustomMediaPlayer::audioTracksChanged);
@@ -77,6 +89,37 @@ CustomMediaPlayer::CustomMediaPlayer() {
 }
 
 SubtitleController *CustomMediaPlayer::subtitles() const { return m_subtitles; }
+
+bool CustomMediaPlayer::seekable() const { return m_mediaLoaded && m_mediaPlayer->isSeekable(); }
+
+bool CustomMediaPlayer::isLive() const {
+  const QUrl current = m_mediaPlayer->source();
+  return m_mediaLoaded && !current.isEmpty() && !current.isLocalFile() && m_mediaPlayer->duration() <= 0 && !m_mediaPlayer->isSeekable();
+}
+
+QString CustomMediaPlayer::mediaTitle() const { return m_mediaPlayer->metaData().stringValue(QMediaMetaData::Title); }
+
+QString CustomMediaPlayer::mediaArtist() const {
+  const QMediaMetaData metaData = m_mediaPlayer->metaData();
+  const QString artist = metaData.stringValue(QMediaMetaData::ContributingArtist);
+  return artist.isEmpty() ? metaData.stringValue(QMediaMetaData::AlbumArtist) : artist;
+}
+
+QString CustomMediaPlayer::mediaAlbum() const { return m_mediaPlayer->metaData().stringValue(QMediaMetaData::AlbumTitle); }
+
+QImage CustomMediaPlayer::coverArt() const {
+  const QMediaMetaData metaData = m_mediaPlayer->metaData();
+  const QImage cover = metaData.value(QMediaMetaData::CoverArtImage).value<QImage>();
+  return cover.isNull() ? metaData.value(QMediaMetaData::ThumbnailImage).value<QImage>() : cover;
+}
+
+void CustomMediaPlayer::onStreamLoadTimeout() {
+  if (m_mediaLoaded || m_mediaPlayer->source().isEmpty())
+    return;
+  qWarning() << "Stream did not load within" << streamLoadTimeoutMs << "ms:" << m_mediaPlayer->source();
+  emit errorOccurred(tr("The stream did not respond. Check the address and your connection."));
+  stop();
+}
 
 double CustomMediaPlayer::frameDurationUs() const {
   double frameRate = 0;
@@ -283,6 +326,10 @@ void CustomMediaPlayer::setSource(const QUrl &source) {
   clearPendingStep();
   m_pendingAudioTrack = -1;
   m_audioSelectionApplied = false;
+  if (source.isLocalFile())
+    m_streamLoadTimer->stop();
+  else
+    m_streamLoadTimer->start();
   m_mediaPlayer->setSource(source);
   m_subtitles->setSource(source);
 }
@@ -648,6 +695,7 @@ void CustomMediaPlayer::pause() {
 
 void CustomMediaPlayer::stop() {
   m_playWhenLoaded = false;
+  m_streamLoadTimer->stop();
   checkpoint();
   resetPreviewPlayer();
   m_subtitles->clear();
@@ -705,6 +753,9 @@ void CustomMediaPlayer::onStatusChanged(QMediaPlayer::MediaStatus status) {
 
   if (status == QMediaPlayer::LoadedMedia) {
     applyAudioSelection();
+  }
+  if (status >= QMediaPlayer::LoadedMedia) {
+    m_streamLoadTimer->stop();
   }
 
   if (status == QMediaPlayer::LoadedMedia && m_playWhenLoaded) {
@@ -843,6 +894,7 @@ void CustomMediaPlayer::onPreviewPlayerStatusChanged(QMediaPlayer::MediaStatus s
 void CustomMediaPlayer::onMediaPlayerError(QMediaPlayer::Error error,
                                            const QString &errorString) {
   if (error != QMediaPlayer::NoError) {
+    m_streamLoadTimer->stop();
     qWarning() << "MediaPlayer Error:" << error << errorString;
     emit errorOccurred(errorString);
   }

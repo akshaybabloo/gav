@@ -23,7 +23,7 @@ ApplicationWindow {
     readonly property url sessionPlaylistUrl: StandardPaths.writableLocation(StandardPaths.AppDataLocation) + "/session.m3u8"
     property bool playlistManualVisible: false
     property int repeatMode: 0
-    readonly property bool dialogOpen: aboutDialog.opened || playbackErrorDialog.opened || updateDialog.opened || settingsDialog.opened || resumeDialog.opened || goToTimeDialog.opened
+    readonly property bool dialogOpen: aboutDialog.opened || playbackErrorDialog.opened || updateDialog.opened || settingsDialog.opened || resumeDialog.opened || goToTimeDialog.opened || openUrlDialog.opened
     readonly property bool shortcutsEnabled: !textInputFocused && !dialogOpen
     property bool shouldAutoPlay: false
     readonly property bool textInputFocused: activeFocusItem instanceof TextInput || activeFocusItem instanceof TextEdit
@@ -57,6 +57,14 @@ ApplicationWindow {
         if (fragmentIndex !== -1 && fragmentIndex < cutIndex)
             cutIndex = fragmentIndex;
         name = name.substring(0, cutIndex);
+        if (isStreamUrl(fileUrl)) {
+            return {
+                "name": streamName(name, fileUrl),
+                "path": fileUrl,
+                "type": "stream",
+                "icon": "\ue894"
+            };
+        }
         if (!name)
             return null;
         var extension = name.substring(name.lastIndexOf('.') + 1).toLowerCase();
@@ -77,6 +85,26 @@ ApplicationWindow {
             "type": "video",
             "icon": "\ueb87"
         };
+    }
+    function openAndPlay(url) {
+        if (isPlaylistUrl(url)) {
+            PlaylistFiles.load(url, supportedMediaExtensions(), "append");
+            return;
+        }
+        var mediaInfo = getMediaInfo(url);
+        if (!mediaInfo)
+            return;
+        playList.append(mediaInfo);
+        selectPlaylistItem(playList.count - 1);
+    }
+    function streamName(name, url) {
+        if (!name)
+            return url.toString();
+        try {
+            return decodeURIComponent(name);
+        } catch (error) {
+            return name;
+        }
     }
     function showOsd(text) {
         if (miniPlayerWindow.visible)
@@ -281,6 +309,7 @@ ApplicationWindow {
 
     Component.onCompleted: {
         isDarkTheme = appSettings.isDarkTheme;
+        MediaSession.initialise(mainWindow);
         if (mediaComponent.audioOutput)
             mediaComponent.audioOutput.volume = appSettings.volume;
         if (mediaComponent.mediaPlayer) {
@@ -346,16 +375,9 @@ ApplicationWindow {
         onOpenFileRequested: fileDialog.open()
         onOpenPlaylistRequested: openPlaylistDialog.open()
         onOpenRecentRequested: function (url) {
-            if (mainWindow.isPlaylistUrl(url)) {
-                PlaylistFiles.load(url, mainWindow.supportedMediaExtensions(), "append");
-                return;
-            }
-            var mediaInfo = mainWindow.getMediaInfo(url);
-            if (!mediaInfo)
-                return;
-            playList.append(mediaInfo);
-            mainWindow.selectPlaylistItem(playList.count - 1);
+            mainWindow.openAndPlay(url);
         }
+        onOpenUrlRequested: openUrlDialog.open()
         onRecentFileMissing: function (path) {
             recentSnackbar.missingPath = path;
             recentSnackbar.message = qsTr("File not found: ") + path;
@@ -473,6 +495,136 @@ ApplicationWindow {
         actionText: qsTr("Remove from list")
 
         onActionTriggered: PlaybackHistory.removeRecent(missingPath)
+    }
+    OpenUrlDialog {
+        id: openUrlDialog
+
+        onUrlAccepted: function (url) {
+            mainWindow.openAndPlay(url);
+        }
+    }
+    Binding {
+        property: "hasMedia"
+        target: MediaSession
+        value: mediaComponent.mediaLoaded
+    }
+    Binding {
+        property: "hasVideo"
+        target: MediaSession
+        value: mediaComponent.mediaPlayer.hasVideo
+    }
+    Binding {
+        property: "playbackStatus"
+        target: MediaSession
+        value: !mediaComponent.mediaLoaded ? "Stopped" : (mediaComponent.mediaPlayer.playbackState === MediaPlayer.PlayingState ? "Playing" : (mediaComponent.mediaPlayer.playbackState === MediaPlayer.PausedState ? "Paused" : "Stopped"))
+    }
+    Binding {
+        property: "title"
+        target: MediaSession
+        value: {
+            if (!mediaComponent.mediaLoaded)
+                return "";
+            if (mediaComponent.mediaPlayer.mediaTitle !== "")
+                return mediaComponent.mediaPlayer.mediaTitle;
+            var index = playlistComponent.playListView.currentIndex;
+            return index >= 0 && index < playList.count ? playList.get(index).name : "";
+        }
+    }
+    Binding {
+        property: "artist"
+        target: MediaSession
+        value: mediaComponent.mediaLoaded ? mediaComponent.mediaPlayer.mediaArtist : ""
+    }
+    Binding {
+        property: "album"
+        target: MediaSession
+        value: mediaComponent.mediaLoaded ? mediaComponent.mediaPlayer.mediaAlbum : ""
+    }
+    Binding {
+        property: "durationMs"
+        target: MediaSession
+        value: mediaComponent.mediaPlayer.isLive ? 0 : mediaComponent.mediaPlayer.duration
+    }
+    Binding {
+        property: "positionMs"
+        target: MediaSession
+        value: mediaComponent.mediaPlayer.position
+    }
+    Binding {
+        property: "canGoNext"
+        target: MediaSession
+        value: mainWindow.hasNextItem
+    }
+    Binding {
+        property: "canGoPrevious"
+        target: MediaSession
+        value: mainWindow.hasPreviousItem
+    }
+    Binding {
+        property: "canSeek"
+        target: MediaSession
+        value: mediaComponent.mediaPlayer.seekable && !mediaComponent.mediaPlayer.isLive
+    }
+    Binding {
+        property: "volume"
+        target: MediaSession
+        value: mediaComponent.audioOutput.volume
+    }
+    Binding {
+        property: "rate"
+        target: MediaSession
+        value: mediaComponent.mediaPlayer.playbackRate
+    }
+    Connections {
+        function onNowPlayingChanged() {
+            MediaSession.setArtwork(mediaComponent.mediaPlayer.coverArt);
+        }
+
+        target: mediaComponent.mediaPlayer
+    }
+    Connections {
+        function onNextRequested() {
+            mainWindow.nextItem();
+        }
+        function onOpenUriRequested(url) {
+            mainWindow.openAndPlay(url);
+        }
+        function onPauseRequested() {
+            mediaComponent.mediaPlayer.pause();
+        }
+        function onPlayPauseRequested() {
+            if (mediaComponent.mediaPlayer.playbackState === MediaPlayer.PlayingState)
+                mediaComponent.mediaPlayer.pause();
+            else
+                mediaComponent.mediaPlayer.play();
+        }
+        function onPlayRequested() {
+            mediaComponent.mediaPlayer.play();
+        }
+        function onPreviousRequested() {
+            mainWindow.previousItem();
+        }
+        function onQuitRequested() {
+            Qt.quit();
+        }
+        function onRaiseRequested() {
+            if (miniPlayerWindow.visible) {
+                miniPlayerWindow.raise();
+                miniPlayerWindow.requestActivate();
+            } else {
+                mainWindow.show();
+                mainWindow.raise();
+                mainWindow.requestActivate();
+            }
+        }
+        function onSeekRequested(positionMs) {
+            mediaComponent.mediaPlayer.position = positionMs;
+        }
+        function onStopRequested() {
+            mediaComponent.mediaPlayer.stop();
+        }
+
+        target: MediaSession
     }
     GoToTimeDialog {
         id: goToTimeDialog
@@ -1445,6 +1597,13 @@ ApplicationWindow {
             sequence: "Ctrl+O"
 
             onActivated: fileDialog.open()
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: !mainWindow.dialogOpen && !miniPlayerWindow.visible
+            sequence: "Ctrl+N"
+
+            onActivated: openUrlDialog.open()
         }
     }
     ListModel {

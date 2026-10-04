@@ -17,7 +17,7 @@ class InstanceManager : public QObject {
     QML_SINGLETON
 
 public:
-    explicit InstanceManager(QObject *parent = nullptr);
+    explicit InstanceManager(QObject *parent);
     ~InstanceManager() override;
 
     static InstanceManager *create(QQmlEngine *qmlEngine, QJSEngine *jsEngine);

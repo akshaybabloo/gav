@@ -178,6 +178,7 @@ qt_add_qml_module(appgav
         ResumeDialog.qml
         RecentFilesMenu.qml
         GoToTimeDialog.qml
+        OpenUrlDialog.qml
         SOURCES
         custommediaplayer.h custommediaplayer.cpp
         collage.h collage.cpp
@@ -197,6 +198,7 @@ qt_add_qml_module(appgav
         SOURCES subtitlecontroller.h subtitlecontroller.cpp
         SOURCES subtitleoverlay.h subtitleoverlay.cpp
         SOURCES shuffleorder.h shuffleorder.cpp
+        SOURCES mediasession.h mediasession.cpp
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
@@ -216,6 +218,27 @@ target_link_libraries(appgav
         PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Qml Qt6::Multimedia Qt6::Widgets spdlog::spdlog fmt::fmt Qt6::Concurrent Qt6::Network
         gav_media_deps
 )
+
+if (WIN32)
+    target_sources(appgav PRIVATE mediasession_windows.cpp)
+    target_link_libraries(appgav PRIVATE windowsapp)
+    target_compile_definitions(appgav PRIVATE GAV_HAS_MEDIA_SESSION_BACKEND)
+elseif (APPLE)
+    enable_language(OBJCXX)
+    target_sources(appgav PRIVATE mediasession_macos.mm)
+    set_source_files_properties(mediasession_macos.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc" SKIP_AUTOMOC ON)
+    target_link_libraries(appgav PRIVATE "-framework MediaPlayer" "-framework AppKit" "-framework Foundation")
+    target_compile_definitions(appgav PRIVATE GAV_HAS_MEDIA_SESSION_BACKEND)
+elseif (UNIX)
+    find_package(Qt6 QUIET COMPONENTS DBus)
+    if (Qt6DBus_FOUND)
+        target_sources(appgav PRIVATE mediasession_mpris.cpp)
+        target_link_libraries(appgav PRIVATE Qt6::DBus)
+        target_compile_definitions(appgav PRIVATE GAV_HAS_MEDIA_SESSION_BACKEND)
+    else ()
+        message(WARNING "Qt6 DBus not found; MPRIS media-key integration is disabled")
+    endif ()
+endif ()
 
 if (WIN32 AND DEFINED ENV{CLION_IDE})
     # Deploy Qt dependencies after build for CLion

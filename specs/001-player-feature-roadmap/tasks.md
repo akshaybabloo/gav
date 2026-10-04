@@ -346,48 +346,48 @@ with no comments by default (Constitution: Development Workflow).
 
 ### Implementation for User Story 4
 
-- [ ] T060 [US4] Create `mediasession.h`/`mediasession.cpp`, the `MediaSession` QObject (`QML_ELEMENT`, `QML_SINGLETON`) following [contracts/media-session.md](./contracts/media-session.md):
+- [X] T060 [US4] Create `mediasession.h`/`mediasession.cpp`, the `MediaSession` QObject (`QML_ELEMENT`, `QML_SINGLETON`) following [contracts/media-session.md](./contracts/media-session.md):
   - properties `playbackStatus`, `title`, `artist`, `album`, `durationMs`, `positionMs`, `artworkUrl`, `canGoNext`, `canGoPrevious`, `canSeek`
   - signals `playRequested`, `pauseRequested`, `playPauseRequested`, `stopRequested`, `nextRequested`, `previousRequested`, `seekRequested(qint64)`
   - a private `Backend` interface with a no-op implementation and a compile-time factory
-  - `setArtwork(QImage)`, which writes `<CacheLocation>/nowplaying.png` on a `QtConcurrent` worker and sets `artworkUrl` when the write finishes
+  - `setArtwork(QImage)`, which writes `<CacheLocation>/nowplaying-<0|1>.png` (alternating, so the URL changes with the cover) on a `QtConcurrent` worker and sets `artworkUrl` when the write finishes
   - if back-end setup fails, log a warning and fall back to no-op
-- [ ] T061 [P] [US4] Create `mediasession_mpris.cpp` (Linux):
+- [X] T061 [P] [US4] Create `mediasession_mpris.cpp` (Linux):
   - `QDBusAbstractAdaptor`s for `org.mpris.MediaPlayer2` and `org.mpris.MediaPlayer2.Player`, registered at `/org/mpris/MediaPlayer2` as `org.mpris.MediaPlayer2.gav`, falling back to `.instance<pid>`
   - every property and method in the contract table, with `PropertiesChanged` for everything except `Position`, and `Seeked` after jumps of more than 1 s
   - `OpenUri` accepts `file`/`http`/`https`
-- [ ] T062 [P] [US4] Create `mediasession_windows.cpp` (Windows):
+- [X] T062 [P] [US4] Create `mediasession_windows.cpp` (Windows):
   - C++/WinRT `ISystemMediaTransportControlsInterop::GetForWindow` using the main window's HWND
   - enable buttons per the contract, update `DisplayUpdater` (`Video` or `Music`, title/artist/album, thumbnail from `artworkUrl`) and `PlaybackStatus`
   - `UpdateTimelineProperties` about once a second while playing and after every seek, skipped for live streams
   - marshal `ButtonPressed` and `PlaybackPositionChangeRequested` to the GUI thread via `QMetaObject::invokeMethod`
-- [ ] T063 [P] [US4] Create `mediasession_macos.mm` (macOS):
+- [X] T063 [P] [US4] Create `mediasession_macos.mm` (macOS):
   - `MPRemoteCommandCenter` targets for play, pause, toggle, stop, next, previous and changePlaybackPosition, with `enabled` driven by `canGoNext`/`canGoPrevious`/`canSeek`
   - `MPNowPlayingInfoCenter` `nowPlayingInfo` keys and `playbackState` per the contract
   - handlers dispatch to the main queue and return `CommandFailed` when no media is loaded
-- [ ] T064 [US4] Update `CMakeLists.txt`:
+- [X] T064 [US4] Update `CMakeLists.txt`:
   - add `mediasession.h/.cpp` to `qt_add_qml_module`
   - Linux: add `mediasession_mpris.cpp`, then `find_package(Qt6 COMPONENTS DBus)` and link `Qt6::DBus`
   - Windows: add `mediasession_windows.cpp` and link `windowsapp`
   - macOS: add `mediasession_macos.mm`, enable `OBJCXX` and link `-framework MediaPlayer -framework Foundation`
   - `OpenUrlDialog.qml` is also added to `QML_FILES`
-- [ ] T065 [US4] Connect `MediaSession` in `Main.qml`:
+- [X] T065 [US4] Connect `MediaSession` in `Main.qml`:
   - bind its properties to the player state, `QMediaMetaData` (title falling back to the playlist name or URL), playlist position (`canGoNext`/`canGoPrevious`, shuffle-aware if US2 is present) and `isSeekable`
   - call `setArtwork` from `CoverArtImage`/`ThumbnailImage`
   - connect its signals to the same handlers as the Space/N/P shortcuts and to seek
   - ignore commands when no media is loaded
-- [ ] T066 [US4] Add stream support to `custommediaplayer.h`/`custommediaplayer.cpp`:
+- [X] T066 [US4] Add stream support to `custommediaplayer.h`/`custommediaplayer.cpp`:
   - `isLive` property: `duration == 0 && !isSeekable` after `LoadedMedia`
   - a load watchdog (`AppConstants.streamLoadTimeout` = 15 000 ms) from `LoadingMedia` that stops the player and emits `errorOccurred`-style `streamError(message)` if `LoadedMedia` hasn't been reached
   - skip probing and sidecar discovery for non-local sources
-- [ ] T067 [US4] In `SeekBarComponent.qml` and `MediaControlsComponent.qml`, when `player.isLive`, show a "LIVE" badge in place of the duration and disable seeking, the seek preview and the repeat range (FR-031).
-- [ ] T068 [P] [US4] Create `OpenUrlDialog.qml`, a `Dialog` with a URL `TextField` that only accepts `http://` and `https://` schemes (inline error otherwise) and emits `urlAccepted(url)`.
-- [ ] T069 [US4] Wire Open URL into `TitleBar.qml` and `Main.qml`:
+- [X] T067 [US4] In `SeekBarComponent.qml` and `MediaControlsComponent.qml`, when `player.isLive`, show a "LIVE" badge in place of the duration and disable seeking, the seek preview and the repeat range (FR-031).
+- [X] T068 [P] [US4] Create `OpenUrlDialog.qml`, a `Dialog` with a URL `TextField` that only accepts `http://` and `https://` schemes (inline error otherwise) and emits `urlAccepted(url)`.
+- [X] T069 [US4] Wire Open URL into `TitleBar.qml` and `Main.qml`:
   - add an "Open URL…" item to `fileMenu`, plus a text-safe Ctrl+N `Shortcut`
   - accepting the dialog calls `openUrls([url])`
   - `getMediaInfo` returns `{name: url or stream title, path: url, type: "stream", icon: ""}` for http(s) URLs
   - `streamError` and `errorOccurred` for streams show in the snackbar within the 15 s budget (SC-010)
-- [ ] T070 [US4] Update `main.cpp` and `instancemanager.cpp`:
+- [X] T070 [US4] Update `main.cpp` and `instancemanager.cpp`:
   - positional arguments and `--source` accept `http://`/`https://` URLs as `QUrl` rather than local paths
   - other schemes print a message on stderr and are dropped, with exit code 2 when nothing playable is left
   - the single-instance hand-off forwards URLs unchanged

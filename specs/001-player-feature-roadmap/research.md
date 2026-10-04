@@ -208,7 +208,7 @@ chosen at compile time:
 - Hardware media keys reach the app through these OS services on all three platforms, so there's
   no need to grab keys globally.
 - Artwork comes from `QMediaMetaData::CoverArtImage`/`ThumbnailImage`. MPRIS needs a URL, so the
-  image is written to `<CacheLocation>/nowplaying.png`.
+  image is written to `<CacheLocation>/nowplaying-<0|1>.png` (alternating, so the URL changes with the cover).
 
 **Alternatives considered**: Global key hooks such as `RegisterHotKey` or X11 grabs. These conflict
 with other players and the OS's normal choice of which app gets the keys, and don't work on
