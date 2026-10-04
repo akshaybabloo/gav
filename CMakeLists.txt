@@ -175,6 +175,8 @@ qt_add_qml_module(appgav
         TitleBar.qml
         NerdStatsOverlay.qml
         TrackMenu.qml
+        ResumeDialog.qml
+        RecentFilesMenu.qml
         SOURCES
         custommediaplayer.h custommediaplayer.cpp
         collage.h collage.cpp
@@ -193,6 +195,7 @@ qt_add_qml_module(appgav
         SOURCES subtitlerenderer.h subtitlerenderer.cpp
         SOURCES subtitlecontroller.h subtitlecontroller.cpp
         SOURCES subtitleoverlay.h subtitleoverlay.cpp
+        SOURCES shuffleorder.h shuffleorder.cpp
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
@@ -261,6 +264,7 @@ if (BUILD_TESTS)
             tests/test_subtitlefiles.cpp
             tests/test_probeprotocol.cpp
             tests/test_subtitlerenderer.cpp
+            tests/test_shuffleorder.cpp
             collage.cpp
             collage.h
             playbackutils.cpp
@@ -277,6 +281,8 @@ if (BUILD_TESTS)
             probeworker.h
             subtitlerenderer.cpp
             subtitlerenderer.h
+            shuffleorder.cpp
+            shuffleorder.h
     )
 
     target_link_libraries(gav_tests

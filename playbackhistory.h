@@ -7,6 +7,7 @@
 #include <QString>
 #include <QStringList>
 #include <QThreadPool>
+#include <QUrl>
 #include <QtQml/qqmlregistration.h>
 
 class PlaybackHistory : public QObject {
@@ -20,7 +21,7 @@ public:
     static constexpr int formatVersion = 1;
 
     struct PositionEntry {
-        QString path;
+        QString key;
         qint64 positionMs = 0;
         qint64 durationMs = 0;
         QDateTime lastPlayed;
@@ -38,6 +39,7 @@ public:
     static QString defaultStoragePath();
     static QString normalizePath(const QString &pathOrUrl);
     static bool isNetworkUrl(const QString &pathOrUrl);
+    static QString positionKey(const QString &pathOrUrl);
 
     QString storagePath() const;
     void waitForPendingWrites();
@@ -50,6 +52,8 @@ public:
     Q_INVOKABLE void removeRecent(const QString &pathOrUrl);
     Q_INVOKABLE void clearRecent();
     Q_INVOKABLE void clear();
+    Q_INVOKABLE QUrl urlFor(const QString &pathOrUrl) const;
+    Q_INVOKABLE bool exists(const QString &pathOrUrl) const;
 
 signals:
     void recentChanged();

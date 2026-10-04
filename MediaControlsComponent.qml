@@ -15,6 +15,8 @@ Item {
     property int currentSpeedIndex: 3  // Index of 1.0x in playbackSpeeds array
 
     property real fastForwardRate: 1.0
+    property bool hasNextTrack: playlistCurrentIndex >= 0 && playlistCurrentIndex < playlistCount - 1
+    property bool hasPreviousTrack: playlistCurrentIndex > 0
     property bool isFastForwarding: false
     property bool isFastRewinding: false
     required property bool mediaLoaded
@@ -111,7 +113,7 @@ Item {
                     player.play();
                 } else {
                     seekBar.resetPreview();
-                    if (!player.statsEnabled && playlistCurrentIndex >= 0 && playlistCurrentIndex < playlistCount - 1) {
+                    if (!player.statsEnabled && hasNextTrack) {
                         nextTrack();
                     }
                 }
@@ -575,7 +577,7 @@ Item {
                         Layout.preferredHeight: 30
                         Layout.preferredWidth: 25
                         Material.roundedScale: Material.NotRounded
-                        enabled: playlistCurrentIndex > 0
+                        enabled: hasPreviousTrack
                         font.family: materialSymbolsOutlined.name
                         font.weight: Font.Light
                         hoverEnabled: true
@@ -597,7 +599,7 @@ Item {
                         Layout.preferredHeight: 30
                         Layout.preferredWidth: 25
                         Material.roundedScale: Material.NotRounded
-                        enabled: playlistCurrentIndex < playlistCount - 1
+                        enabled: hasNextTrack
                         font.family: materialSymbolsOutlined.name
                         font.weight: Font.Light
                         hoverEnabled: true

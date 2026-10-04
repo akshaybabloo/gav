@@ -73,6 +73,13 @@ CustomMediaPlayer::CustomMediaPlayer() {
 
 SubtitleController *CustomMediaPlayer::subtitles() const { return m_subtitles; }
 
+void CustomMediaPlayer::checkpoint() {
+  const QUrl current = m_mediaPlayer->source();
+  if (current.isEmpty() || !m_mediaLoaded || m_mediaPlayer->duration() <= 0)
+    return;
+  emit positionCheckpoint(current, m_mediaPlayer->position(), m_mediaPlayer->duration());
+}
+
 QVariantList CustomMediaPlayer::chapters() const { return m_subtitles->chapters(); }
 
 QString CustomMediaPlayer::audioTrackName(int index) const {
@@ -170,6 +177,8 @@ void CustomMediaPlayer::setSource(const QUrl &source) {
     return;
   }
   
+  checkpoint();
+
   // Clear video frame from previous source to release memory
   clearMainVideoFrame();
   
@@ -543,6 +552,7 @@ void CustomMediaPlayer::pause() {
 
 void CustomMediaPlayer::stop() {
   m_playWhenLoaded = false;
+  checkpoint();
   resetPreviewPlayer();
   m_subtitles->clear();
   m_pendingAudioTrack = -1;

@@ -1,6 +1,7 @@
 #include "playbackhistory.h"
 #include "playbackutils.h"
 
+#include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -58,6 +59,10 @@ QString PlaybackHistory::normalizePath(const QString &pathOrUrl) {
     return QDir::cleanPath(pathOrUrl);
 }
 
+QString PlaybackHistory::positionKey(const QString &pathOrUrl) {
+    return QString::fromLatin1(QCryptographicHash::hash(normalizePath(pathOrUrl).toUtf8(), QCryptographicHash::Sha256).toHex());
+}
+
 bool PlaybackHistory::isNetworkUrl(const QString &pathOrUrl) {
     const QString scheme = QUrl(pathOrUrl).scheme().toLower();
     return scheme == QLatin1String("http") || scheme == QLatin1String("https");
@@ -68,9 +73,9 @@ QString PlaybackHistory::storagePath() const { return m_storagePath; }
 void PlaybackHistory::waitForPendingWrites() { m_writer.waitForDone(); }
 
 qint64 PlaybackHistory::savedPosition(const QString &path) const {
-    const QString normalized = normalizePath(path);
+    const QString key = positionKey(path);
     for (const PositionEntry &entry : m_positions) {
-        if (entry.path == normalized) {
+        if (entry.key == key) {
             return entry.positionMs;
         }
     }
@@ -86,9 +91,9 @@ void PlaybackHistory::recordPosition(const QString &path, qint64 positionMs, qin
         return;
     }
 
-    const QString normalized = normalizePath(path);
-    m_positions.removeIf([&](const PositionEntry &entry) { return entry.path == normalized; });
-    m_positions.prepend({normalized, positionMs, durationMs, QDateTime::currentDateTimeUtc()});
+    const QString key = positionKey(path);
+    m_positions.removeIf([&](const PositionEntry &entry) { return entry.key == key; });
+    m_positions.prepend({key, positionMs, durationMs, QDateTime::currentDateTimeUtc()});
     while (m_positions.size() > maxPositions) {
         m_positions.removeLast();
     }
@@ -96,8 +101,8 @@ void PlaybackHistory::recordPosition(const QString &path, qint64 positionMs, qin
 }
 
 void PlaybackHistory::removePosition(const QString &path) {
-    const QString normalized = normalizePath(path);
-    if (m_positions.removeIf([&](const PositionEntry &entry) { return entry.path == normalized; }) > 0) {
+    const QString key = positionKey(path);
+    if (m_positions.removeIf([&](const PositionEntry &entry) { return entry.key == key; }) > 0) {
         save();
     }
 }
@@ -149,6 +154,14 @@ void PlaybackHistory::clear() {
     emit recentChanged();
 }
 
+QUrl PlaybackHistory::urlFor(const QString &pathOrUrl) const {
+    return isNetworkUrl(pathOrUrl) ? QUrl(pathOrUrl) : QUrl::fromLocalFile(normalizePath(pathOrUrl));
+}
+
+bool PlaybackHistory::exists(const QString &pathOrUrl) const {
+    return isNetworkUrl(pathOrUrl) || QFileInfo::exists(normalizePath(pathOrUrl));
+}
+
 void PlaybackHistory::load() {
     QFile file(m_storagePath);
     if (!file.exists()) {
@@ -175,10 +188,10 @@ void PlaybackHistory::load() {
 
     for (const QJsonValue &value : root.value(key("positions")).toArray()) {
         const QJsonObject object = value.toObject();
-        PositionEntry entry{object.value(key("path")).toString(), object.value(key("positionMs")).toInteger(),
-                            object.value(key("durationMs")).toInteger(),
+        PositionEntry entry{object.value(key("key")).toString(), object.value(key("positionMs")).toInteger(), object.value(key("durationMs")).toInteger(),
                             QDateTime::fromString(object.value(key("lastPlayed")).toString(), Qt::ISODateWithMs)};
-        if (!entry.path.isEmpty() && entry.positionMs > 0 && m_positions.size() < maxPositions) {
+        const bool validKey = entry.key.size() == 64 && QByteArray::fromHex(entry.key.toLatin1()).size() == 32;
+        if (validKey && entry.positionMs > 0 && m_positions.size() < maxPositions) {
             m_positions.append(entry);
         }
     }
@@ -199,7 +212,7 @@ void PlaybackHistory::load() {
 void PlaybackHistory::save() {
     QJsonArray positions;
     for (const PositionEntry &entry : m_positions) {
-        positions.append(QJsonObject{{key("path"), entry.path},
+        positions.append(QJsonObject{{key("key"), entry.key},
                                      {key("positionMs"), entry.positionMs},
                                      {key("durationMs"), entry.durationMs},
                                      {key("lastPlayed"), entry.lastPlayed.toString(Qt::ISODateWithMs)}});

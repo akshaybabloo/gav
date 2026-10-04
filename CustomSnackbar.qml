@@ -7,7 +7,10 @@ import gavqml
 Popup {
     id: root
 
+    property string actionText: ""
     property alias message: snackbarMessage.text
+
+    signal actionTriggered
 
     // Public function to show
     function show() {
@@ -38,6 +41,23 @@ Popup {
             Layout.fillWidth: true
             color: "white"
             wrapMode: Text.WordWrap
+        }
+        Button {
+            Layout.alignment: Qt.AlignVCenter
+            text: root.actionText
+            visible: root.actionText !== ""
+
+            background: Rectangle {
+                border.color: "white"
+                border.width: 1
+                color: "transparent"
+                radius: 4
+            }
+
+            onClicked: {
+                root.actionTriggered();
+                root.close();
+            }
         }
         Button {
             Layout.alignment: Qt.AlignVCenter
