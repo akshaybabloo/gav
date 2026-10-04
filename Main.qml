@@ -88,7 +88,7 @@ ApplicationWindow {
     }
     function openAndPlay(url) {
         if (isPlaylistUrl(url)) {
-            PlaylistFiles.load(url, supportedMediaExtensions(), "append");
+            PlaylistFiles.load(url, supportedMediaExtensions(), "open");
             return;
         }
         var mediaInfo = getMediaInfo(url);
@@ -137,6 +137,8 @@ ApplicationWindow {
     }
     function isPlaylistUrl(url) {
         var name = url.toString();
+        if (isStreamUrl(url))
+            name = name.split(/[?#]/)[0];
         return AppConstants.isPlaylistExtension(name.substring(name.lastIndexOf('.') + 1));
     }
     function isStreamUrl(url) {
@@ -198,16 +200,21 @@ ApplicationWindow {
             playList.clear();
         var firstIndex = playList.count;
         var positions = [];
+        var items = [];
         for (var i = 0; i < result.entries.length; i++) {
             var mediaInfo = getMediaInfo(result.entries[i].path);
             if (mediaInfo) {
-                positions.push(playList.count);
-                playList.append(mediaInfo);
+                if (result.entries[i].title)
+                    mediaInfo.name = result.entries[i].title;
+                positions.push(firstIndex + items.length);
+                items.push(mediaInfo);
             } else {
                 positions.push(-1);
             }
         }
-        var added = playList.count - firstIndex;
+        if (items.length > 0)
+            playList.append(items);
+        var added = items.length;
         var skipped = result.skippedMissing + result.skippedUnsupported + (result.entries.length - added);
         if (skipped > 0) {
             captureSnackbar.message = qsTr("Loaded %1 items, skipped %2 (missing or unsupported)").arg(added).arg(skipped);
@@ -711,7 +718,7 @@ ApplicationWindow {
             var loadedCurrent = result.currentIndex >= 0 && result.currentIndex < loaded.positions.length ? loaded.positions[result.currentIndex] : -1;
             if (tag === "replace")
                 mainWindow.selectPlaylistItem(loadedCurrent >= 0 ? loadedCurrent : loaded.first);
-            else if (mediaComponent.path === "")
+            else if (tag === "open" || mediaComponent.path === "")
                 mainWindow.selectPlaylistItem(loaded.first);
         }
         function onSaved(tag, ok) {

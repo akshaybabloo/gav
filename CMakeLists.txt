@@ -317,6 +317,7 @@ if (BUILD_TESTS)
         Qt6::Quick
         Qt6::Multimedia
         Qt6::Concurrent
+        Qt6::Network
         spdlog::spdlog
         fmt::fmt
         Qt6::Test

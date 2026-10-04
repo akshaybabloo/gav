@@ -44,7 +44,7 @@ QtObject {
 
     // Navigation and streaming constants (in milliseconds)
     readonly property int chapterPreviousThreshold: 3000
-    readonly property int streamLoadTimeout: 15000
+    readonly property int streamLoadTimeout: 120000
 
     // Seek constants (in milliseconds)
     readonly property int seekStep: 5000

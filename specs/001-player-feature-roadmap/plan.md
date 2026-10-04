@@ -131,7 +131,7 @@ convention. Entries are new (`+`) or modified (`~`).
 + mediasession_macos.mm       # macOS (MediaPlayer.framework)
 + OpenUrlDialog.qml
 ~ instancemanager.cpp         # forward http(s) URLs
-~ custommediaplayer.h/.cpp    # isLive, load watchdog (15 s)
+~ custommediaplayer.h/.cpp    # isLive, network timeout (10 s), load watchdog (120 s)
 
 tests/
 + test_playbackutils.cpp

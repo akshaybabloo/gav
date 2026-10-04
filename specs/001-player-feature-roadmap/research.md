@@ -207,7 +207,7 @@ chosen at compile time:
 
 - Hardware media keys reach the app through these OS services on all three platforms, so there's
   no need to grab keys globally.
-- Artwork comes from `QMediaMetaData::CoverArtImage`/`ThumbnailImage`. MPRIS needs a URL, so the
+- Artwork comes from `QMediaMetaData::CoverArtImage`. MPRIS needs a URL, so the
   image is written to `<CacheLocation>/nowplaying-<0|1>.png` (alternating, so the URL changes with the cover).
 
 **Alternatives considered**: Global key hooks such as `RegisterHotKey` or X11 grabs. These conflict
@@ -227,8 +227,9 @@ streams would fail with the custom plugin.
 - `QMediaPlayer::setSource(QUrl("https://…"))` handles HTTP(S) files and HLS.
 - Command-line arguments and the single-instance hand-off accept `http`/`https` URLs alongside
   files.
-- Errors come from `QMediaPlayer::errorOccurred`. A 15-second watchdog covers the time between
-  `LoadingMedia` and `LoadedMedia`, to meet SC-010.
+- Errors come from `QMediaPlayer::errorOccurred`. SC-010 is met by setting
+  `QPlaybackOptions::networkTimeout` to 10 seconds, which FFmpeg applies to each connection and
+  read. A 120-second watchdog between `LoadingMedia` and `LoadedMedia` is only a backstop (R16).
 
 **Alternatives considered**: GnuTLS (larger dependency tree) or Secure Transport on macOS (Apple
 has deprecated it).
@@ -258,6 +259,62 @@ into an inline message. This is a pure function, `PlaybackUtils::parseTime`.
   (e.g. "Start over" in the resume prompt).
 - `Ctrl+T`, `Ctrl+O` and `Ctrl+N` keep working while text fields have focus, because they open
   dialogs.
+
+## R15. Buffering indicator and buffered range (FR-031a)
+
+**Findings** (measured against Qt 6.12 with a local HTTP server that stalls mid-file)
+
+- When a stream runs out of data, the FFmpeg backend keeps reporting `BufferedMedia` and
+  `PlayingState`; the position simply stops. `BufferingMedia` only appears for the first moments
+  after `play()`, while playback is already advancing.
+- `bufferProgress` is only ever 0.25 or 1, and `bufferedTimeRange()` is always empty.
+- The backend reads ahead at most 4 seconds or 32 MB.
+
+**Decision**: Detect stalls directly. `CustomMediaPlayer::buffering` turns on when the state is
+playing and the position has not moved for 750 ms (polled every 250 ms), and off as soon as it
+moves, playback stops, or the media ends. The main and mini players show a spinner from it.
+
+**Rejected**: A buffered-range bar on the seek slider. Qt exposes no range, and a 4-second
+read-ahead would be an invisible sliver on most videos. It would need a qtmultimedia patch that
+exposes the demuxer's buffered duration and raises its limit, which would not work with Qt's
+stock plugin in local development.
+
+## R16. HLS master playlists and the load deadline
+
+**Findings** (measured against Qt 6.12 with a public eight-variant HLS master playlist on a slow
+server)
+
+- FFmpeg opens and probes every variant before the media counts as loaded. That took about 40
+  seconds, so the original 15-second overall watchdog stopped a stream that was loading normally.
+- A dead address or a server that accepts and never answers fails in about 10 seconds through the
+  network timeout alone.
+- After loading, Qt plays the first video and audio track (the lowest quality in that playlist)
+  and never marks the other streams as discarded, so FFmpeg keeps downloading every variant.
+  Playback advanced about 8 seconds in 45. A single variant's playlist loads in about 5 seconds
+  and plays close to real time.
+
+**Decision**: The per-operation network timeout carries SC-010 and the overall watchdog becomes a
+120-second backstop. An "Opening stream…" indicator shows while a network source is loading.
+
+**Open**: Choosing one variant of a master playlist (in GAV, or by patching the plugin to discard
+unselected streams) is not implemented.
+
+## R17. Remote playlists
+
+**Findings**: FFmpeg only understands HLS at an `.m3u`/`.m3u8` address, so a plain list of channels
+or files (for example an IPTV index with about 11 000 entries, 2.5 MB) fails with "Could not open
+file". Such lists carry attributes on `#EXTINF` lines whose quoted values contain commas.
+
+**Decision**: When the user opens an `http(s)` address ending in `.m3u` or `.m3u8`, GAV downloads
+it with Qt Network (already linked; 10-second timeout, 32 MB cap). A document containing
+`#EXT-X-` tags is HLS and is played as one stream. Anything else is parsed as a playlist: relative
+entries resolve against the address after redirects, and entries that are not `http(s)` are
+skipped so a remote list cannot point at local files. The `#EXTINF` title is whatever follows the
+first comma outside quotes, and it becomes the item name. If the download fails the TLS handshake,
+or no TLS backend is available, the address is handed to the player unchanged.
+
+**Not covered**: per-entry options such as `#EXTVLCOPT` and `http-user-agent`, so channels that
+need them will not play.
 
 ## Open items
 

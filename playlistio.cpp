@@ -1,10 +1,15 @@
 #include "playlistio.h"
 
+#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QRegularExpression>
 #include <QSaveFile>
+#include <QSslSocket>
 #include <QStringDecoder>
 #include <QThreadPool>
 #include <QtConcurrent/QtConcurrentRun>
@@ -32,11 +37,35 @@ bool hasUrlScheme(const QString &line) {
     return pattern.match(line).hasMatch();
 }
 
+bool isHttpUrl(const QUrl &url) {
+    const QString scheme = url.scheme().toLower();
+    return scheme == QLatin1String("http") || scheme == QLatin1String("https");
 }
 
-namespace PlaylistIO {
+qsizetype titleSeparator(const QString &rest) {
+    bool quoted = false;
+    for (qsizetype i = 0; i < rest.size(); ++i) {
+        if (rest[i] == QLatin1Char('"')) {
+            quoted = !quoted;
+        } else if (rest[i] == QLatin1Char(',') && !quoted) {
+            return i;
+        }
+    }
+    return rest.indexOf(QLatin1Char(','));
+}
 
-PlaylistReadResult parse(const QByteArray &data, const QString &baseDirectory, const QStringList &supportedExtensions) {
+int parseDuration(const QString &head) {
+    const QString token = head.section(QLatin1Char(' '), 0, 0, QString::SectionSkipEmpty);
+    bool ok = false;
+    const int whole = token.toInt(&ok);
+    if (ok) {
+        return whole;
+    }
+    const double fractional = token.toDouble(&ok);
+    return ok ? qRound(fractional) : -1;
+}
+
+PlaylistReadResult parseLines(const QByteArray &data, const QString &baseDirectory, const QStringList &supportedExtensions, const QUrl &remoteBase) {
     PlaylistReadResult result;
     result.ok = true;
 
@@ -57,10 +86,8 @@ PlaylistReadResult parse(const QByteArray &data, const QString &baseDirectory, c
         }
         if (line.startsWith(extinfPrefix)) {
             const QString rest = line.mid(extinfPrefix.size());
-            const qsizetype comma = rest.indexOf(QLatin1Char(','));
-            bool ok = false;
-            const int duration = (comma >= 0 ? rest.left(comma) : rest).trimmed().toInt(&ok);
-            pendingDuration = ok ? duration : -1;
+            const qsizetype comma = titleSeparator(rest);
+            pendingDuration = parseDuration(comma >= 0 ? rest.left(comma) : rest);
             pendingTitle = comma >= 0 ? rest.mid(comma + 1).trimmed() : QString();
             continue;
         }
@@ -80,12 +107,18 @@ PlaylistReadResult parse(const QByteArray &data, const QString &baseDirectory, c
         pendingDuration = -1;
 
         QString localPath;
-        if (hasUrlScheme(line)) {
+        if (remoteBase.isValid()) {
+            const QUrl url = hasUrlScheme(line) ? QUrl(line) : remoteBase.resolved(QUrl(line));
+            if (!url.isValid() || !isHttpUrl(url)) {
+                ++result.skippedUnsupported;
+                continue;
+            }
+            entry.location = url;
+        } else if (hasUrlScheme(line)) {
             const QUrl url(line);
-            const QString scheme = url.scheme().toLower();
-            if (scheme == QLatin1String("http") || scheme == QLatin1String("https")) {
+            if (isHttpUrl(url)) {
                 entry.location = url;
-            } else if (scheme == QLatin1String("file")) {
+            } else if (url.scheme().toLower() == QLatin1String("file")) {
                 localPath = url.toLocalFile();
             } else {
                 ++result.skippedUnsupported;
@@ -129,6 +162,26 @@ PlaylistReadResult parse(const QByteArray &data, const QString &baseDirectory, c
     }
     return result;
 }
+
+}
+
+namespace PlaylistIO {
+
+PlaylistReadResult parse(const QByteArray &data, const QString &baseDirectory, const QStringList &supportedExtensions) {
+    return parseLines(data, baseDirectory, supportedExtensions, QUrl());
+}
+
+PlaylistReadResult parseRemote(const QByteArray &data, const QUrl &source, const QUrl &base) {
+    if (isHlsPlaylist(data)) {
+        PlaylistReadResult result;
+        result.ok = true;
+        result.document.entries.append({source, QString(), -1});
+        return result;
+    }
+    return parseLines(data, QString(), {}, base);
+}
+
+bool isHlsPlaylist(const QByteArray &data) { return data.startsWith("#EXT-X-") || data.contains("\n#EXT-X-"); }
 
 PlaylistReadResult read(const QString &path, const QStringList &supportedExtensions) {
     QFile file(path);
@@ -215,9 +268,62 @@ PlaylistDocument PlaylistFiles::fromVariant(const QVariantList &items, int curre
 }
 
 void PlaylistFiles::load(const QUrl &url, const QStringList &supportedExtensions, const QString &tag) {
+    if (isHttpUrl(url)) {
+        fetch(url, tag);
+        return;
+    }
     const QString path = url.isLocalFile() ? url.toLocalFile() : url.toString();
     QtConcurrent::run([path, supportedExtensions] { return PlaylistIO::read(path, supportedExtensions); })
         .then(this, [this, tag](const PlaylistReadResult &result) { emit loaded(tag, toVariant(result)); });
+}
+
+void PlaylistFiles::fetch(const QUrl &url, const QString &tag) {
+    const auto playAsStream = [this, url, tag] {
+        PlaylistReadResult result;
+        result.ok = true;
+        result.document.entries.append({url, QString(), -1});
+        emit loaded(tag, toVariant(result));
+    };
+    if (url.scheme().toLower() == QLatin1String("https") && !QSslSocket::supportsSsl()) {
+        QMetaObject::invokeMethod(this, playAsStream, Qt::QueuedConnection);
+        return;
+    }
+
+    if (!m_network) {
+        m_network = new QNetworkAccessManager(this);
+    }
+    QNetworkRequest request(url);
+    request.setTransferTimeout(remoteTimeoutMs);
+    QNetworkReply *reply = m_network->get(request);
+    connect(reply, &QNetworkReply::downloadProgress, reply, [reply](qint64 received, qint64 total) {
+        if (received > maxRemoteBytes || total > maxRemoteBytes) {
+            reply->setProperty("tooLarge", true);
+            reply->abort();
+        }
+    });
+    connect(reply, &QNetworkReply::finished, this, [this, reply, url, tag, playAsStream] {
+        reply->deleteLater();
+        if (reply->error() == QNetworkReply::SslHandshakeFailedError) {
+            playAsStream();
+            return;
+        }
+        if (reply->error() != QNetworkReply::NoError) {
+            PlaylistReadResult result;
+            result.error = reply->property("tooLarge").toBool() ? tr("The playlist is too large") : reply->errorString();
+            qWarning() << "Could not download playlist" << url << result.error;
+            emit loaded(tag, toVariant(result));
+            return;
+        }
+        const QByteArray data = reply->readAll();
+        const QUrl base = reply->url();
+        QtConcurrent::run([data, url, base] { return PlaylistIO::parseRemote(data, url, base); }).then(this, [this, tag](PlaylistReadResult result) {
+            if (result.document.entries.isEmpty() && result.skippedUnsupported == 0) {
+                result.ok = false;
+                result.error = tr("The address does not contain a playlist");
+            }
+            emit loaded(tag, toVariant(result));
+        });
+    });
 }
 
 void PlaylistFiles::save(const QUrl &url, const QVariantList &items, int currentIndex, const QString &tag) {

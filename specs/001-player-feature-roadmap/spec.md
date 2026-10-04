@@ -192,6 +192,7 @@ A user listening to music or a podcast in GAV while working in another applicati
 - **FR-029**: Users MUST be able to open a media stream by entering an HTTP or HTTPS URL.
 - **FR-030**: The system MUST show a clear error when a URL cannot be opened or a stream is interrupted, without freezing the interface.
 - **FR-031**: Live streams without a known duration MUST be indicated as live, and seeking MUST be disabled for them.
+- **FR-031a**: When playback stalls waiting for data, the system MUST show a buffering indicator within about one second and remove it as soon as playback continues. The video and controls stay usable while it is shown.
 
 **Cross-cutting**
 

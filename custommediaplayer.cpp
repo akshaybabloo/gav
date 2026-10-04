@@ -14,10 +14,12 @@
 #include <QFileInfo>
 #include <QLocale>
 #include <QMediaFormat>
+#include <QPlaybackOptions>
 #include <QVideoFrameFormat>
 
 #include <spdlog/spdlog.h>
 
+#include <chrono>
 #include <memory>
 
 CustomMediaPlayer::CustomMediaPlayer() {
@@ -77,10 +79,27 @@ CustomMediaPlayer::CustomMediaPlayer() {
   connect(m_mediaPlayer, &QMediaPlayer::metaDataChanged, this, &CustomMediaPlayer::nowPlayingChanged);
   connect(m_mediaPlayer, &QMediaPlayer::sourceChanged, this, &CustomMediaPlayer::nowPlayingChanged);
 
+  QPlaybackOptions playbackOptions = m_mediaPlayer->playbackOptions();
+  playbackOptions.setNetworkTimeout(std::chrono::milliseconds(streamNetworkTimeoutMs));
+  m_mediaPlayer->setPlaybackOptions(playbackOptions);
+
   m_streamLoadTimer = new QTimer(this);
   m_streamLoadTimer->setSingleShot(true);
   m_streamLoadTimer->setInterval(streamLoadTimeoutMs);
   connect(m_streamLoadTimer, &QTimer::timeout, this, &CustomMediaPlayer::onStreamLoadTimeout);
+
+  m_stallTimer = new QTimer(this);
+  m_stallTimer->setInterval(stallPollIntervalMs);
+  connect(m_stallTimer, &QTimer::timeout, this, &CustomMediaPlayer::checkForStall);
+  connect(m_mediaPlayer, &QMediaPlayer::playbackStateChanged, this, [this](QMediaPlayer::PlaybackState state) {
+    m_stallPosition = -1;
+    if (state == QMediaPlayer::PlayingState) {
+      m_stallTimer->start();
+    } else {
+      m_stallTimer->stop();
+      setBuffering(false);
+    }
+  });
 
   m_subtitles = new SubtitleController(m_mediaPlayer, this);
   connect(m_subtitles, &SubtitleController::chaptersChanged, this, &CustomMediaPlayer::chaptersChanged);
@@ -107,17 +126,37 @@ QString CustomMediaPlayer::mediaArtist() const {
 
 QString CustomMediaPlayer::mediaAlbum() const { return m_mediaPlayer->metaData().stringValue(QMediaMetaData::AlbumTitle); }
 
-QImage CustomMediaPlayer::coverArt() const {
-  const QMediaMetaData metaData = m_mediaPlayer->metaData();
-  const QImage cover = metaData.value(QMediaMetaData::CoverArtImage).value<QImage>();
-  return cover.isNull() ? metaData.value(QMediaMetaData::ThumbnailImage).value<QImage>() : cover;
+QImage CustomMediaPlayer::coverArt() const { return m_mediaPlayer->metaData().value(QMediaMetaData::CoverArtImage).value<QImage>(); }
+
+bool CustomMediaPlayer::buffering() const { return m_buffering; }
+
+void CustomMediaPlayer::setBuffering(bool buffering) {
+  if (m_buffering == buffering)
+    return;
+  m_buffering = buffering;
+  emit bufferingChanged();
+}
+
+void CustomMediaPlayer::checkForStall() {
+  const qint64 current = m_mediaPlayer->position();
+  const qint64 duration = m_mediaPlayer->duration();
+  const bool atEnd = m_mediaPlayer->mediaStatus() == QMediaPlayer::EndOfMedia || (duration > 0 && current >= duration);
+  if (current != m_stallPosition || atEnd || !m_mediaLoaded) {
+    m_stallPosition = current;
+    m_stallClock.start();
+    setBuffering(false);
+    return;
+  }
+  if (m_stallClock.isValid() && m_stallClock.elapsed() >= stallThresholdMs) {
+    setBuffering(true);
+  }
 }
 
 void CustomMediaPlayer::onStreamLoadTimeout() {
   if (m_mediaLoaded || m_mediaPlayer->source().isEmpty())
     return;
   qWarning() << "Stream did not load within" << streamLoadTimeoutMs << "ms:" << m_mediaPlayer->source();
-  emit errorOccurred(tr("The stream did not respond. Check the address and your connection."));
+  emit errorOccurred(tr("The stream took too long to open. Check the address and your connection."));
   stop();
 }
 

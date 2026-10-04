@@ -47,6 +47,15 @@ Window {
         renderer: miniPlayerWindow.mediaPlayer.subtitles.renderer
         videoSink: miniVideoOutput.videoSink
     }
+    BusyIndicator {
+        Accessible.name: qsTr("Buffering")
+        anchors.centerIn: parent
+        height: 36
+        running: visible
+        visible: miniPlayerWindow.mediaPlayer.buffering || (miniPlayerWindow.mediaPlayer.mediaStatus === MediaPlayer.LoadingMedia && /^https?:/i.test(miniPlayerWindow.mediaPlayer.source.toString()))
+        width: 36
+        z: 3
+    }
     Rectangle {
         id: osdIndicator
 

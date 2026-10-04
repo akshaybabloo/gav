@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Effects
 import QtMultimedia
 import gavqml
@@ -12,6 +13,7 @@ Item {
     property bool isVideo: customMediaPlayer.hasVideo
     property bool isVideoAndPlaying: isVideo && isPlaying
     property bool mediaLoaded: customMediaPlayer.mediaLoaded
+    readonly property bool openingStream: customMediaPlayer.mediaStatus === MediaPlayer.LoadingMedia && /^https?:/i.test(path)
     property alias mediaPlayer: customMediaPlayer
     required property string path
     property alias videoOutput: videoOutput
@@ -293,6 +295,40 @@ Item {
         renderer: customMediaPlayer.subtitles.renderer
         videoSink: videoOutput.videoSink
         visible: videoOutput.visible
+    }
+    Rectangle {
+        id: bufferingIndicator
+
+        Accessible.name: bufferingText.text
+        anchors.centerIn: parent
+        color: Qt.rgba(0, 0, 0, 0.6)
+        height: bufferingRow.implicitHeight + 20
+        radius: 10
+        visible: customMediaPlayer.buffering || openingStream
+        width: bufferingRow.implicitWidth + 32
+        z: 90
+
+        Row {
+            id: bufferingRow
+
+            anchors.centerIn: parent
+            spacing: 12
+
+            BusyIndicator {
+                anchors.verticalCenter: parent.verticalCenter
+                height: 32
+                running: bufferingIndicator.visible
+                width: 32
+            }
+            Text {
+                id: bufferingText
+
+                anchors.verticalCenter: parent.verticalCenter
+                color: AppConstants.overlayTextColor
+                font.pixelSize: 16
+                text: openingStream ? qsTr("Opening stream…") : qsTr("Buffering…")
+            }
+        }
     }
     MouseArea {
         id: mouseArea

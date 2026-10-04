@@ -41,6 +41,7 @@ class CustomMediaPlayer : public QQuickItem {
   Q_PROPERTY(QVariantList chapters READ chapters NOTIFY chaptersChanged)
   Q_PROPERTY(bool seekable READ seekable NOTIFY liveChanged)
   Q_PROPERTY(bool isLive READ isLive NOTIFY liveChanged)
+  Q_PROPERTY(bool buffering READ buffering NOTIFY bufferingChanged)
   Q_PROPERTY(QString mediaTitle READ mediaTitle NOTIFY nowPlayingChanged)
   Q_PROPERTY(QString mediaArtist READ mediaArtist NOTIFY nowPlayingChanged)
   Q_PROPERTY(QString mediaAlbum READ mediaAlbum NOTIFY nowPlayingChanged)
@@ -102,12 +103,16 @@ public:
   QVariantList chapters() const;
   bool seekable() const;
   bool isLive() const;
+  bool buffering() const;
   QString mediaTitle() const;
   QString mediaArtist() const;
   QString mediaAlbum() const;
   QImage coverArt() const;
 
-  static constexpr int streamLoadTimeoutMs = 15000;
+  static constexpr int streamNetworkTimeoutMs = 10000;
+  static constexpr int streamLoadTimeoutMs = 120000;
+  static constexpr int stallPollIntervalMs = 250;
+  static constexpr int stallThresholdMs = 750;
 
 signals:
   void sourceChanged();
@@ -133,6 +138,7 @@ signals:
   void preferredAudioLanguageChanged();
   void chaptersChanged();
   void liveChanged();
+  void bufferingChanged();
   void nowPlayingChanged();
 
 private slots:
@@ -160,6 +166,8 @@ private:
   double frameDurationUs() const;
   void clearPendingStep();
   void onStreamLoadTimeout();
+  void checkForStall();
+  void setBuffering(bool buffering);
   QString audioTrackName(int index) const;
 
   QMediaPlayer *m_mediaPlayer;
@@ -198,6 +206,10 @@ private:
   QMetaObject::Connection m_stepConnection;
   QTimer *m_stepTimer = nullptr;
   QTimer *m_streamLoadTimer = nullptr;
+  QTimer *m_stallTimer = nullptr;
+  QElapsedTimer m_stallClock;
+  qint64 m_stallPosition = -1;
+  bool m_buffering = false;
 };
 
 #endif // CUSTOMMEDIAPLAYER_H
