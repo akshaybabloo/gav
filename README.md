@@ -16,6 +16,13 @@ From command line:
 # Play a video or audio file
 gav <file>
 
+# Open several files, or a playlist
+gav <file1> <file2> ...
+gav <playlist.m3u8>
+
+# Play a web address: a media file, an HLS stream or a remote playlist
+gav https://example.org/stream.m3u8
+
 # Create a collage from video files
 gav --collage <file1> <file2> ...
 
@@ -23,7 +30,29 @@ gav --collage <file1> <file2> ...
 gav --collage <folder>
 ```
 
-Or open a file from the menu.
+Or open a file from the menu, or drag and drop files onto the window.
+
+### Subtitles
+
+- Subtitle tracks inside the file are listed in the subtitle menu on the control bar, with full ASS/SSA styling.
+- A subtitle file next to the video is picked up automatically when it has the same name: `movie.srt`, or `movie.en.srt` to mark the language. Supported files: srt, ass, ssa, vtt.
+- Drag and drop a subtitle file onto the window, or use "Load subtitle file…" in the subtitle menu, to add one while playing.
+- The same menu sets subtitle delay and size and selects the audio track. Preferred audio and subtitle languages are in Settings.
+
+### Playlists
+
+- Open and save playlists (`.m3u`, `.m3u8`) from the File menu, or drop one onto the window.
+- "Restore last playlist on startup" in Settings reopens the previous session's playlist. It is off by default, as are "Resume where I left off" and "Remember recent files".
+
+### Streams
+
+- File > Open URL (`Ctrl+N`) plays an `http://` or `https://` address: a video or audio file, an HLS stream (`.m3u8`) or a remote playlist (`.m3u`).
+- For HLS streams that offer several qualities, the quality button on the control bar lists every video quality and audio format. Auto picks one from a short download-speed check.
+- On-demand HLS streams list their subtitle tracks in the subtitle menu.
+
+### Keyboard shortcuts
+
+The full list is in Settings under the Shortcuts tab.
 
 ### Collage Creation
 

@@ -120,7 +120,30 @@ void initLogging() {
     logger->flush_on(spdlog::level::info);
 }
 
+static bool showFFmpegLogs = false;
+
 void logOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg) {
+    static const QLatin1String ffmpegPrefix("\"FFmpeg log: ");
+    if (msg.startsWith(ffmpegPrefix)) {
+        const bool isError = type == QtCriticalMsg || type == QtFatalMsg;
+        if (!isError && (!showFFmpegLogs || type == QtDebugMsg)) {
+            return;
+        }
+        QString text = msg.mid(ffmpegPrefix.size());
+        if (text.endsWith(QLatin1Char('"'))) {
+            text.chop(1);
+        }
+        const std::string line = text.toStdString();
+        if (isError) {
+            logger->error("FFmpeg: {}", line);
+        } else if (type == QtWarningMsg) {
+            logger->warn("FFmpeg: {}", line);
+        } else {
+            logger->info("FFmpeg: {}", line);
+        }
+        return;
+    }
+
     QByteArray localMsg = msg.toLocal8Bit();
     const char *file = context.file ? context.file : "";
     const char *function = context.function ? context.function : "";
@@ -169,6 +192,9 @@ int main(int argc, char *argv[]) {
 
     initLogging();
     qInstallMessageHandler(logOutput);
+    if (!qEnvironmentVariableIsSet("QT_FFMPEG_DEBUG")) {
+        qputenv("QT_FFMPEG_DEBUG", "1");
+    }
 
     QGuiApplication app(argc, argv);
 
@@ -203,6 +229,7 @@ int main(int argc, char *argv[]) {
 
     if (parser.isSet(verboseOption)) {
         logger->set_level(spdlog::level::debug);
+        showFFmpegLogs = true;
         logger->debug("Verbose logging enabled");
     } else {
         QLoggingCategory::setFilterRules(QStringLiteral("qt.multimedia*=false"));

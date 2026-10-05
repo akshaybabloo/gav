@@ -115,6 +115,18 @@ CustomMediaPlayer::CustomMediaPlayer() {
   connect(m_mediaPlayer, &QMediaPlayer::activeTracksChanged, this, &CustomMediaPlayer::audioTracksChanged);
 }
 
+CustomMediaPlayer::~CustomMediaPlayer() {
+  m_quality->disconnect(this);
+  m_quality->cancel();
+  m_mediaPlayer->disconnect(this);
+  if (m_previewPlayer) {
+    m_previewPlayer->disconnect(this);
+    m_previewPlayer->setSource(QUrl());
+  }
+  m_mediaPlayer->stop();
+  m_mediaPlayer->setSource(QUrl());
+}
+
 SubtitleController *CustomMediaPlayer::subtitles() const { return m_subtitles; }
 
 bool CustomMediaPlayer::seekable() const { return m_mediaLoaded && m_mediaPlayer->isSeekable(); }
