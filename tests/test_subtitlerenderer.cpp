@@ -126,4 +126,26 @@ TEST_F(SubtitleRendererTest, RenderTimeIsLogged) {
     const double averageMs = static_cast<double>(timer.nsecsElapsed()) / 1e6 / frames;
     std::cout << "Average subtitle render at 1080p: " << averageMs << " ms" << std::endl;
     EXPECT_GT(averageMs, 0.0);
+
+    QList<ProbeEvent> animated;
+    for (int line = 0; line < 3; ++line) {
+        const QByteArray text = "{\\move(960," + QByteArray::number(700 + line * 110) + ",1000," + QByteArray::number(740 + line * 110) +
+                                ")\\blur3\\bord4\\fad(4000,4000)}The quick brown fox jumps over the lazy dog, line " + QByteArray::number(line + 1);
+        animated.append({30000, 10000, QByteArray::number(10 + line) + ",0,Default,,0,0,0,," + text});
+    }
+    engine.addEvents(animated);
+    engine.render(30000, frameSize);
+    timer.restart();
+    int changedFrames = 0;
+    double worstMs = 0;
+    for (int i = 0; i < frames; ++i) {
+        QElapsedTimer single;
+        single.start();
+        changedFrames += engine.render(30040 + i * 40, frameSize).changed ? 1 : 0;
+        worstMs = qMax(worstMs, static_cast<double>(single.nsecsElapsed()) / 1e6);
+    }
+    const double animatedMs = static_cast<double>(timer.nsecsElapsed()) / 1e6 / frames;
+    std::cout << "Three animated, blurred lines at 1080p: " << animatedMs << " ms average, " << worstMs << " ms worst, " << changedFrames << " of " << frames
+              << " frames redrawn" << std::endl;
+    EXPECT_EQ(changedFrames, frames);
 }

@@ -383,6 +383,29 @@ quality selection.
 **Limits**: no subtitles on live streams, none for closed captions carried inside the video, and
 cue positioning from the WebVTT file is not applied.
 
+## R20. HLS streams that stop after the first segment (FFmpeg 9.0 byte-range reuse)
+
+**Symptom**: Apple's `img_bipbop_adv_example_fmp4` sample plays about 6 seconds, the length of its
+first segment, and then ends. FFmpeg 6.1 plays it.
+
+**Cause**: FFmpeg 9.0 added connection reuse for consecutive `EXT-X-BYTERANGE` segments of one file
+(`open_input` in `libavformat/hls.c`, upstream commit `0616685b1`). It opens one request for the
+whole run and, for each following segment, calls `avio_seek(in, seg->url_offset, SEEK_SET)` with the
+segment's absolute offset in the file. The I/O context counts from the start of the request, not
+from the start of the file. When the first request starts at byte 0 the two agree. When an init
+section sits in front (719 bytes in that sample), the seek looks like a short forward skip, so that
+many bytes of real data are read and thrown away and every later segment is misaligned. The same
+code is in 9.0.1, 9.0.2 and upstream master as of 2026-10-05.
+
+**Confirmed** with local single-file streams served with range support, played through Qt 6.12's
+FFmpeg 9.0.1: MPEG-TS starting at byte 0 plays through; fMP4 with a 1333-byte init section stops
+after the first segment; MPEG-TS with its first segment removed (start at byte 130660) stalls once
+at the first boundary, where the seek is large enough to become a real request, then continues.
+
+**Status**: Not worked around. Qt offers no way to pass FFmpeg the options that would disable the
+reuse. A fix belongs in FFmpeg (seek relative to the offset the request started at); GAV could
+carry it as a patch to the FFmpeg it builds for the custom plugin.
+
 ## Open items
 
 None. Every Technical Context item is resolved above.
