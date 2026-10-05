@@ -208,7 +208,7 @@ chosen at compile time:
 - Hardware media keys reach the app through these OS services on all three platforms, so there's
   no need to grab keys globally.
 - Artwork comes from `QMediaMetaData::CoverArtImage`. MPRIS needs a URL, so the
-  image is written to `<CacheLocation>/nowplaying-<0|1>.png` (alternating, so the URL changes with the cover).
+  image is written to `<CacheLocation>/nowplaying-<n>.png` (a new name for each cover, so the URL changes with it).
 
 **Alternatives considered**: Global key hooks such as `RegisterHotKey` or X11 grabs. These conflict
 with other players and the OS's normal choice of which app gets the keys, and don't work on
@@ -306,7 +306,8 @@ file". Such lists carry attributes on `#EXTINF` lines whose quoted values contai
 
 **Decision**: When the user opens an `http(s)` address ending in `.m3u` or `.m3u8`, GAV downloads
 it with Qt Network (already linked; 10-second timeout, 32 MB cap). A document containing
-`#EXT-X-` tags is HLS and is played as one stream. Anything else is parsed as a playlist: relative
+`#EXT-X-` tags is HLS and is played as one stream. A document with an `#EXTM3U` header or
+`#EXTINF` lines is parsed as a playlist, and anything else is rejected as not a playlist: relative
 entries resolve against the address after redirects, and entries that are not `http(s)` are
 skipped so a remote list cannot point at local files. The `#EXTINF` title is whatever follows the
 first comma outside quotes, and it becomes the item name. If the download fails the TLS handshake,

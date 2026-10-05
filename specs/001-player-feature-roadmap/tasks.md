@@ -350,7 +350,7 @@ with no comments by default (Constitution: Development Workflow).
   - properties `playbackStatus`, `title`, `artist`, `album`, `durationMs`, `positionMs`, `artworkUrl`, `canGoNext`, `canGoPrevious`, `canSeek`
   - signals `playRequested`, `pauseRequested`, `playPauseRequested`, `stopRequested`, `nextRequested`, `previousRequested`, `seekRequested(qint64)`
   - a private `Backend` interface with a no-op implementation and a compile-time factory
-  - `setArtwork(QImage)`, which writes `<CacheLocation>/nowplaying-<0|1>.png` (alternating, so the URL changes with the cover) on a `QtConcurrent` worker and sets `artworkUrl` when the write finishes
+  - `setArtwork(QImage)`, which writes `<CacheLocation>/nowplaying-<n>.png` (a new name for each cover, so the URL changes with it) on a `QtConcurrent` worker and sets `artworkUrl` when the write finishes
   - if back-end setup fails, log a warning and fall back to no-op
 - [X] T061 [P] [US4] Create `mediasession_mpris.cpp` (Linux):
   - `QDBusAbstractAdaptor`s for `org.mpris.MediaPlayer2` and `org.mpris.MediaPlayer2.Player`, registered at `/org/mpris/MediaPlayer2` as `org.mpris.MediaPlayer2.gav`, falling back to `.instance<pid>`
@@ -384,7 +384,7 @@ with no comments by default (Constitution: Development Workflow).
 - [X] T068 [P] [US4] Create `OpenUrlDialog.qml`, a `Dialog` with a URL `TextField` that only accepts `http://` and `https://` schemes (inline error otherwise) and emits `urlAccepted(url)`.
 - [X] T069 [US4] Wire Open URL into `TitleBar.qml` and `Main.qml`:
   - add an "Open URL" item to `fileMenu`, plus a text-safe Ctrl+N `Shortcut`
-  - accepting the dialog calls `openUrls([url])`
+  - accepting the dialog calls `openAndPlay(url)`
   - `getMediaInfo` returns `{name: url or stream title, path: url, type: "stream", icon: ""}` for http(s) URLs
   - `streamError` and `errorOccurred` for streams show in the snackbar; an unreachable address errors within the 15 s budget (SC-010)
 - [X] T070 [US4] Update `main.cpp` and `instancemanager.cpp`:

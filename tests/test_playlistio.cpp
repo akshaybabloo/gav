@@ -211,8 +211,11 @@ TEST_F(PlaylistIOTest, RemotePlaylistResolvesRelativeEntriesAndSkipsLocalOnes) {
                             "#EXTINF:-1,Relative\r\n"
                             "channels/one.m3u8\r\n"
                             "#EXTINF:-1,Absolute\r\n"
-                            "https://other.example/two.mp4\r\n" +
-                            local.toUtf8() + "\r\n" + QUrl::fromLocalFile(local).toString().toUtf8() + "\r\nrtsp://example.org/three\r\n";
+                            "https://other.example/two.mp4\r\n"
+                            "/shared/three.mp4\r\n"
+                            "C:/Videos/four.mp4\r\n"
+                            "C:\\Videos\\five.mp4\r\n" +
+                            QUrl::fromLocalFile(local).toString().toUtf8() + "\r\nrtsp://example.org/six\r\n";
     const PlaylistReadResult result =
         PlaylistIO::parseRemote(data, QUrl("https://example.org/lists/index.m3u"), QUrl("https://cdn.example.org/lists/index.m3u"));
     ASSERT_TRUE(result.ok);
@@ -220,8 +223,8 @@ TEST_F(PlaylistIOTest, RemotePlaylistResolvesRelativeEntriesAndSkipsLocalOnes) {
     EXPECT_EQ(result.document.entries[0].location, QUrl("https://cdn.example.org/lists/channels/one.m3u8"));
     EXPECT_EQ(result.document.entries[0].title, "Relative");
     EXPECT_EQ(result.document.entries[1].location, QUrl("https://other.example/two.mp4"));
-    EXPECT_EQ(result.document.entries[2].location.host(), "cdn.example.org");
-    EXPECT_EQ(result.skippedUnsupported, 2);
+    EXPECT_EQ(result.document.entries[2].location, QUrl("https://cdn.example.org/shared/three.mp4"));
+    EXPECT_EQ(result.skippedUnsupported, 4);
     EXPECT_EQ(result.skippedMissing, 0);
 }
 
@@ -237,4 +240,16 @@ TEST_F(PlaylistIOTest, RemoteHlsPlaylistBecomesOneStreamEntry) {
         EXPECT_EQ(result.document.entries[0].location, source);
     }
     EXPECT_FALSE(PlaylistIO::isHlsPlaylist("#EXTM3U\n#EXTINF:-1,Channel\nhttp://example.org/a.m3u8\n"));
+}
+
+TEST_F(PlaylistIOTest, RemoteBodyWithoutPlaylistMarkersHasNoEntries) {
+    const QUrl source("https://example.org/lists/index.m3u");
+    for (const QByteArray &body : {QByteArray("<html>\n<body>Not found</body>\n</html>\n"), QByteArray("{\"error\":\"denied\"}\n"), QByteArray("Not found\n")}) {
+        const PlaylistReadResult result = PlaylistIO::parseRemote(body, source, source);
+        EXPECT_TRUE(result.document.entries.isEmpty());
+        EXPECT_EQ(result.skippedUnsupported, 0);
+    }
+    const PlaylistReadResult headerless = PlaylistIO::parseRemote("#EXTINF:-1,Channel\nlive/one.m3u8\n", source, source);
+    ASSERT_EQ(headerless.document.entries.size(), 1);
+    EXPECT_EQ(headerless.document.entries[0].title, "Channel");
 }

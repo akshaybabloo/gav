@@ -1,6 +1,8 @@
 #include "mediasession.h"
 
 #include <QDir>
+#include <QFile>
+#include <QSaveFile>
 #include <QStandardPaths>
 #include <QWindow>
 #include <QtConcurrent/QtConcurrentRun>
@@ -135,10 +137,20 @@ void MediaSession::setArtwork(const QImage &image) {
     }
 
     const QString directory = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
-    const QString path = QDir(directory).filePath(QStringLiteral("nowplaying-%1.png").arg(generation % 2));
-    QtConcurrent::run(&m_artworkWriter, [image, directory, path] {
+    const QString path = QDir(directory).filePath(QStringLiteral("nowplaying-%1.png").arg(generation));
+    const QString published = m_state.artworkUrl.toLocalFile();
+    QtConcurrent::run(&m_artworkWriter, [image, directory, path, published] {
         QDir().mkpath(directory);
-        return image.save(path, "PNG");
+        const QDir cache(directory);
+        const QStringList stale = cache.entryList({QStringLiteral("nowplaying-*.png")}, QDir::Files);
+        for (const QString &name : stale) {
+            const QString candidate = cache.filePath(name);
+            if (candidate != published && candidate != path) {
+                QFile::remove(candidate);
+            }
+        }
+        QSaveFile file(path);
+        return file.open(QIODevice::WriteOnly) && image.save(&file, "PNG") && file.commit();
     }).then(this, [this, generation, path](bool saved) {
         if (generation != m_artworkGeneration) {
             return;

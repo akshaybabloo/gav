@@ -20,7 +20,9 @@
 #include <winrt/Windows.Storage.Streams.h>
 #include <winrt/Windows.Storage.h>
 
+#include <atomic>
 #include <chrono>
+#include <memory>
 
 namespace {
 
@@ -190,14 +192,16 @@ private:
 
     void updateThumbnail(const QUrl &artworkUrl) {
         SystemMediaTransportControls controls = m_controls;
+        const std::shared_ptr<std::atomic<quint64>> current = m_thumbnailGeneration;
+        const quint64 generation = ++*current;
         if (!artworkUrl.isLocalFile()) {
             controls.DisplayUpdater().Thumbnail(nullptr);
             controls.DisplayUpdater().Update();
             return;
         }
         const auto operation = StorageFile::GetFileFromPathAsync(toHString(QDir::toNativeSeparators(artworkUrl.toLocalFile())));
-        operation.Completed([controls](const auto &sender, winrt::Windows::Foundation::AsyncStatus status) {
-            if (status != winrt::Windows::Foundation::AsyncStatus::Completed) {
+        operation.Completed([controls, current, generation](const auto &sender, winrt::Windows::Foundation::AsyncStatus status) {
+            if (status != winrt::Windows::Foundation::AsyncStatus::Completed || current->load() != generation) {
                 return;
             }
             try {
@@ -214,6 +218,7 @@ private:
     winrt::event_token m_positionToken{};
     MediaSessionState m_last;
     QElapsedTimer m_timelineClock;
+    std::shared_ptr<std::atomic<quint64>> m_thumbnailGeneration = std::make_shared<std::atomic<quint64>>(0);
 };
 
 }

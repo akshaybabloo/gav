@@ -140,7 +140,7 @@ QVariantList SubtitleController::tracks() const {
     for (const Track &track : m_tracks) {
         ++ordinal;
         result.append(QVariantMap{{QStringLiteral("id"), track.id},
-                                  {QStringLiteral("origin"), track.embedded ? QStringLiteral("embedded") : QStringLiteral("external")},
+                                  {QStringLiteral("origin"), track.embedded ? QStringLiteral("embedded") : track.remote ? QStringLiteral("stream") : QStringLiteral("external")},
                                   {QStringLiteral("language"), track.language},
                                   {QStringLiteral("title"), track.title},
                                   {QStringLiteral("displayName"), displayName(track, ordinal)},
@@ -285,8 +285,13 @@ void SubtitleController::activate(const QString &id, bool userChoice) {
     if (!id.isEmpty() && !track) {
         return;
     }
-    if (track && track->remote && !track->requested) {
+    if (track && track->remote && (!track->requested || track->state == State::Failed)) {
         track->requested = true;
+        if (track->state == State::Failed) {
+            m_headers.remove(track->id);
+            m_events.remove(track->id);
+            setState(track->id, State::Pending);
+        }
         m_probe->loadSubtitleFile(track->path);
     }
     m_activeId = id;

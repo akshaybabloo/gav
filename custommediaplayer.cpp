@@ -1000,7 +1000,7 @@ void CustomMediaPlayer::captureFrame() {
 }
 
 void CustomMediaPlayer::requestPreviewAt(qint64 position) {
-  if (!m_hasVideo || m_source.isEmpty() || m_manifest || position < 0) {
+  if (!m_hasVideo || !m_source.isLocalFile() || position < 0) {
     return;
   }
 

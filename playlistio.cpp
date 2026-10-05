@@ -178,6 +178,11 @@ PlaylistReadResult parseRemote(const QByteArray &data, const QUrl &source, const
         result.document.entries.append({source, QString(), -1});
         return result;
     }
+    if (!data.contains("#EXTM3U") && !data.contains("#EXTINF")) {
+        PlaylistReadResult result;
+        result.ok = true;
+        return result;
+    }
     return parseLines(data, QString(), {}, base);
 }
 

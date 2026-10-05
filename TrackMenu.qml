@@ -89,7 +89,7 @@ Button {
                             Layout.fillWidth: true
                             checked: modelData.id === subtitles.activeTrackId
                             enabled: !(modelData.loadState === "failed" && modelData.origin === "external")
-                            text: modelData.loadState === "failed" && modelData.origin === "external" ? modelData.displayName + qsTr(" (unreadable)") : modelData.displayName
+                            text: modelData.loadState !== "failed" || modelData.origin === "embedded" ? modelData.displayName : modelData.displayName + (modelData.origin === "stream" ? qsTr(" (failed, select to retry)") : qsTr(" (unreadable)"))
 
                             onClicked: subtitles.selectTrack(modelData.id)
                         }
