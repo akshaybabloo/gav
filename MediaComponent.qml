@@ -425,6 +425,14 @@ Item {
             }
         }
     }
+    Connections {
+        function onPlaylistOverlayOpenChanged() {
+            if (!mainWindow.playlistOverlayOpen && customMediaPlayer.playbackState === MediaPlayer.PlayingState)
+                hideControlsTimer.restart();
+        }
+
+        target: mainWindow
+    }
     Timer {
         id: hideControlsTimer
 
@@ -432,7 +440,7 @@ Item {
         repeat: false
 
         onTriggered: {
-            if (!mainWindow.mediaControlsContainsMouse) {
+            if (!mainWindow.mediaControlsContainsMouse && !mainWindow.playlistOverlayOpen) {
                 controlsAreVisible = false;
                 mouseArea.lastPos = Qt.point(-1, -1); // Reset position detector
             }

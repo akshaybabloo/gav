@@ -9,8 +9,8 @@ What the user can rely on. Covers FR-001 to FR-005, FR-008, FR-013, FR-019 to FR
 | Nothing loaded, or audio only | Fills the content area (as today). Always shown. |
 | Video showing, panel closed | Not shown. |
 | Video showing, panel open | Panel on the right edge over the video. The rest of the picture stays visible. |
-| Window narrower than 560 px with video showing | Panel takes the full width and shows a close button in its header. |
-| Full screen | Same as windowed. The control bar does not auto-hide while the panel is open. |
+| Window narrower than 560 px with video showing | Panel takes the full width and shows a close button in its header. The window's own minimum width is 640 px, so this happens only where the window manager makes it narrower (tiling, screen split). |
+| Full screen | Same as windowed. The title bar and control bar do not auto-hide while the panel is open; they hide again after it closes. |
 | Mini player | No playlist. Unchanged. |
 
 Panel width: default 360 px, between 280 px and 60 % of the window width, changed by dragging the
@@ -33,7 +33,7 @@ list scrolls only if the panel is open and the user is not interacting with it.
 ## Panel content, top to bottom
 
 1. **Header**: title "Playlist" with the entry count, or "N of M" while a search or filter is
-   active. Buttons: shuffle, save, more (remove duplicates, clear, collage, show channel logos).
+   active. Buttons: shuffle, save, collage, more (remove duplicates, clear, show channel logos).
 2. **Search row**: search field with a clear button; filter (All, Local files, Streams);
    sort (Playlist order, Title, Duration); group toggle, shown only when entries have groups.
 3. **List**: entry rows and, when grouping is on, group header rows.

@@ -21,7 +21,8 @@ ApplicationWindow {
     readonly property bool hasPreviousItem: appSettings.shuffle ? shuffleOrder.canGoBack : playlistView.canGoPrevious
     property bool restoringSession: false
     readonly property url sessionPlaylistUrl: StandardPaths.writableLocation(StandardPaths.AppDataLocation) + "/session.m3u8"
-    property bool playlistManualVisible: false
+    readonly property bool playlistOverlay: mediaComponent.isVideoAndPlaying || loadingScreen.visible
+    readonly property bool playlistOverlayOpen: playlistOverlay && appSettings.playlistPanelOpen
     property int repeatMode: 0
     readonly property bool dialogOpen: aboutDialog.opened || playbackErrorDialog.opened || updateDialog.opened || settingsDialog.opened || resumeDialog.opened || goToTimeDialog.opened || openUrlDialog.opened
     readonly property bool shortcutsEnabled: !textInputFocused && !dialogOpen
@@ -292,6 +293,11 @@ ApplicationWindow {
             item.anchors.fill = mediaControlsComponentLoader
     }
 
+    onPlaylistOverlayOpenChanged: {
+        if (playlistOverlayOpen)
+            mediaComponent.controlsAreVisible = true;
+    }
+
     Component.onCompleted: {
         isDarkTheme = appSettings.isDarkTheme;
         MediaSession.initialise(mainWindow);
@@ -321,6 +327,8 @@ ApplicationWindow {
         property bool checkUpdatesOnStartup: true
         property bool isDarkTheme: true
         property real playbackRate: 1.0
+        property bool playlistPanelOpen: false
+        property int playlistPanelWidth: AppConstants.playlistPanelDefaultWidth
         property string preferredAudioLanguage: ""
         property string preferredSubtitleLanguage: ""
         property bool rememberPositions: false
@@ -1483,10 +1491,22 @@ ApplicationWindow {
         }
         Shortcut {
             context: Qt.ApplicationShortcut
-            enabled: mainWindow.shortcutsEnabled && mainWindow.visibility === Window.FullScreen
+            enabled: mainWindow.shortcutsEnabled && (mainWindow.playlistOverlayOpen || mainWindow.visibility === Window.FullScreen)
             sequence: "Esc"
 
-            onActivated: mainWindow.visibility = Window.Windowed
+            onActivated: {
+                if (mainWindow.playlistOverlayOpen)
+                    appSettings.playlistPanelOpen = false;
+                else
+                    mainWindow.visibility = Window.Windowed;
+            }
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: mainWindow.shortcutsEnabled
+            sequence: "Ctrl+L"
+
+            onActivated: appSettings.playlistPanelOpen = !appSettings.playlistPanelOpen
         }
         Shortcut {
             context: Qt.ApplicationShortcut
@@ -1618,18 +1638,39 @@ ApplicationWindow {
             }
         }
     }
-    PlayListComponent {
-        id: playlistComponent
+    MouseArea {
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        anchors.bottom: playlistPanel.bottom
+        anchors.left: parent.left
+        anchors.right: playlistPanel.left
+        anchors.top: playlistPanel.top
+        visible: mainWindow.playlistOverlayOpen && !playlistPanel.narrow
+        z: 60
+
+        onClicked: appSettings.playlistPanelOpen = false
+    }
+    PlaylistPanel {
+        id: playlistPanel
 
         anchors.bottom: parent.bottom
-        anchors.left: parent.left
+        anchors.bottomMargin: mainWindow.visibility === Window.FullScreen ? fullscreenMediaControlsComponentLoader.height : 0
         anchors.right: parent.right
-        anchors.top: mainWindow.visibility === Window.FullScreen ? parent.top : titleBar.bottom
+        anchors.top: mainWindow.visibility === Window.FullScreen && !overlay ? parent.top : titleBar.bottom
         collageTarget: collage
+        narrow: overlay && mainWindow.width < AppConstants.playlistNarrowWindowWidth
+        overlay: mainWindow.playlistOverlay
         playList: playList
         playlistView: playlistView
         shuffleEnabled: appSettings.shuffle
-        visible: (!mediaComponent.isVideoAndPlaying && !loadingScreen.visible) || mainWindow.playlistManualVisible
+        visible: overlay ? appSettings.playlistPanelOpen : true
+        width: !overlay || narrow ? parent.width : Math.max(AppConstants.playlistPanelMinWidth, Math.min(appSettings.playlistPanelWidth, mainWindow.width * AppConstants.playlistPanelMaxFraction))
+        z: overlay ? 60 : 0
+
+        onCloseRequested: appSettings.playlistPanelOpen = false
+        onSaveRequested: savePlaylistDialog.open()
+        onWidthRequested: function (requestedWidth) {
+            appSettings.playlistPanelWidth = Math.round(Math.max(AppConstants.playlistPanelMinWidth, Math.min(requestedWidth, mainWindow.width * AppConstants.playlistPanelMaxFraction)));
+        }
 
         onItemSelected: function (path, name) {
             if (appSettings.shuffle)
@@ -1690,6 +1731,7 @@ ApplicationWindow {
             hasPreviousTrack: mainWindow.hasPreviousItem
             playlistCount: playList.count
             playlistCurrentIndex: playList.currentRow
+            playlistOpen: appSettings.playlistPanelOpen
             repeatMode: mainWindow.repeatMode
             videoOutput: mediaComponent.videoOutput
 
@@ -1711,7 +1753,7 @@ ApplicationWindow {
             }
             onGoToTimeRequested: goToTimeDialog.open()
             onNextTrack: mainWindow.nextItem()
-            onPlaylistToggleRequested: mainWindow.playlistManualVisible = !mainWindow.playlistManualVisible
+            onPlaylistToggleRequested: appSettings.playlistPanelOpen = !appSettings.playlistPanelOpen
             onPreviousTrack: mainWindow.previousItem()
         }
     }
