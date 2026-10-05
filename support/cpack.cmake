@@ -24,6 +24,22 @@ if(GAV_QTMULTIMEDIA_PLUGIN)
         set(_gav_qtmm_dest "plugins/multimedia")
     endif()
     install(FILES "${_gav_qtmm_plugin}" DESTINATION "${_gav_qtmm_dest}")
+
+    install(CODE [[
+        set(_gav_prefix "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}")
+        set(_gav_unused "")
+        foreach(_gav_name avcodec avformat avutil swresample swscale)
+            file(GLOB _gav_found
+                "${_gav_prefix}/lib/lib${_gav_name}.so*"
+                "${_gav_prefix}/bin/${_gav_name}-*.dll"
+                "${_gav_prefix}/gav.app/Contents/Frameworks/lib${_gav_name}.*dylib")
+            list(APPEND _gav_unused ${_gav_found})
+        endforeach()
+        if(_gav_unused)
+            message(STATUS "Removing unused shared FFmpeg libraries: ${_gav_unused}")
+            file(REMOVE ${_gav_unused})
+        endif()
+    ]])
 endif()
 
 # Enable support for packing using CPack
