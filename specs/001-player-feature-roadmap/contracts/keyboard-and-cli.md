@@ -32,7 +32,7 @@ This table is the source of truth for the shortcuts reference in `SettingsDialog
 | B | Cycle audio track | Audio tracks | New |
 | G / H | Subtitle delay −100 ms / +100 ms | Subtitles | New |
 | Ctrl+O | Open file… | Global, text-safe | New |
-| Ctrl+N | Open URL… | Global, text-safe | New |
+| Ctrl+N | Open URL | Global, text-safe | New |
 
 **Rules**
 

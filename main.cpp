@@ -50,7 +50,23 @@ static QUrl collagePathToUrl(const QString &path) {
     return QUrl::fromLocalFile(QDir::current().absoluteFilePath(path));
 }
 
-static QUrl sourcePathToUrl(const QString &sourceValue) {
+static bool hasUrlScheme(const QString &value) {
+    static const QRegularExpression urlWithAuthority(R"(^[A-Za-z][A-Za-z0-9+.-]*://)");
+    return urlWithAuthority.match(value).hasMatch();
+}
+
+static QUrl sourcePathToUrl(const QString &sourceValue, bool *unsupportedScheme) {
+    if (hasUrlScheme(sourceValue)) {
+        const QUrl url(sourceValue);
+        const QString scheme = url.scheme().toLower();
+        if (url.isValid() && (scheme == QLatin1String("http") || scheme == QLatin1String("https") || url.isLocalFile())) {
+            return url;
+        }
+        std::cerr << "Unsupported address (only http and https streams can be opened): " << sourceValue.toStdString() << std::endl;
+        *unsupportedScheme = true;
+        return {};
+    }
+
     QFileInfo fileInfo(sourceValue);
 
     if (fileInfo.isRelative()) {
@@ -213,6 +229,10 @@ int main(int argc, char *argv[]) {
         QStringList expandedPaths;
         
         for (const QString &path : collagePaths) {
+            if (hasUrlScheme(path) && !QUrl(path).isLocalFile()) {
+                std::cerr << "Collage needs local files; skipping " << path.toStdString() << std::endl;
+                continue;
+            }
             QFileInfo pathInfo(path);
             
             if (pathInfo.isDir()) {
@@ -354,8 +374,9 @@ int main(int argc, char *argv[]) {
     }
 
     QList<QUrl> sourceUrls;
+    bool unsupportedScheme = false;
     for (const QString &sourceValue : sourceValues) {
-        const QUrl sourceURL = sourcePathToUrl(sourceValue);
+        const QUrl sourceURL = sourcePathToUrl(sourceValue, &unsupportedScheme);
         if (!sourceURL.isEmpty() && sourceURL.isValid()) {
             sourceUrls.append(sourceURL);
             logger->info("Loading source: '{}'", sourceURL.toString().toStdString());
@@ -364,7 +385,11 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    InstanceManager instanceManager;
+    if (unsupportedScheme && sourceUrls.isEmpty()) {
+        return 2;
+    }
+
+    InstanceManager instanceManager(nullptr);
     if (!instanceManager.start(sourceUrls)) {
         return 0;
     }

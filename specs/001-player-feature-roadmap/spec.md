@@ -100,7 +100,7 @@ A user listening to music or a podcast in GAV while working in another applicati
 1. **Given** GAV is playing and not focused, **When** the user presses the hardware play/pause media key, **Then** playback toggles.
 2. **Given** a playlist with multiple items, **When** the user presses the next or previous media key, **Then** GAV moves to the next or previous item.
 3. **Given** media is playing, **When** the user opens the operating system's now-playing panel, **Then** it shows the current title (and artist/album and artwork when the file has them), and its play/pause/next/previous controls operate GAV.
-4. **Given** the user chooses "Open URL…" and enters a reachable HTTP(S) media or stream address, **When** they confirm, **Then** playback begins and the item appears in the playlist under its URL or stream title.
+4. **Given** the user chooses "Open URL" and enters a reachable HTTP(S) media or stream address, **When** they confirm, **Then** playback begins and the item appears in the playlist under its URL or stream title.
 5. **Given** an unreachable or unsupported URL, **When** the user tries to open it, **Then** GAV shows a clear error message and stays responsive.
 
 ---
@@ -192,6 +192,9 @@ A user listening to music or a podcast in GAV while working in another applicati
 - **FR-029**: Users MUST be able to open a media stream by entering an HTTP or HTTPS URL.
 - **FR-030**: The system MUST show a clear error when a URL cannot be opened or a stream is interrupted, without freezing the interface.
 - **FR-031**: Live streams without a known duration MUST be indicated as live, and seeking MUST be disabled for them.
+- **FR-031a**: When playback stalls waiting for data, the system MUST show a buffering indicator within about one second and remove it as soon as playback continues. The video and controls stay usable while it is shown.
+- **FR-031b**: For a stream that offers several qualities, the system MUST play only one of them, list every video quality the stream offers (and every audio format, when it offers several) in a drop-down, and let the user switch at any time without losing the playback position. By default the quality is chosen automatically from a short download-speed check and the screen size; when the speed cannot be measured the middle quality is used.
+- **FR-031c**: For an on-demand stream that lists subtitle tracks, the system MUST show those tracks in the subtitle menu and display the chosen one in sync with playback. They are loaded only when the user picks one. Live streams do not offer them.
 
 **Cross-cutting**
 

@@ -44,7 +44,7 @@ QtObject {
 
     // Navigation and streaming constants (in milliseconds)
     readonly property int chapterPreviousThreshold: 3000
-    readonly property int streamLoadTimeout: 15000
+    readonly property int streamLoadTimeout: 120000
 
     // Seek constants (in milliseconds)
     readonly property int seekStep: 5000
@@ -86,7 +86,8 @@ QtObject {
         { "keys": "Esc", "action": qsTr("Exit full-screen") },
         { "keys": "Ctrl+Scroll", "action": qsTr("Zoom") },
         { "keys": "I", "action": qsTr("Stats for nerds") },
-        { "keys": "Ctrl+O", "action": qsTr("Open file") }
+        { "keys": "Ctrl+O", "action": qsTr("Open file") },
+        { "keys": "Ctrl+N", "action": qsTr("Open URL") }
     ]
 
     // Helper functions

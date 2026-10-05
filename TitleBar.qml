@@ -20,6 +20,7 @@ Rectangle {
     signal exitRequested
     signal openFileRequested
     signal openPlaylistRequested
+    signal openUrlRequested
     signal openRecentRequested(url url)
     signal recentFileMissing(string path)
     signal savePlaylistRequested
@@ -140,6 +141,11 @@ Rectangle {
 
                         onTriggered: root.openFileRequested()
                     }
+                    Action {
+                        text: qsTr("Open URL")
+
+                        onTriggered: root.openUrlRequested()
+                    }
                     RecentFilesMenu {
                         onMissingFile: function (path) {
                             fileMenu.close();
@@ -153,12 +159,12 @@ Rectangle {
                     MenuSeparator {
                     }
                     Action {
-                        text: qsTr("Open Playlist…")
+                        text: qsTr("Open Playlist")
 
                         onTriggered: root.openPlaylistRequested()
                     }
                     Action {
-                        text: qsTr("Save Playlist…")
+                        text: qsTr("Save Playlist")
 
                         onTriggered: root.savePlaylistRequested()
                     }

@@ -464,7 +464,7 @@ Item {
                         }
 
                         onClicked: {
-                            repeatMode = (repeatMode + 1) % 4;
+                            repeatMode = (repeatMode + 1) % (player.isLive ? 3 : 4);
                             if (repeatMode === 3 && player.duration > 0 && seekBar.rangeSlider) {
                                 seekBar.rangeSlider.setValues(0, player.duration);
                             }
@@ -541,6 +541,9 @@ Item {
                         sourceUrls: player.hasVideo ? [player.source] : []
                     }
                     TrackMenu {
+                        player: root.player
+                    }
+                    QualityMenu {
                         player: root.player
                     }
                     BrightnessContrastPopup {

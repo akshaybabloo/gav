@@ -207,8 +207,8 @@ chosen at compile time:
 
 - Hardware media keys reach the app through these OS services on all three platforms, so there's
   no need to grab keys globally.
-- Artwork comes from `QMediaMetaData::CoverArtImage`/`ThumbnailImage`. MPRIS needs a URL, so the
-  image is written to `<CacheLocation>/nowplaying.png`.
+- Artwork comes from `QMediaMetaData::CoverArtImage`. MPRIS needs a URL, so the
+  image is written to `<CacheLocation>/nowplaying-<n>.png` (a new name for each cover, so the URL changes with it).
 
 **Alternatives considered**: Global key hooks such as `RegisterHotKey` or X11 grabs. These conflict
 with other players and the OS's normal choice of which app gets the keys, and don't work on
@@ -227,8 +227,9 @@ streams would fail with the custom plugin.
 - `QMediaPlayer::setSource(QUrl("https://…"))` handles HTTP(S) files and HLS.
 - Command-line arguments and the single-instance hand-off accept `http`/`https` URLs alongside
   files.
-- Errors come from `QMediaPlayer::errorOccurred`. A 15-second watchdog covers the time between
-  `LoadingMedia` and `LoadedMedia`, to meet SC-010.
+- Errors come from `QMediaPlayer::errorOccurred`. SC-010 is met by setting
+  `QPlaybackOptions::networkTimeout` to 10 seconds, which FFmpeg applies to each connection and
+  read. A 120-second watchdog between `LoadingMedia` and `LoadedMedia` is only a backstop (R16).
 
 **Alternatives considered**: GnuTLS (larger dependency tree) or Secure Transport on macOS (Apple
 has deprecated it).
@@ -258,6 +259,129 @@ into an inline message. This is a pure function, `PlaybackUtils::parseTime`.
   (e.g. "Start over" in the resume prompt).
 - `Ctrl+T`, `Ctrl+O` and `Ctrl+N` keep working while text fields have focus, because they open
   dialogs.
+
+## R15. Buffering indicator and buffered range (FR-031a)
+
+**Findings** (measured against Qt 6.12 with a local HTTP server that stalls mid-file)
+
+- When a stream runs out of data, the FFmpeg backend keeps reporting `BufferedMedia` and
+  `PlayingState`; the position simply stops. `BufferingMedia` only appears for the first moments
+  after `play()`, while playback is already advancing.
+- `bufferProgress` is only ever 0.25 or 1, and `bufferedTimeRange()` is always empty.
+- The backend reads ahead at most 4 seconds or 32 MB.
+
+**Decision**: Detect stalls directly. `CustomMediaPlayer::buffering` turns on when the state is
+playing and the position has not moved for 750 ms (polled every 250 ms), and off as soon as it
+moves, playback stops, or the media ends. The main and mini players show a spinner from it.
+
+**Rejected**: A buffered-range bar on the seek slider. Qt exposes no range, and a 4-second
+read-ahead would be an invisible sliver on most videos. It would need a qtmultimedia patch that
+exposes the demuxer's buffered duration and raises its limit, which would not work with Qt's
+stock plugin in local development.
+
+## R16. HLS master playlists and the load deadline
+
+**Findings** (measured against Qt 6.12 with a public eight-variant HLS master playlist on a slow
+server)
+
+- FFmpeg opens and probes every variant before the media counts as loaded. That took about 40
+  seconds, so the original 15-second overall watchdog stopped a stream that was loading normally.
+- A dead address or a server that accepts and never answers fails in about 10 seconds through the
+  network timeout alone.
+- After loading, Qt plays the first video and audio track (the lowest quality in that playlist)
+  and never marks the other streams as discarded, so FFmpeg keeps downloading every variant.
+  Playback advanced about 8 seconds in 45. A single variant's playlist loads in about 5 seconds
+  and plays close to real time.
+
+**Decision**: The per-operation network timeout carries SC-010 and the overall watchdog becomes a
+120-second backstop. An "Opening stream…" indicator shows while a network source is loading.
+
+**Follow-up**: R18 makes GAV choose one variant itself.
+
+## R17. Remote playlists
+
+**Findings**: FFmpeg only understands HLS at an `.m3u`/`.m3u8` address, so a plain list of channels
+or files (for example an IPTV index with about 11 000 entries, 2.5 MB) fails with "Could not open
+file". Such lists carry attributes on `#EXTINF` lines whose quoted values contain commas.
+
+**Decision**: When the user opens an `http(s)` address ending in `.m3u` or `.m3u8`, GAV downloads
+it with Qt Network (already linked; 10-second timeout, 32 MB cap). A document containing
+`#EXT-X-` tags is HLS and is played as one stream. A document with an `#EXTM3U` header or
+`#EXTINF` lines is parsed as a playlist, and anything else is rejected as not a playlist: relative
+entries resolve against the address after redirects, and entries that are not `http(s)` are
+skipped so a remote list cannot point at local files. The `#EXTINF` title is whatever follows the
+first comma outside quotes, and it becomes the item name. If the download fails the TLS handshake,
+or no TLS backend is available, the address is handed to the player unchanged.
+
+**Not covered**: per-entry options such as `#EXTVLCOPT` and `http-user-agent`, so channels that
+need them will not play.
+
+## R18. Stream quality selection (FR-031b)
+
+**Findings**
+
+- Qt offers no way to make FFmpeg skip the unselected variants of a master playlist, and FFmpeg
+  refuses a rewritten one-variant master handed over as a `data:` address or a local file.
+- Handing FFmpeg a single variant's own playlist works: the eight-variant test stream starts in
+  about 9 seconds instead of 45 and plays in real time.
+- Nothing in Qt reports connection speed. `QNetworkInformation` only gives the transport type.
+- `QMediaPlayer::setSource` stops the old media first, which reports `LoadedMedia` for it, so
+  resume state has to be armed after the call.
+
+**Decision**: For an `http(s)` address ending in `.m3u8` or `.m3u`, `StreamQuality` downloads the
+master playlist and `Hls::parseMaster` lists every video rendition (best first, labelled by height,
+with the codec or bitrate added when a height occurs more than once) and every audio group as an
+audio format (AAC first, named from the codec and channel count). Nothing is merged or dropped
+from the lists. The player's `source` stays the address the user opened.
+
+- When audio is muxed into the variants, Qt plays the chosen variant's own playlist.
+- When audio comes from separate playlists, `Hls::playback` builds a master playlist that holds
+  only the chosen video rendition and the chosen audio group (all of its languages, default
+  first, addresses made absolute). Qt reads it from memory through
+  `QMediaPlayer::setSourceDevice`, with the opened address as the name so FFmpeg recognises HLS.
+  A 65-variant sample (13 video renditions, 5 audio formats) starts in about 2 seconds this way.
+
+Automatic choice measures download speed on the best variant that fits the screen, because its
+segments are the largest. It downloads segments from the middle of that variant's playlist, one
+after another, for up to 5 seconds or 60 MB (8 seconds overall, counting the wait for the first
+byte), and stops after half a second if the rate already
+covers that variant. It then picks the best variant whose `BANDWIDTH` × 1.5 fits the measured rate
+and whose height fits the screen. If the measurement fails, the middle variant is used. (Sampling
+only the first segment of the middle variant gave 1 to 10 Mbit/s on a fast connection when that
+segment was a few dozen kilobytes.) A manual choice lasts for the current stream. Switching quality
+or audio format reloads and restores the position and play state.
+
+**Limits**
+
+- Streams whose address has no `.m3u8`/`.m3u` ending are not inspected.
+- The quality does not adapt during playback.
+- Seek-bar previews are off while a stream plays from an in-memory playlist.
+
+## R19. Subtitles on HLS streams (FR-031c)
+
+**Findings**
+
+- A master playlist lists WebVTT subtitle tracks as `#EXT-X-MEDIA:TYPE=SUBTITLES` entries, each
+  with its own playlist address. The probe's FFmpeg opens such an address directly and returns
+  every cue with the time written in the file. It downloads all segments while opening, so the
+  cues arrive together (about 4 seconds for 100 segments from one server, 19 from another).
+- For on-demand streams those cue times match the player position. For a live channel they are
+  relative to the current clip while the player position starts at zero when the stream is opened,
+  and Qt does not expose the stream's start timestamp, so they cannot be lined up.
+
+**Decision**: `Hls::parseMaster` collects the subtitle tracks (http(s) addresses only).
+`CustomMediaPlayer` hands them to `SubtitleController::setStreamTracks` once the media has loaded
+with a duration and is seekable. A track is fetched when the user selects it:
+`MediaProbe::loadSubtitleFile` accepts an address, the probe skips encoding detection and stream
+analysis for it, and the inactivity watchdog is 120 seconds for these loads. Rendering, delay and
+size work as for any other subtitle track. Tracks are not selected automatically.
+
+**Also changed**: an audio group counts as separate audio only when its default entry has its own
+playlist, so streams whose default audio is muxed (with an alternate track on the side) get
+quality selection.
+
+**Limits**: no subtitles on live streams, none for closed captions carried inside the video, and
+cue positioning from the WebVTT file is not applied.
 
 ## Open items
 

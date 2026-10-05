@@ -20,6 +20,7 @@ class MediaProbe : public QObject {
 public:
     static constexpr int helloTimeoutMs = 5000;
     static constexpr int idleTimeoutMs = 30000;
+    static constexpr int remoteIdleTimeoutMs = 120000;
     static constexpr qsizetype maxLineBytes = 16 * 1024 * 1024;
 
     explicit MediaProbe(QObject *parent = nullptr);
@@ -57,7 +58,7 @@ private:
         QString errorDetail;
     };
 
-    void launch(const QStringList &arguments, const QStringList &expectedSources);
+    void launch(const QStringList &arguments, const QStringList &expectedSources, int idleTimeout = idleTimeoutMs);
     void readOutput(Run *run);
     void readErrors(Run *run);
     void handleMessage(Run *run, const ProbeMessage &message, QList<QPair<QString, QList<ProbeEvent>>> &pending);

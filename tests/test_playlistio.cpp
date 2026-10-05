@@ -191,3 +191,65 @@ TEST_F(PlaylistIOTest, VariantConversionKeepsOrderAndCurrentIndex) {
     EXPECT_EQ(document.entries[1].location, QUrl("https://example.org/live"));
     EXPECT_EQ(document.currentIndex, 1);
 }
+
+TEST_F(PlaylistIOTest, ExtinfTitleFollowsQuotedAttributes) {
+    const PlaylistReadResult result = parse("#EXTM3U\n"
+                                            "#EXTINF:-1 tvg-id=\"One.ua\" http-user-agent=\"Mozilla/5.0 (KHTML, like Gecko)\" group-title=\"General\",1+1, International\n"
+                                            "http://example.org/one.m3u8\n"
+                                            "#EXTINF:9.6,Fractional\n"
+                                            "http://example.org/two.ts\n");
+    ASSERT_EQ(result.document.entries.size(), 2);
+    EXPECT_EQ(result.document.entries[0].title, "1+1, International");
+    EXPECT_EQ(result.document.entries[0].durationSec, -1);
+    EXPECT_EQ(result.document.entries[1].title, "Fractional");
+    EXPECT_EQ(result.document.entries[1].durationSec, 10);
+}
+
+TEST_F(PlaylistIOTest, RemotePlaylistResolvesRelativeEntriesAndSkipsLocalOnes) {
+    const QString local = touch("a.mp4");
+    const QByteArray data = "#EXTM3U\r\n"
+                            "#EXTINF:-1,Relative\r\n"
+                            "channels/one.m3u8\r\n"
+                            "#EXTINF:-1,Absolute\r\n"
+                            "https://other.example/two.mp4\r\n"
+                            "/shared/three.mp4\r\n"
+                            "C:/Videos/four.mp4\r\n"
+                            "C:\\Videos\\five.mp4\r\n" +
+                            QUrl::fromLocalFile(local).toString().toUtf8() + "\r\nrtsp://example.org/six\r\n";
+    const PlaylistReadResult result =
+        PlaylistIO::parseRemote(data, QUrl("https://example.org/lists/index.m3u"), QUrl("https://cdn.example.org/lists/index.m3u"));
+    ASSERT_TRUE(result.ok);
+    ASSERT_EQ(result.document.entries.size(), 3);
+    EXPECT_EQ(result.document.entries[0].location, QUrl("https://cdn.example.org/lists/channels/one.m3u8"));
+    EXPECT_EQ(result.document.entries[0].title, "Relative");
+    EXPECT_EQ(result.document.entries[1].location, QUrl("https://other.example/two.mp4"));
+    EXPECT_EQ(result.document.entries[2].location, QUrl("https://cdn.example.org/shared/three.mp4"));
+    EXPECT_EQ(result.skippedUnsupported, 4);
+    EXPECT_EQ(result.skippedMissing, 0);
+}
+
+TEST_F(PlaylistIOTest, RemoteHlsPlaylistBecomesOneStreamEntry) {
+    const QUrl source("https://example.org/live/master.m3u8");
+    const QByteArray master = "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=288000\nlow/index.m3u8\n";
+    const QByteArray media = "#EXTM3U\r\n#EXT-X-TARGETDURATION:10\r\n#EXTINF:9.6,\r\nsegment0.ts\r\n";
+    for (const QByteArray &data : {master, media}) {
+        EXPECT_TRUE(PlaylistIO::isHlsPlaylist(data));
+        const PlaylistReadResult result = PlaylistIO::parseRemote(data, source, QUrl("https://cdn.example.org/live/master.m3u8"));
+        ASSERT_TRUE(result.ok);
+        ASSERT_EQ(result.document.entries.size(), 1);
+        EXPECT_EQ(result.document.entries[0].location, source);
+    }
+    EXPECT_FALSE(PlaylistIO::isHlsPlaylist("#EXTM3U\n#EXTINF:-1,Channel\nhttp://example.org/a.m3u8\n"));
+}
+
+TEST_F(PlaylistIOTest, RemoteBodyWithoutPlaylistMarkersHasNoEntries) {
+    const QUrl source("https://example.org/lists/index.m3u");
+    for (const QByteArray &body : {QByteArray("<html>\n<body>Not found</body>\n</html>\n"), QByteArray("{\"error\":\"denied\"}\n"), QByteArray("Not found\n")}) {
+        const PlaylistReadResult result = PlaylistIO::parseRemote(body, source, source);
+        EXPECT_TRUE(result.document.entries.isEmpty());
+        EXPECT_EQ(result.skippedUnsupported, 0);
+    }
+    const PlaylistReadResult headerless = PlaylistIO::parseRemote("#EXTINF:-1,Channel\nlive/one.m3u8\n", source, source);
+    ASSERT_EQ(headerless.document.entries.size(), 1);
+    EXPECT_EQ(headerless.document.entries[0].title, "Channel");
+}

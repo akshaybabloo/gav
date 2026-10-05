@@ -62,7 +62,7 @@ QString tag(const AVDictionary *dictionary, const char *name) {
     return entry ? QString::fromUtf8(entry->value) : QString();
 }
 
-FormatPtr openFormat(const QString &path, QString *error) {
+FormatPtr openFormat(const QString &path, QString *error, bool analyse = true) {
     AVFormatContext *raw = nullptr;
     const QByteArray encoded = path.toUtf8();
     int result = avformat_open_input(&raw, encoded.constData(), nullptr, nullptr);
@@ -71,6 +71,9 @@ FormatPtr openFormat(const QString &path, QString *error) {
         return {};
     }
     FormatPtr format(raw);
+    if (!analyse) {
+        return format;
+    }
     result = avformat_find_stream_info(format.get(), nullptr);
     if (result < 0) {
         *error = errorString(result);
@@ -340,14 +343,15 @@ bool ProbeWorker::probeMedia(const ProbeOptions &options, MediaContext &context,
 }
 
 void ProbeWorker::probeExternal(const QString &path) {
-    const QString absolute = QFileInfo(path).absoluteFilePath();
+    const bool remote = isRemoteSubtitleSource(path);
+    const QString absolute = remote ? path : QFileInfo(path).absoluteFilePath();
     const QString source = QStringLiteral("external:") + absolute;
     const auto fail = [&](const QString &detail) {
         m_writer(ProbeMessage::warning(QStringLiteral("source-failed"), source + QLatin1Char('\t') + detail));
     };
 
     QByteArray charset;
-    {
+    if (!remote) {
         QFile file(absolute);
         if (!file.open(QIODevice::ReadOnly)) {
             fail(file.errorString());
@@ -357,7 +361,7 @@ void ProbeWorker::probeExternal(const QString &path) {
     }
 
     QString error;
-    FormatPtr format = openFormat(absolute, &error);
+    FormatPtr format = openFormat(absolute, &error, !remote);
     if (!format) {
         fail(error);
         return;
@@ -386,7 +390,7 @@ void ProbeWorker::probeExternal(const QString &path) {
         return;
     }
 
-    const qint64 startOffsetUs = format->start_time != AV_NOPTS_VALUE && format->start_time > 0 ? format->start_time : 0;
+    const qint64 startOffsetUs = !remote && format->start_time != AV_NOPTS_VALUE && format->start_time > 0 ? format->start_time : 0;
     m_writer(ProbeMessage::header(source, headerOf(decoder.get()), QString::fromLatin1(charset)));
 
     PacketPtr packet(av_packet_alloc());

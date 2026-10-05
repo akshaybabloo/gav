@@ -33,7 +33,7 @@ This plan adds four independently shippable capabilities to GAV:
 |------|---------|
 | **Language/Version** | C++20 and QML (Qt 6.12) |
 | **Primary Dependencies** | Qt 6.12: Core, Gui, Quick, Qml, Multimedia, Widgets, Concurrent, Network, and DBus (new, Linux only). vcpkg: `ffmpeg` 9.0.1 (`avformat`, `avcodec`, `avutil` now also linked into `gav`; new features `iconv` and `openssl` on Linux/macOS), `libass` 0.17.5 (new), `uchardet` (new), `spdlog`, `fmt`, `gtest`. Platform: C++/WinRT SMTC (Windows), `MediaPlayer.framework` (macOS). |
-| **Storage** | Existing QML `Settings` for preferences. `<AppDataLocation>/history.json` for positions and recent files. `<AppDataLocation>/session.m3u8` for the last-session playlist. `<CacheLocation>/nowplaying.png` for artwork. |
+| **Storage** | Existing QML `Settings` for preferences. `<AppDataLocation>/history.json` for positions and recent files. `<AppDataLocation>/session.m3u8` for the last-session playlist. `<CacheLocation>/nowplaying-<n>.png` (a new name for each cover, so the URL changes with it) for artwork. |
 | **Testing** | Google Test via `ctest` (`gav_tests`) for all non-UI logic and probe golden files. Manual scenarios are in [quickstart.md](./quickstart.md). |
 | **Target Platform** | Linux x64/arm64 (Ubuntu 24.04 CI; DEB/RPM/TGZ/AppImage), Windows x64 (NSIS/ZIP), macOS (DMG) |
 | **Project Type** | Desktop application (single project, sources at the repository root) |
@@ -131,7 +131,7 @@ convention. Entries are new (`+`) or modified (`~`).
 + mediasession_macos.mm       # macOS (MediaPlayer.framework)
 + OpenUrlDialog.qml
 ~ instancemanager.cpp         # forward http(s) URLs
-~ custommediaplayer.h/.cpp    # isLive, load watchdog (15 s)
+~ custommediaplayer.h/.cpp    # isLive, network timeout (10 s), load watchdog (120 s)
 
 tests/
 + test_playbackutils.cpp

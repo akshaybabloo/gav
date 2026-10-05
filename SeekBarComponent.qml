@@ -40,9 +40,9 @@ RowLayout {
         id: timeLabel
 
         color: Material.foreground
-        text: repeatMode === 3
+        text: player.isLive ? AppConstants.formatTime(player.position) : (repeatMode === 3
             ? AppConstants.formatTime(Math.round(rangeSlider.first.value)) + " \u2500 " + AppConstants.formatTime(Math.round(rangeSlider.second.value))
-            : AppConstants.formatTime(player.position) + " / " + AppConstants.formatTime(player.duration)
+            : AppConstants.formatTime(player.position) + " / " + AppConstants.formatTime(player.duration))
         verticalAlignment: Text.AlignVCenter
 
         MouseArea {
@@ -52,7 +52,7 @@ RowLayout {
             Accessible.role: Accessible.Button
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
-            enabled: mediaLoaded
+            enabled: mediaLoaded && !player.isLive
             hoverEnabled: true
 
             onClicked: root.goToTimeRequested()
@@ -62,6 +62,24 @@ RowLayout {
             text: qsTr("Go to time (Ctrl+T)")
             timeout: AppConstants.tooltipTimeout
             visible: timeLabelArea.containsMouse
+        }
+    }
+    Rectangle {
+        Accessible.name: qsTr("Live stream")
+        Layout.preferredHeight: liveText.implicitHeight + 6
+        Layout.preferredWidth: liveText.implicitWidth + 14
+        color: Material.color(Material.Red)
+        radius: 3
+        visible: player.isLive
+
+        Text {
+            id: liveText
+
+            anchors.centerIn: parent
+            color: "white"
+            font.bold: true
+            font.pixelSize: 11
+            text: qsTr("LIVE")
         }
     }
     Slider {
@@ -75,10 +93,10 @@ RowLayout {
 
         Layout.fillWidth: true
         Layout.preferredHeight: 10
-        enabled: mediaLoaded
+        enabled: mediaLoaded && !player.isLive
         from: 0
         to: player.duration
-        visible: repeatMode !== 3
+        visible: repeatMode !== 3 || player.isLive
 
         onMoved: player.position = value
 
@@ -109,7 +127,7 @@ RowLayout {
             color: Qt.rgba(Material.background.r, Material.background.g, Material.background.b, 0.9)
             height: previewChapter.visible ? 132 : 115
             radius: 6
-            visible: seekSlider.previewVisible && mediaLoaded && player.duration > 0
+            visible: seekSlider.previewVisible && mediaLoaded && player.duration > 0 && !player.isLive
             width: 170
             x: Math.max(0, Math.min(hoverX - width / 2, seekSlider.width - width))
             y: -height - 10
@@ -332,7 +350,7 @@ RowLayout {
         enabled: mediaLoaded
         from: 0
         to: player.duration > 0 ? player.duration : 1
-        visible: repeatMode === 3
+        visible: repeatMode === 3 && !player.isLive
 
         // Only the start handle seeks; the end handle just defines the loop boundary
         first.onMoved: player.position = first.value

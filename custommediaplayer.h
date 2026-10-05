@@ -5,6 +5,7 @@
 #include <QAudioBufferOutput>
 #include <QAudioOutput>
 #include <QElapsedTimer>
+#include <QImage>
 #include <QMediaPlayer>
 #include <QMediaMetaData>
 #include <QPointer>
@@ -13,7 +14,10 @@
 #include <QUrl>
 #include <QVideoSink>
 
+#include "streamquality.h"
 #include "subtitlecontroller.h"
+
+class QBuffer;
 
 class CustomMediaPlayer : public QQuickItem {
   Q_OBJECT
@@ -38,6 +42,18 @@ class CustomMediaPlayer : public QQuickItem {
   Q_PROPERTY(QString activeAudioTrackName READ activeAudioTrackName NOTIFY audioTracksChanged)
   Q_PROPERTY(QString preferredAudioLanguage READ preferredAudioLanguage WRITE setPreferredAudioLanguage NOTIFY preferredAudioLanguageChanged)
   Q_PROPERTY(QVariantList chapters READ chapters NOTIFY chaptersChanged)
+  Q_PROPERTY(bool seekable READ seekable NOTIFY liveChanged)
+  Q_PROPERTY(bool isLive READ isLive NOTIFY liveChanged)
+  Q_PROPERTY(bool buffering READ buffering NOTIFY bufferingChanged)
+  Q_PROPERTY(QStringList qualities READ qualities NOTIFY qualitiesChanged)
+  Q_PROPERTY(int activeQuality READ activeQuality NOTIFY qualitiesChanged)
+  Q_PROPERTY(bool autoQuality READ autoQuality NOTIFY qualitiesChanged)
+  Q_PROPERTY(QStringList audioFormats READ audioFormats NOTIFY qualitiesChanged)
+  Q_PROPERTY(int activeAudioFormat READ activeAudioFormat NOTIFY qualitiesChanged)
+  Q_PROPERTY(QString mediaTitle READ mediaTitle NOTIFY nowPlayingChanged)
+  Q_PROPERTY(QString mediaArtist READ mediaArtist NOTIFY nowPlayingChanged)
+  Q_PROPERTY(QString mediaAlbum READ mediaAlbum NOTIFY nowPlayingChanged)
+  Q_PROPERTY(QImage coverArt READ coverArt NOTIFY nowPlayingChanged)
 
 public:
   CustomMediaPlayer();
@@ -53,6 +69,8 @@ public:
   Q_INVOKABLE QString nextChapter();
   Q_INVOKABLE QString previousChapter();
   Q_INVOKABLE QString cycleAudioTrack();
+  Q_INVOKABLE void selectQuality(int index);
+  Q_INVOKABLE void selectAudioFormat(int index);
 
   QUrl source() const;
   void setSource(const QUrl &source);
@@ -93,6 +111,23 @@ public:
   QString preferredAudioLanguage() const;
   void setPreferredAudioLanguage(const QString &language);
   QVariantList chapters() const;
+  bool seekable() const;
+  bool isLive() const;
+  bool buffering() const;
+  QStringList qualities() const;
+  int activeQuality() const;
+  bool autoQuality() const;
+  QStringList audioFormats() const;
+  int activeAudioFormat() const;
+  QString mediaTitle() const;
+  QString mediaArtist() const;
+  QString mediaAlbum() const;
+  QImage coverArt() const;
+
+  static constexpr int streamNetworkTimeoutMs = 10000;
+  static constexpr int streamLoadTimeoutMs = 120000;
+  static constexpr int stallPollIntervalMs = 250;
+  static constexpr int stallThresholdMs = 750;
 
 signals:
   void sourceChanged();
@@ -117,6 +152,10 @@ signals:
   void positionCheckpoint(const QUrl &source, qint64 position, qint64 duration);
   void preferredAudioLanguageChanged();
   void chaptersChanged();
+  void liveChanged();
+  void bufferingChanged();
+  void qualitiesChanged();
+  void nowPlayingChanged();
 
 private slots:
   void onPreviewPlayerStatusChanged(QMediaPlayer::MediaStatus status);
@@ -142,6 +181,14 @@ private:
   QString jumpChapter(int direction);
   double frameDurationUs() const;
   void clearPendingStep();
+  void onStreamLoadTimeout();
+  void checkForStall();
+  void setBuffering(bool buffering);
+  void onQualityResolved(const StreamQuality::Playback &playback);
+  void setPlaybackSource(const StreamQuality::Playback &playback);
+  void switchPlayback(const StreamQuality::Playback &playback);
+  void onQualityFailed(const QString &error);
+  int screenHeight() const;
   QString audioTrackName(int index) const;
 
   QMediaPlayer *m_mediaPlayer;
@@ -179,6 +226,19 @@ private:
   qint64 m_stepBaseUs = -1;
   QMetaObject::Connection m_stepConnection;
   QTimer *m_stepTimer = nullptr;
+  QTimer *m_streamLoadTimer = nullptr;
+  QTimer *m_stallTimer = nullptr;
+  QElapsedTimer m_stallClock;
+  qint64 m_stallPosition = -1;
+  bool m_buffering = false;
+
+  QUrl m_source;
+  StreamQuality *m_quality = nullptr;
+  bool m_resolvingQuality = false;
+  bool m_pauseWhenLoaded = false;
+  qint64 m_resumePositionMs = -1;
+  QList<HlsSubtitle> m_streamSubtitles;
+  QBuffer *m_manifest = nullptr;
 };
 
 #endif // CUSTOMMEDIAPLAYER_H
