@@ -383,7 +383,7 @@ with no comments by default (Constitution: Development Workflow).
 - [X] T067 [US4] In `SeekBarComponent.qml` and `MediaControlsComponent.qml`, when `player.isLive`, show a "LIVE" badge in place of the duration and disable seeking, the seek preview and the repeat range (FR-031).
 - [X] T068 [P] [US4] Create `OpenUrlDialog.qml`, a `Dialog` with a URL `TextField` that only accepts `http://` and `https://` schemes (inline error otherwise) and emits `urlAccepted(url)`.
 - [X] T069 [US4] Wire Open URL into `TitleBar.qml` and `Main.qml`:
-  - add an "Open URL…" item to `fileMenu`, plus a text-safe Ctrl+N `Shortcut`
+  - add an "Open URL" item to `fileMenu`, plus a text-safe Ctrl+N `Shortcut`
   - accepting the dialog calls `openUrls([url])`
   - `getMediaInfo` returns `{name: url or stream title, path: url, type: "stream", icon: ""}` for http(s) URLs
   - `streamError` and `errorOccurred` for streams show in the snackbar; an unreachable address errors within the 15 s budget (SC-010)

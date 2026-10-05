@@ -100,7 +100,7 @@ A user listening to music or a podcast in GAV while working in another applicati
 1. **Given** GAV is playing and not focused, **When** the user presses the hardware play/pause media key, **Then** playback toggles.
 2. **Given** a playlist with multiple items, **When** the user presses the next or previous media key, **Then** GAV moves to the next or previous item.
 3. **Given** media is playing, **When** the user opens the operating system's now-playing panel, **Then** it shows the current title (and artist/album and artwork when the file has them), and its play/pause/next/previous controls operate GAV.
-4. **Given** the user chooses "Open URL…" and enters a reachable HTTP(S) media or stream address, **When** they confirm, **Then** playback begins and the item appears in the playlist under its URL or stream title.
+4. **Given** the user chooses "Open URL" and enters a reachable HTTP(S) media or stream address, **When** they confirm, **Then** playback begins and the item appears in the playlist under its URL or stream title.
 5. **Given** an unreachable or unsupported URL, **When** the user tries to open it, **Then** GAV shows a clear error message and stays responsive.
 
 ---

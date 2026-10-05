@@ -142,7 +142,7 @@ Rectangle {
                         onTriggered: root.openFileRequested()
                     }
                     Action {
-                        text: qsTr("Open URL…")
+                        text: qsTr("Open URL")
 
                         onTriggered: root.openUrlRequested()
                     }
@@ -159,12 +159,12 @@ Rectangle {
                     MenuSeparator {
                     }
                     Action {
-                        text: qsTr("Open Playlist…")
+                        text: qsTr("Open Playlist")
 
                         onTriggered: root.openPlaylistRequested()
                     }
                     Action {
-                        text: qsTr("Save Playlist…")
+                        text: qsTr("Save Playlist")
 
                         onTriggered: root.savePlaylistRequested()
                     }

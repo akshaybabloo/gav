@@ -44,15 +44,21 @@ Dialog {
     ColumnLayout {
         anchors.left: parent.left
         anchors.right: parent.right
-        spacing: 6
+        spacing: 10
 
+        Text {
+            Layout.fillWidth: true
+            color: Material.foreground
+            text: qsTr("Enter the web address of a video or audio file, a stream (.m3u8) or a playlist (.m3u).")
+            wrapMode: Text.WordWrap
+        }
         TextField {
             id: urlField
 
             Accessible.name: qsTr("Stream address")
             Layout.fillWidth: true
             inputMethodHints: Qt.ImhUrlCharactersOnly
-            placeholderText: qsTr("https://example.org/video.mp4")
+            placeholderText: qsTr("https://")
             selectByMouse: true
 
             Keys.onEnterPressed: root.submit()
