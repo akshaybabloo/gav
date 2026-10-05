@@ -57,6 +57,7 @@ class CustomMediaPlayer : public QQuickItem {
 
 public:
   CustomMediaPlayer();
+  ~CustomMediaPlayer() override;
 
   Q_INVOKABLE void play();
   Q_INVOKABLE void pause();
