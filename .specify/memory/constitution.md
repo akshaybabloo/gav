@@ -11,6 +11,10 @@ or inspecting local or user-supplied media.
   opt-out update check. Opening a stream or remote playlist covers the requests needed to play it:
   its playlists, a download-speed check, and a subtitle track the user picks. Every such request
   MUST have a timeout and a size limit, and MUST stop when the user closes the media.
+- Decorative images that a playlist points to, such as channel logos, MAY be downloaded only while
+  a setting the user has turned on allows it. That setting MUST be off by default. These requests
+  MUST be limited to entries the user is looking at, MUST have a timeout and a size limit, and MUST
+  stop when the setting is turned off. Any cache of such images MUST be clearable by the user.
 - GAV MUST NOT require accounts, telemetry, or cloud services.
 - User data (settings, history, playlists) MUST stay on the user's machine.
 - Anything that records what the user played (resume positions, recent files, the last playlist)
@@ -32,6 +36,9 @@ The interface MUST stay responsive no matter what media is being processed.
 - Batch or untrusted-input media processing (e.g. collage generation, subtitle and chapter
   probing) MUST run in an isolated subprocess with a timeout, so a crash or hang cannot take down
   the main application.
+- Small still images (cover art, channel logos) MAY be decoded inside the main application, off
+  the UI thread, provided the accepted formats are an explicit allow-list and both the input size
+  and the pixel dimensions are limited. All other untrusted media decoding stays in a subprocess.
 - Content fetched from the network is untrusted. It MUST NOT be able to make GAV open local files
   or address schemes GAV does not explicitly support. Text formats parsed in-process (playlists)
   MUST be parsed off the UI thread.
@@ -124,4 +131,4 @@ plan's Complexity Tracking table.
 - Compliance: reviewers check PRs against these principles. `CLAUDE.md` holds runtime development
   guidance and MUST NOT contradict this document.
 
-**Version**: 1.1.0 | **Ratified**: 2026-10-02 | **Last Amended**: 2026-10-05
+**Version**: 1.2.0 | **Ratified**: 2026-10-02 | **Last Amended**: 2026-10-06
