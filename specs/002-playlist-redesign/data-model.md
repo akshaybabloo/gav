@@ -11,7 +11,7 @@ One thing that can be played. Owned by `PlaylistModel`.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | unsigned 64-bit | Assigned when the entry is added. Unique for the session, never reused, not saved. Selection, queue, shuffle and undo refer to entries by id. |
+| `id` | integer | Assigned when the entry is added, counting up from 1. Unique for the session, never reused, not saved. Selection, queue, shuffle and undo refer to entries by id. |
 | `location` | URL | A local file URL or an `http`/`https` address. Required. |
 | `title` | text | From the playlist's `#EXTINF` title, otherwise the file name or the address. Never empty. |
 | `kind` | `LocalVideo`, `LocalAudio`, `Stream` | Local kinds come from the file extension. Anything with an `http`/`https` location is `Stream`. |
@@ -54,7 +54,9 @@ The ordered list of entries plus the state that belongs to the playlist rather t
 
 **Rules**
 
-- Removing the current entry clears `currentId` but does not stop playback.
+- Removing the current entry clears `currentId` but does not stop playback. The model remembers the
+  row it occupied (the anchor) until another entry becomes current, so "next" continues with the
+  entry that followed it and "previous" with the one before.
 - `move` keeps the moved entries in their relative order and never changes ids.
 - `removeDuplicates` compares normalised locations (local paths cleaned and case-folded where the
   file system is case-insensitive; addresses compared after normalising scheme and host case) and
