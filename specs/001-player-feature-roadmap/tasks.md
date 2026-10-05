@@ -419,7 +419,7 @@ with no comments by default (Constitution: Development Workflow).
   - the NSIS/ZIP install runs SMTC on Windows
   - the DMG app shows Now Playing on macOS
   - fix any missing deploy entries
-- [ ] T074 Check the `SubtitleOverlay` render cost against the plan's "under 4 ms at 1080p" target, using `test_subtitlerenderer` timings and a debug-level timing log in `subtitleoverlay.cpp`. Optimise compositing (e.g. a reused buffer, dirty-rect copy) if it's over.
+- [X] T074 Check the `SubtitleOverlay` render cost against the plan's "under 4 ms at 1080p" target, using `test_subtitlerenderer` timings and a debug-level timing log in `subtitleoverlay.cpp`. Optimise compositing (e.g. a reused buffer, dirty-rect copy) if it's over. Measured 2026-10-05 in a release build with `SubtitleRendererTest.RenderTimeIsLogged`: 0.12 ms for ordinary lines; 1.0 ms average and 2.3 ms worst for three moving, blurred, fading lines redrawn every frame. No optimisation needed.
 - [ ] T075 Run the full [quickstart.md](./quickstart.md) on Linux, Windows and macOS and record the results in the final PR description, including the SC-007 frame-step count and the SC-011 comparison screenshots.
 - [X] T076 Remove the Sync Impact Report HTML comment from `.specify/memory/constitution.md` before the first PR from this plan merges, as the constitution workflow expects.
 
