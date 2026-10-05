@@ -9,8 +9,8 @@ Item {
     id: root
 
     required property var collageTarget
-    required property ListModel playList
-    property alias playListView: playListView
+    required property PlaylistModel playList
+    required property PlaylistView playlistView
     property string searchFilter: ""
     property bool shuffleEnabled: false
 
@@ -25,26 +25,31 @@ Item {
         color: Material.background
     }
 
-    function toPathList(model) {
-        var dataArray = [];
-        for (var i = 0; i < model.count; ++i) {
-            dataArray.push(model.get(i).path);
-        }
-        return dataArray;
-    }
-
     function matchesFilter(name) {
         if (!searchFilter || searchFilter.length === 0) return true;
         return name.toLowerCase().indexOf(searchFilter.toLowerCase()) !== -1;
     }
 
-    function removeItem(index) {
-        if (index >= 0 && index < playList.count) {
-            playList.remove(index);
-            if (playListView.currentIndex >= playList.count) {
-                playListView.currentIndex = playList.count - 1;
-            }
+    function removeItem(sourceRow) {
+        playList.remove([playList.idAt(sourceRow)]);
+    }
+
+    Connections {
+        function onCurrentChanged() {
+            if (root.playList.currentRow < 0)
+                return;
+            var item = root.playList.entryAt(root.playList.currentRow);
+            root.itemSelected(item.path, item.title);
         }
+
+        target: root.playList
+    }
+    Connections {
+        function onCurrentViewRowChanged() {
+            playListView.currentIndex = root.playlistView.currentViewRow;
+        }
+
+        target: root.playlistView
     }
 
     // Clear confirmation dialog
@@ -118,7 +123,8 @@ Item {
         anchors.fill: parent
         boundsBehavior: Flickable.StopAtBounds
         clip: true
-        model: playList
+        currentIndex: root.playlistView.currentViewRow
+        model: root.playlistView
         visible: playList.count > 0
         headerPositioning: ListView.OverlayHeader
         topMargin: 5
@@ -126,10 +132,10 @@ Item {
         ScrollBar.vertical: ScrollBar {
         }
         delegate: ItemDelegate {
-            height: matchesFilter(model.name) ? 40 : 0
+            height: matchesFilter(model.title) ? 40 : 0
             padding: 8
             width: parent?.width
-            visible: matchesFilter(model.name)
+            visible: matchesFilter(model.title)
             clip: true
 
             Behavior on height {
@@ -137,7 +143,7 @@ Item {
             }
 
             background: Rectangle {
-                color: parent.down ? Material.listHighlightColor : (parent.hovered ? Material.dividerColor : (parent.ListView.isCurrentItem ? Qt.rgba(Material.accent.r, Material.accent.g, Material.accent.b, 0.3) : "transparent"))
+                color: parent.down ? Material.listHighlightColor : (parent.hovered ? Material.dividerColor : (model.isCurrent ? Qt.rgba(Material.accent.r, Material.accent.g, Material.accent.b, 0.3) : "transparent"))
                 radius: 4
             }
             contentItem: RowLayout {
@@ -148,14 +154,14 @@ Item {
                     color: Material.foreground
                     font.family: materialSymbolsOutlined.name
                     font.pixelSize: 24
-                    text: model.icon
+                    text: model.kind === PlaylistModel.LocalAudio ? "\ue405" : (model.kind === PlaylistModel.Stream ? "\ue894" : "\ueb87")
                 }
                 Text {
                     Layout.fillWidth: true
                     color: Material.foreground
                     elide: Text.ElideRight
                     font.pixelSize: 14
-                    text: model.name
+                    text: model.title
                 }
                 Button {
                     Layout.preferredWidth: 24
@@ -172,7 +178,7 @@ Item {
                     }
 
                     onClicked: {
-                        removeItem(index);
+                        removeItem(model.sourceRow);
                     }
 
                     ToolTip {
@@ -185,7 +191,7 @@ Item {
             }
 
             onClicked: {
-                playListView.currentIndex = index;
+                root.playList.currentRow = model.sourceRow;
             }
             onDoubleClicked: {
                 playRequested();
@@ -316,16 +322,9 @@ Item {
                     }
                     CollageButton {
                         collageTarget: root.collageTarget
-                        sourceUrls: playList.count > 0 ? toPathList(playList) : []
+                        sourceUrls: playList.count > 0 ? playList.locations() : []
                     }
                 }
-            }
-        }
-
-        onCurrentIndexChanged: {
-            if (currentIndex !== -1) {
-                var item = playList.get(currentIndex);
-                itemSelected(item.path, item.name);
             }
         }
     }

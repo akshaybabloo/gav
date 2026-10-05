@@ -17,8 +17,8 @@ ApplicationWindow {
     property bool mediaControlsContainsMouse: false
     property var pendingStartupUrls: []
     property var pendingSubtitleUrls: []
-    readonly property bool hasNextItem: appSettings.shuffle ? shuffleOrder.remaining > 0 : playlistComponent.playListView.currentIndex >= 0 && playlistComponent.playListView.currentIndex < playList.count - 1
-    readonly property bool hasPreviousItem: appSettings.shuffle ? shuffleOrder.canGoBack : playlistComponent.playListView.currentIndex > 0
+    readonly property bool hasNextItem: appSettings.shuffle ? shuffleOrder.remaining > 0 : playlistView.canGoNext
+    readonly property bool hasPreviousItem: appSettings.shuffle ? shuffleOrder.canGoBack : playlistView.canGoPrevious
     property bool restoringSession: false
     readonly property url sessionPlaylistUrl: StandardPaths.writableLocation(StandardPaths.AppDataLocation) + "/session.m3u8"
     property bool playlistManualVisible: false
@@ -60,31 +60,21 @@ ApplicationWindow {
         if (isStreamUrl(fileUrl)) {
             return {
                 "name": streamName(name, fileUrl),
-                "path": fileUrl,
-                "type": "stream",
-                "icon": "\ue894"
+                "path": fileUrl
             };
         }
         if (!name)
             return null;
-        var extension = name.substring(name.lastIndexOf('.') + 1).toLowerCase();
-
-        if (AppConstants.isAudioExtension(extension)) {
-            return {
-                "name": name,
-                "path": fileUrl,
-                "type": "audio",
-                "icon": "\ue405"
-            };
-        }
-        // Treat everything else (including unknown formats) as video;
-        // the media player will report an error if it can't play it.
         return {
             "name": name,
-            "path": fileUrl,
-            "type": "video",
-            "icon": "\ueb87"
+            "path": fileUrl
         };
+    }
+    function addToPlaylist(mediaInfo) {
+        return playList.append([{
+                "path": mediaInfo.path,
+                "title": mediaInfo.name
+            }]);
     }
     function openAndPlay(url) {
         if (isPlaylistUrl(url)) {
@@ -94,8 +84,7 @@ ApplicationWindow {
         var mediaInfo = getMediaInfo(url);
         if (!mediaInfo)
             return;
-        playList.append(mediaInfo);
-        selectPlaylistItem(playList.count - 1);
+        selectPlaylistItem(addToPlaylist(mediaInfo));
     }
     function streamName(name, url) {
         if (!name)
@@ -148,42 +137,29 @@ ApplicationWindow {
     function supportedMediaExtensions() {
         return AppConstants.videoExtensions.concat(AppConstants.audioExtensions);
     }
-    function playlistItems() {
-        var items = [];
-        for (var i = 0; i < playList.count; i++) {
-            var item = playList.get(i);
-            items.push({
-                "name": item.name,
-                "path": item.path
-            });
-        }
-        return items;
-    }
     function selectPlaylistItem(index) {
         if (index < 0 || index >= playList.count)
             return;
-        if (playlistComponent.playListView.currentIndex === index) {
-            var item = playList.get(index);
+        if (playList.currentRow === index) {
+            var item = playList.entryAt(index);
             mediaComponent.path = item.path;
-            mainWindow.title = appTitle + " - " + item.name;
+            mainWindow.title = appTitle + " - " + item.title;
             mediaComponent.mediaPlayer.play();
         } else {
-            playlistComponent.playListView.currentIndex = index;
+            playList.currentRow = index;
         }
     }
     function nextItem() {
-        if (appSettings.shuffle) {
-            selectPlaylistItem(shuffleOrder.next(false));
-        } else if (hasNextItem) {
-            selectPlaylistItem(playlistComponent.playListView.currentIndex + 1);
-        }
+        if (appSettings.shuffle)
+            selectPlaylistItem(playList.rowForId(shuffleOrder.next(false)));
+        else
+            selectPlaylistItem(playlistView.nextRow(false));
     }
     function previousItem() {
-        if (appSettings.shuffle) {
-            selectPlaylistItem(shuffleOrder.previous());
-        } else if (hasPreviousItem) {
-            selectPlaylistItem(playlistComponent.playListView.currentIndex - 1);
-        }
+        if (appSettings.shuffle)
+            selectPlaylistItem(playList.rowForId(shuffleOrder.previous()));
+        else
+            selectPlaylistItem(playlistView.previousRow());
     }
     function applyLoadedPlaylist(tag, result) {
         if (!result.ok) {
@@ -204,10 +180,12 @@ ApplicationWindow {
         for (var i = 0; i < result.entries.length; i++) {
             var mediaInfo = getMediaInfo(result.entries[i].path);
             if (mediaInfo) {
-                if (result.entries[i].title)
-                    mediaInfo.name = result.entries[i].title;
                 positions.push(firstIndex + items.length);
-                items.push(mediaInfo);
+                items.push({
+                    "path": mediaInfo.path,
+                    "title": result.entries[i].title ? result.entries[i].title : mediaInfo.name,
+                    "durationSec": result.entries[i].durationSec
+                });
             } else {
                 positions.push(-1);
             }
@@ -245,7 +223,7 @@ ApplicationWindow {
     }
     function saveSession() {
         if (appSettings.restoreLastPlaylist && playList.count > 0)
-            PlaylistFiles.save(sessionPlaylistUrl, playlistItems(), playlistComponent.playListView.currentIndex, "session");
+            PlaylistFiles.save(sessionPlaylistUrl, playList.toVariantList(), playList.currentRow, "session");
         else
             PlaylistFiles.remove(sessionPlaylistUrl);
     }
@@ -277,11 +255,11 @@ ApplicationWindow {
             var mediaInfo = getMediaInfo(urls[i]);
             if (!mediaInfo)
                 continue;
-            playList.append(mediaInfo);
+            addToPlaylist(mediaInfo);
             if (startPlayback) {
                 mediaComponent.path = mediaInfo.path;
                 mainWindow.title = appTitle + " - " + mediaInfo.name;
-                playlistComponent.playListView.currentIndex = playList.count - 1;
+                playList.currentRow = playList.count - 1;
                 shouldAutoPlay = true;
                 startPlayback = false;
             }
@@ -533,8 +511,8 @@ ApplicationWindow {
                 return "";
             if (mediaComponent.mediaPlayer.mediaTitle !== "")
                 return mediaComponent.mediaPlayer.mediaTitle;
-            var index = playlistComponent.playListView.currentIndex;
-            return index >= 0 && index < playList.count ? playList.get(index).name : "";
+            var index = playList.currentRow;
+            return index >= 0 ? playList.entryAt(index).title : "";
         }
     }
     Binding {
@@ -658,26 +636,16 @@ ApplicationWindow {
 
         onEnabledChanged: {
             if (enabled)
-                reset(playList.count, playlistComponent.playListView.currentIndex);
+                reset(playlistView.visibleIds(), playList.currentId);
         }
     }
     Connections {
-        function onModelReset() {
-            shuffleOrder.reset(playList.count, playlistComponent.playListView.currentIndex);
-        }
-        function onRowsInserted(parent, first, last) {
-            for (var i = first; i <= last; i++)
-                shuffleOrder.itemInserted(i);
-        }
-        function onRowsMoved() {
-            shuffleOrder.reset(playList.count, playlistComponent.playListView.currentIndex);
-        }
-        function onRowsRemoved(parent, first, last) {
-            for (var i = last; i >= first; i--)
-                shuffleOrder.itemRemoved(i);
+        function onVisibleEntriesChanged() {
+            if (appSettings.shuffle)
+                shuffleOrder.setCandidates(playlistView.visibleIds());
         }
 
-        target: playList
+        target: playlistView
     }
     Connections {
         function onPathChanged() {
@@ -702,7 +670,7 @@ ApplicationWindow {
                 var restored = mainWindow.applyLoadedPlaylist(tag, result);
                 var restoredCurrent = result.currentIndex >= 0 && result.currentIndex < restored.positions.length ? restored.positions[result.currentIndex] : -1;
                 if (restoredCurrent >= 0)
-                    playlistComponent.playListView.currentIndex = restoredCurrent;
+                    playList.currentRow = restoredCurrent;
                 mainWindow.restoringSession = false;
                 var startupUrls = mainWindow.pendingStartupUrls;
                 mainWindow.pendingStartupUrls = [];
@@ -1323,11 +1291,11 @@ ApplicationWindow {
                     console.debug("Media info for dropped file:", JSON.stringify(mediaInfo));
                     if (!mediaInfo)
                         continue;
-                    playList.append(mediaInfo);
+                    addToPlaylist(mediaInfo);
                     if (!firstFileSet) {
                         mediaComponent.path = mediaInfo.path;
                         mainWindow.title = appTitle + " - " + mediaInfo.name;
-                        playlistComponent.playListView.currentIndex = playList.count - 1;
+                        playList.currentRow = playList.count - 1;
                         firstFileSet = true;
                     }
                 }
@@ -1356,7 +1324,7 @@ ApplicationWindow {
         nameFilters: [AppConstants.getPlaylistExtensionsFilter()]
         title: qsTr("Save Playlist")
 
-        onAccepted: PlaylistFiles.save(selectedFile, mainWindow.playlistItems(), playlistComponent.playListView.currentIndex, "save")
+        onAccepted: PlaylistFiles.save(selectedFile, playList.toVariantList(), playList.currentRow, "save")
     }
     FileDialog {
         id: fileDialog
@@ -1371,10 +1339,10 @@ ApplicationWindow {
             var mediaInfo = getMediaInfo(selectedFile);
             if (!mediaInfo)
                 return;
-            playList.append(mediaInfo);
+            addToPlaylist(mediaInfo);
             mediaComponent.path = mediaInfo.path;
             mainWindow.title = appTitle + " - " + mediaInfo.name;
-            playlistComponent.playListView.currentIndex = playList.count - 1;
+            playList.currentRow = playList.count - 1;
         }
     }
     MediaComponent {
@@ -1418,8 +1386,8 @@ ApplicationWindow {
 
             onActivated: {
                 // Play/Pause
-                if (mediaComponent.path === "" && playlistComponent.playListView.currentIndex >= 0) {
-                    mainWindow.selectPlaylistItem(playlistComponent.playListView.currentIndex);
+                if (mediaComponent.path === "" && playList.currentRow >= 0) {
+                    mainWindow.selectPlaylistItem(playList.currentRow);
                 } else if (mediaComponent.mediaPlayer.playbackState === MediaPlayer.PlayingState) {
                     mediaComponent.mediaPlayer.pause();
                 } else {
@@ -1613,8 +1581,15 @@ ApplicationWindow {
             onActivated: openUrlDialog.open()
         }
     }
-    ListModel {
+    PlaylistModel {
         id: playList
+
+        audioExtensions: AppConstants.audioExtensions
+    }
+    PlaylistView {
+        id: playlistView
+
+        source: playList
     }
     Rectangle {
         id: loadingScreen
@@ -1652,12 +1627,13 @@ ApplicationWindow {
         anchors.top: mainWindow.visibility === Window.FullScreen ? parent.top : titleBar.bottom
         collageTarget: collage
         playList: playList
+        playlistView: playlistView
         shuffleEnabled: appSettings.shuffle
         visible: (!mediaComponent.isVideoAndPlaying && !loadingScreen.visible) || mainWindow.playlistManualVisible
 
         onItemSelected: function (path, name) {
             if (appSettings.shuffle)
-                shuffleOrder.setCurrent(playListView.currentIndex);
+                shuffleOrder.setCurrent(playList.currentId);
             if (mainWindow.restoringSession) {
                 if (!mainWindow.isStreamUrl(path)) {
                     mediaComponent.path = path;
@@ -1673,10 +1649,10 @@ ApplicationWindow {
             appSettings.shuffle = enabled;
         }
         onPlayRequested: {
-            if (mediaComponent.path === "" && playlistComponent.playListView.currentIndex !== -1) {
-                var item = playList.get(playlistComponent.playListView.currentIndex);
+            if (mediaComponent.path === "" && playList.currentRow !== -1) {
+                var item = playList.entryAt(playList.currentRow);
                 mediaComponent.path = item.path;
-                mainWindow.title = appTitle + " - " + item.name;
+                mainWindow.title = appTitle + " - " + item.title;
             }
             mediaComponent.mediaPlayer.play();
         }
@@ -1713,7 +1689,7 @@ ApplicationWindow {
             hasNextTrack: mainWindow.hasNextItem
             hasPreviousTrack: mainWindow.hasPreviousItem
             playlistCount: playList.count
-            playlistCurrentIndex: playlistComponent.playListView.currentIndex
+            playlistCurrentIndex: playList.currentRow
             repeatMode: mainWindow.repeatMode
             videoOutput: mediaComponent.videoOutput
 

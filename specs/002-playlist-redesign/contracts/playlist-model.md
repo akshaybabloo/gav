@@ -16,8 +16,9 @@ One instance, created in `Main.qml`. A list model in playlist order.
 | Property | Type | Notes |
 |---|---|---|
 | `count` | int | Number of entries. |
-| `currentRow` | int | Row of the current entry, `-1` if none. Writable. |
-| `currentId` | id | Same entry by id. |
+| `currentRow` | int | Row of the current entry, `-1` if none. Writable. Notifies with `currentRowChanged`, also when the row number shifts because entries were added or removed above it. |
+| `currentId` | int | Same entry by id, `-1` if none. Notifies with `currentChanged`, only when a different entry becomes current. |
+| `audioExtensions` | list of strings | Extensions treated as local audio. Everything else local is video. |
 | `queueLength` | int | Entries waiting in "play next". |
 | `canUndoRemove` | bool | Whether a removal can be undone. |
 
@@ -36,12 +37,13 @@ One instance, created in `Main.qml`. A list model in playlist order.
 | `takeQueued()` | Removes and returns the row of the first queued entry that is not unavailable, dropping unavailable ones on the way, or `-1`. The view's search and filter play no part. |
 | `setLoaded(id, durationMs, isLive)` | Records what the player learned and marks the entry playable. |
 | `setUnavailable(id, reason)` | Marks the entry unavailable. |
-| `entryAt(row)` | The entry as a map, for code that needs one entry. |
+| `entryAt(row)` | The entry as a map, for code that needs one entry. Maps use `path` for the location, as `PlaylistFiles` does. |
+| `rowForId(id)` / `idAt(row)` | Mapping between ids and rows. `-1` when there is none. |
 | `toVariantList()` | Every entry in playlist order, for saving. |
 | `locations()` | Every location in playlist order, for collage. |
 
-**Signals**: the standard list-model signals, plus `currentChanged()`, `queueChanged()` and
-`undoChanged()`.
+**Signals**: the standard list-model signals, plus `countChanged()`, `currentChanged()`,
+`currentRowChanged()`, `queueChanged()` and `undoChanged()`.
 
 **Guarantees**
 
@@ -71,6 +73,7 @@ rows every `PlaylistModel` role plus `selected` and `sourceRow`.
 | `canReorder` | bool | See the data model. |
 | `selectionCount` | int | Visible selected entries. |
 | `currentViewRow` | int | View row of the current entry, `-1` if hidden. |
+| `canGoNext` / `canGoPrevious` | bool | Whether `nextRow(false)` / `previousRow()` would return an entry. For bindings. |
 
 **Methods**
 
@@ -80,7 +83,7 @@ rows every `PlaylistModel` role plus `selected` and `sourceRow`.
 | `select(viewRow, modifiers)` | Applies click, Ctrl+click or Shift+click selection rules. |
 | `selectAll()` / `clearSelection()` | Over visible entries. |
 | `selectedIds()` | Ids of visible selected entries, in view order. |
-| `nextRow(repeat)` | Source row to play next in view order, skipping unavailable entries, or `-1`. Wraps when `repeat` is true. |
+| `nextRow(repeat)` | Source row to play next in view order, skipping unavailable entries, or `-1`. Wraps when `repeat` is true. With no current entry it starts from the model's anchor, or from the top. |
 | `previousRow()` | The same, backwards. |
 | `visibleIds()` | Visible entry ids in view order, for shuffle. |
 | `viewRowFor(sourceRow)` / `sourceRowFor(viewRow)` | Mapping. `-1` when there is none. |

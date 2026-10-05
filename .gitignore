@@ -113,3 +113,6 @@ _codeql_detected_source_root
 release/
 
 CLAUDE.md
+
+# Generated large playlists for manual testing
+tests/data/channels-*.m3u8

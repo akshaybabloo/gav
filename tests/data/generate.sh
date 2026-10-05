@@ -106,3 +106,29 @@ missing.mp4
 EOF
 
 head -c 64 multi.mkv > corrupt.mkv
+
+ffmpeg -hide_banner -loglevel error -y \
+  -f lavfi -i "sine=frequency=440:duration=5" \
+  -c:a libmp3lame -b:a 64k \
+  tone.mp3
+
+cat > mixed.m3u8 <<'EOF'
+#EXTM3U
+#EXTINF:30,Multi
+multi.mkv
+#EXTINF:5,Tone
+tone.mp3
+#EXTINF:600 group-title="Films",Film
+https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
+#EXTINF:-1 tvg-id="News.uk" tvg-logo="https://example.org/news.png" group-title="News",News Channel
+https://example.org/live/news.m3u8
+#EXTINF:10,Missing
+missing.mp4
+#EXTINF:30,Multi again
+multi.mkv
+#EXTGRP:Samples
+#EXTINF:25,Styled
+styled.mp4
+#EXTINF:-1,Ungrouped stream
+https://example.org/live/other.m3u8
+EOF

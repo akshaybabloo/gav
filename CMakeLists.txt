@@ -199,6 +199,8 @@ qt_add_qml_module(appgav
         SOURCES subtitlecontroller.h subtitlecontroller.cpp
         SOURCES subtitleoverlay.h subtitleoverlay.cpp
         SOURCES shuffleorder.h shuffleorder.cpp
+        SOURCES playlistmodel.h playlistmodel.cpp
+        SOURCES playlistview.h playlistview.cpp
         SOURCES hlsmaster.h hlsmaster.cpp
         SOURCES streamquality.h streamquality.cpp
         SOURCES mediasession.h mediasession.cpp
@@ -292,6 +294,8 @@ if (BUILD_TESTS)
             tests/test_probeprotocol.cpp
             tests/test_subtitlerenderer.cpp
             tests/test_shuffleorder.cpp
+            tests/test_playlistmodel.cpp
+            tests/test_playlistview.cpp
             tests/test_hlsmaster.cpp
             collage.cpp
             collage.h
@@ -311,6 +315,10 @@ if (BUILD_TESTS)
             subtitlerenderer.h
             shuffleorder.cpp
             shuffleorder.h
+            playlistmodel.cpp
+            playlistmodel.h
+            playlistview.cpp
+            playlistview.h
             hlsmaster.cpp
             hlsmaster.h
     )
