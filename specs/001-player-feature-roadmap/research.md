@@ -352,6 +352,32 @@ state.
 - The quality does not adapt during playback.
 - Seek-bar previews are off while a stream plays from an in-memory playlist.
 
+## R19. Subtitles on HLS streams (FR-031c)
+
+**Findings**
+
+- A master playlist lists WebVTT subtitle tracks as `#EXT-X-MEDIA:TYPE=SUBTITLES` entries, each
+  with its own playlist address. The probe's FFmpeg opens such an address directly and returns
+  every cue with the time written in the file. It downloads all segments while opening, so the
+  cues arrive together (about 4 seconds for 100 segments from one server, 19 from another).
+- For on-demand streams those cue times match the player position. For a live channel they are
+  relative to the current clip while the player position starts at zero when the stream is opened,
+  and Qt does not expose the stream's start timestamp, so they cannot be lined up.
+
+**Decision**: `Hls::parseMaster` collects the subtitle tracks (http(s) addresses only).
+`CustomMediaPlayer` hands them to `SubtitleController::setStreamTracks` once the media has loaded
+with a duration and is seekable. A track is fetched when the user selects it:
+`MediaProbe::loadSubtitleFile` accepts an address, the probe skips encoding detection and stream
+analysis for it, and the inactivity watchdog is 120 seconds for these loads. Rendering, delay and
+size work as for any other subtitle track. Tracks are not selected automatically.
+
+**Also changed**: an audio group counts as separate audio only when its default entry has its own
+playlist, so streams whose default audio is muxed (with an alternate track on the side) get
+quality selection.
+
+**Limits**: no subtitles on live streams, none for closed captions carried inside the video, and
+cue positioning from the WebVTT file is not applied.
+
 ## Open items
 
 None. Every Technical Context item is resolved above.

@@ -88,6 +88,7 @@ CustomMediaPlayer::CustomMediaPlayer() {
   m_quality = new StreamQuality(this);
   connect(m_quality, &StreamQuality::changed, this, &CustomMediaPlayer::qualitiesChanged);
   connect(m_quality, &StreamQuality::resolved, this, &CustomMediaPlayer::onQualityResolved);
+  connect(m_quality, &StreamQuality::subtitlesFound, this, [this](const QList<HlsSubtitle> &subtitles) { m_streamSubtitles = subtitles; });
   connect(m_quality, &StreamQuality::failed, this, &CustomMediaPlayer::onQualityFailed);
 
   m_streamLoadTimer = new QTimer(this);
@@ -381,6 +382,7 @@ void CustomMediaPlayer::setSource(const QUrl &source) {
   m_source = source;
   m_resumePositionMs = -1;
   m_pauseWhenLoaded = false;
+  m_streamSubtitles.clear();
   m_quality->cancel();
   if (StreamQuality::handles(source)) {
     m_resolvingQuality = true;
@@ -848,6 +850,7 @@ void CustomMediaPlayer::stop() {
   m_resolvingQuality = false;
   m_pauseWhenLoaded = false;
   m_resumePositionMs = -1;
+  m_streamSubtitles.clear();
   m_quality->cancel();
   m_mediaPlayer->stop();
   setPlaybackSource({});
@@ -905,6 +908,8 @@ void CustomMediaPlayer::onStatusChanged(QMediaPlayer::MediaStatus status) {
 
   if (status == QMediaPlayer::LoadedMedia) {
     applyAudioSelection();
+    if (!m_streamSubtitles.isEmpty() && m_mediaPlayer->duration() > 0 && m_mediaPlayer->isSeekable())
+      m_subtitles->setStreamTracks(m_streamSubtitles);
   }
   if (status >= QMediaPlayer::LoadedMedia) {
     m_streamLoadTimer->stop();

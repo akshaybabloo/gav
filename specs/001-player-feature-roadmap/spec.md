@@ -194,6 +194,7 @@ A user listening to music or a podcast in GAV while working in another applicati
 - **FR-031**: Live streams without a known duration MUST be indicated as live, and seeking MUST be disabled for them.
 - **FR-031a**: When playback stalls waiting for data, the system MUST show a buffering indicator within about one second and remove it as soon as playback continues. The video and controls stay usable while it is shown.
 - **FR-031b**: For a stream that offers several qualities, the system MUST play only one of them, list every video quality the stream offers (and every audio format, when it offers several) in a drop-down, and let the user switch at any time without losing the playback position. By default the quality is chosen automatically from a short download-speed check and the screen size; when the speed cannot be measured the middle quality is used.
+- **FR-031c**: For an on-demand stream that lists subtitle tracks, the system MUST show those tracks in the subtitle menu and display the chosen one in sync with playback. They are loaded only when the user picks one. Live streams do not offer them.
 
 **Cross-cutting**
 

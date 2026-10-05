@@ -237,6 +237,7 @@ private:
   bool m_resolvingQuality = false;
   bool m_pauseWhenLoaded = false;
   qint64 m_resumePositionMs = -1;
+  QList<HlsSubtitle> m_streamSubtitles;
   QBuffer *m_manifest = nullptr;
 };
 

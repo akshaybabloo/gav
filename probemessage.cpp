@@ -4,6 +4,10 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
+bool isRemoteSubtitleSource(const QString &path) {
+    return path.startsWith(QLatin1String("http://"), Qt::CaseInsensitive) || path.startsWith(QLatin1String("https://"), Qt::CaseInsensitive);
+}
+
 namespace {
 
 QString key(const char *name) { return QString::fromLatin1(name); }

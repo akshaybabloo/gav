@@ -25,6 +25,8 @@ struct ProbeFont {
     QString path;
 };
 
+bool isRemoteSubtitleSource(const QString &path);
+
 struct ProbeEvent {
     qint64 startMs = 0;
     qint64 durationMs = 0;

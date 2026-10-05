@@ -1,6 +1,7 @@
 #ifndef SUBTITLECONTROLLER_H
 #define SUBTITLECONTROLLER_H
 
+#include "hlsmaster.h"
 #include "mediaprobe.h"
 #include "subtitlerenderer.h"
 
@@ -44,12 +45,15 @@ public:
         QString codec;
         bool isDefault = false;
         bool forced = false;
+        bool remote = false;
+        bool requested = false;
         State state = State::Pending;
     };
 
     explicit SubtitleController(QMediaPlayer *player, QObject *parent = nullptr);
 
     void setSource(const QUrl &source);
+    void setStreamTracks(const QList<HlsSubtitle> &subtitles);
     void clear();
 
     QVariantList tracks() const;

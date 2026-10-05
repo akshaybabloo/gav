@@ -14,7 +14,9 @@ MediaProbe::~MediaProbe() { stop(); }
 
 void MediaProbe::setProgram(const QString &program) { m_program = program; }
 
-QString MediaProbe::externalSource(const QString &path) { return QStringLiteral("external:") + QFileInfo(path).absoluteFilePath(); }
+QString MediaProbe::externalSource(const QString &path) {
+    return QStringLiteral("external:") + (isRemoteSubtitleSource(path) ? path : QFileInfo(path).absoluteFilePath());
+}
 
 void MediaProbe::start(const QString &mediaPath, const QStringList &subtitleFiles) {
     m_fontsDir = std::make_unique<QTemporaryDir>();
@@ -32,7 +34,7 @@ void MediaProbe::start(const QString &mediaPath, const QStringList &subtitleFile
 }
 
 void MediaProbe::loadSubtitleFile(const QString &path) {
-    launch({QStringLiteral("--subtitle-file"), path}, {externalSource(path)});
+    launch({QStringLiteral("--subtitle-file"), path}, {externalSource(path)}, isRemoteSubtitleSource(path) ? remoteIdleTimeoutMs : idleTimeoutMs);
 }
 
 void MediaProbe::stop() {
@@ -48,7 +50,7 @@ void MediaProbe::stop() {
     m_fontsDir.reset();
 }
 
-void MediaProbe::launch(const QStringList &arguments, const QStringList &expectedSources) {
+void MediaProbe::launch(const QStringList &arguments, const QStringList &expectedSources, int idleTimeout) {
     auto *run = new Run;
     run->expected = expectedSources;
     run->process = new QProcess(this);
@@ -57,7 +59,7 @@ void MediaProbe::launch(const QStringList &arguments, const QStringList &expecte
     run->helloTimer->setSingleShot(true);
     run->helloTimer->setInterval(helloTimeoutMs);
     run->idleTimer->setSingleShot(true);
-    run->idleTimer->setInterval(idleTimeoutMs);
+    run->idleTimer->setInterval(idleTimeout);
     m_runs.append(run);
 
     QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
