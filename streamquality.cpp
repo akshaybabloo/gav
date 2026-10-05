@@ -7,6 +7,8 @@
 #include <QSslSocket>
 #include <QTimer>
 
+#include <limits>
+
 StreamQuality::StreamQuality(QObject *parent) : QObject(parent) {}
 
 bool StreamQuality::handles(const QUrl &url) {
@@ -48,6 +50,9 @@ void StreamQuality::cancel() {
         reply->abort();
         reply->deleteLater();
     }
+    m_probing = false;
+    ++m_probeRun;
+    m_probeSegments.clear();
     const bool hadVariants = !m_master.variants.isEmpty();
     m_source.clear();
     m_master = {};
@@ -84,13 +89,14 @@ void StreamQuality::resolve(const QUrl &source, int maxHeight) {
             return;
         }
         m_master = master;
-        const QUrl medium = m_master.variants[Hls::mediumIndex(m_master.variants)].url;
-        fetch(medium, [this](QNetworkReply *reply, const QByteArray &data) {
-            const QUrl segment = Hls::firstSegment(data, reply->url());
-            if (segment.isValid()) {
-                measure(segment);
-            } else {
+        const HlsVariant &best = m_master.variants[Hls::indexForBitrate(m_master.variants, std::numeric_limits<qint64>::max() / 2, m_maxHeight)];
+        const qint64 enough = best.bandwidth * 3 / 2;
+        fetch(best.url, [this, enough](QNetworkReply *reply, const QByteArray &data) {
+            const QList<QUrl> segments = Hls::segments(data, reply->url());
+            if (segments.isEmpty()) {
                 choose(0);
+            } else {
+                measure(segments.mid(segments.size() / 2), enough);
             }
         });
     });
@@ -132,14 +138,31 @@ void StreamQuality::fetch(const QUrl &url, Handler handler) {
     });
 }
 
-void StreamQuality::measure(const QUrl &segment) {
-    QNetworkRequest request(segment);
+void StreamQuality::measure(const QList<QUrl> &segments, qint64 enoughBitsPerSecond) {
+    m_probeSegments = segments;
+    m_probeEnough = enoughBitsPerSecond;
+    m_probeSamples.clear();
+    m_probeBytes = 0;
+    m_probing = true;
+    m_probeClock.start();
+    const quint64 run = ++m_probeRun;
+    QTimer::singleShot(probeDeadlineMs, this, [this, run] {
+        if (run == m_probeRun) {
+            finishMeasurement();
+        }
+    });
+    requestNextSegment();
+}
+
+void StreamQuality::requestNextSegment() {
+    if (m_probeSegments.isEmpty()) {
+        finishMeasurement();
+        return;
+    }
+    QNetworkRequest request(m_probeSegments.takeFirst());
     request.setTransferTimeout(probeDeadlineMs);
     QNetworkReply *reply = m_network->get(request);
     m_reply = reply;
-    m_probeClock.start();
-    m_probeSamples.clear();
-    m_probeBytes = 0;
 
     connect(reply, &QNetworkReply::readyRead, this, [this, reply] {
         if (m_reply != reply) {
@@ -147,44 +170,66 @@ void StreamQuality::measure(const QUrl &segment) {
         }
         m_probeBytes += reply->readAll().size();
         m_probeSamples.append({m_probeClock.elapsed(), m_probeBytes});
-        if (m_probeSamples.last().ms - m_probeSamples.first().ms >= probeWindowMs || m_probeBytes >= maxProbeBytes) {
-            finishMeasurement(reply);
+        const qint64 window = m_probeSamples.last().ms - m_probeSamples.first().ms;
+        const bool plenty = m_probeEnough > 0 && window >= probeEarlyMs && measuredRate() >= m_probeEnough;
+        if (window >= probeWindowMs || m_probeBytes >= maxProbeBytes || plenty) {
+            finishMeasurement();
         }
     });
-    connect(reply, &QNetworkReply::finished, this, [this, reply] { finishMeasurement(reply); });
-    QTimer::singleShot(probeDeadlineMs, reply, [this, reply] { finishMeasurement(reply); });
+    connect(reply, &QNetworkReply::finished, this, [this, reply] {
+        if (m_reply != reply) {
+            return;
+        }
+        m_reply = nullptr;
+        reply->deleteLater();
+        if (reply->error() == QNetworkReply::NoError) {
+            requestNextSegment();
+        } else {
+            finishMeasurement();
+        }
+    });
 }
 
-void StreamQuality::finishMeasurement(QNetworkReply *reply) {
-    if (m_reply != reply) {
+qint64 StreamQuality::measuredRate() const {
+    if (m_probeSamples.isEmpty()) {
+        return 0;
+    }
+    const Sample first = m_probeSamples.first();
+    const Sample last = m_probeSamples.last();
+    Sample from = first;
+    for (const Sample &sample : m_probeSamples) {
+        if (last.ms - sample.ms < probeTailMs) {
+            break;
+        }
+        from = sample;
+    }
+    qint64 bitsPerSecond = 0;
+    if (last.ms - first.ms >= 100) {
+        bitsPerSecond = (last.bytes - first.bytes) * 8000 / (last.ms - first.ms);
+    } else {
+        bitsPerSecond = last.bytes * 8000 / qMax<qint64>(1, last.ms);
+    }
+    if (last.ms - from.ms >= 100) {
+        bitsPerSecond = qMax(bitsPerSecond, (last.bytes - from.bytes) * 8000 / (last.ms - from.ms));
+    }
+    return bitsPerSecond;
+}
+
+void StreamQuality::finishMeasurement() {
+    if (!m_probing) {
         return;
     }
-    m_reply = nullptr;
-    reply->disconnect(this);
-    reply->abort();
-    reply->deleteLater();
-
-    qint64 bitsPerSecond = 0;
-    if (!m_probeSamples.isEmpty()) {
-        const Sample last = m_probeSamples.last();
-        Sample from = m_probeSamples.first();
-        for (const Sample &sample : std::as_const(m_probeSamples)) {
-            if (last.ms - sample.ms < probeTailMs) {
-                break;
-            }
-            from = sample;
-        }
-        const Sample first = m_probeSamples.first();
-        if (last.ms - first.ms >= 100) {
-            bitsPerSecond = (last.bytes - first.bytes) * 8000 / (last.ms - first.ms);
-        } else {
-            bitsPerSecond = last.bytes * 8000 / qMax<qint64>(1, last.ms);
-        }
-        if (last.ms - from.ms >= 100) {
-            bitsPerSecond = qMax(bitsPerSecond, (last.bytes - from.bytes) * 8000 / (last.ms - from.ms));
-        }
+    m_probing = false;
+    ++m_probeRun;
+    m_probeSegments.clear();
+    if (m_reply) {
+        QNetworkReply *reply = m_reply;
+        m_reply = nullptr;
+        reply->disconnect(this);
+        reply->abort();
+        reply->deleteLater();
     }
-    choose(bitsPerSecond);
+    choose(measuredRate());
 }
 
 int StreamQuality::automaticIndex() const { return Hls::indexForBitrate(m_master.variants, m_measuredBitsPerSecond, m_maxHeight); }
@@ -192,7 +237,8 @@ int StreamQuality::automaticIndex() const { return Hls::indexForBitrate(m_master
 void StreamQuality::choose(qint64 bitsPerSecond) {
     m_measuredBitsPerSecond = bitsPerSecond;
     m_active = automaticIndex();
-    qInfo() << "Stream quality:" << m_master.variants[m_active].label << "of" << labels() << "audio" << audioFormats() << "measured" << bitsPerSecond / 1000 << "kbps";
+    qInfo() << "Stream quality:" << m_master.variants[m_active].label << "of" << labels() << "audio" << audioFormats() << "measured" << bitsPerSecond / 1000
+            << "kbps from" << m_probeBytes / 1024 << "KiB";
     emit changed();
     emit resolved(playbackFor(m_active));
 }

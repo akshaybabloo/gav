@@ -61,7 +61,7 @@ HlsMaster parseMaster(const QByteArray &data, const QUrl &base);
 HlsPlayback playback(const HlsMaster &master, int variant, int audioFormat);
 int mediumIndex(const QList<HlsVariant> &variants);
 int indexForBitrate(const QList<HlsVariant> &variants, qint64 bitsPerSecond, int maxHeight);
-QUrl firstSegment(const QByteArray &mediaPlaylist, const QUrl &base);
+QList<QUrl> segments(const QByteArray &mediaPlaylist, const QUrl &base);
 
 }
 

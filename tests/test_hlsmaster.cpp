@@ -39,8 +39,11 @@ TEST(HlsMasterTest, ListsVariantsBestFirstWithResolvedUrls) {
 TEST(HlsMasterTest, MediaPlaylistHasNoVariants) {
     const QByteArray media = "#EXTM3U\n#EXT-X-TARGETDURATION:10\n#EXTINF:9.6,\nsegment0.ts\n#EXTINF:9.6,\nsegment1.ts\n";
     EXPECT_TRUE(Hls::parseMaster(media, base).variants.isEmpty());
-    EXPECT_EQ(Hls::firstSegment(media, base), QUrl("https://example.org/live/segment0.ts"));
-    EXPECT_TRUE(Hls::firstSegment("#EXTM3U\n#EXT-X-ENDLIST\n", base).isEmpty());
+    EXPECT_EQ(Hls::segments(media, base), QList<QUrl>({QUrl("https://example.org/live/segment0.ts"), QUrl("https://example.org/live/segment1.ts")}));
+    EXPECT_TRUE(Hls::segments("#EXTM3U\n#EXT-X-ENDLIST\n", base).isEmpty());
+    const QByteArray ranges = "#EXTM3U\n#EXT-X-MAP:URI=\"main.mp4\",BYTERANGE=\"719@0\"\n#EXTINF:6,\n#EXT-X-BYTERANGE:1508000@719\nmain.mp4\n"
+                              "#EXTINF:6,\n#EXT-X-BYTERANGE:1510244@1508719\nmain.mp4\n#EXTINF:6,\nfile:///etc/passwd\n";
+    EXPECT_EQ(Hls::segments(ranges, base), QList<QUrl>({QUrl("https://example.org/live/main.mp4")}));
 }
 
 TEST(HlsMasterTest, DetectsSeparateAudioRenditions) {

@@ -341,11 +341,15 @@ from the lists. The player's `source` stays the address the user opened.
   `QMediaPlayer::setSourceDevice`, with the opened address as the name so FFmpeg recognises HLS.
   A 65-variant sample (13 video renditions, 5 audio formats) starts in about 2 seconds this way.
 
-Automatic choice downloads the start of one segment of the middle variant for up to 1.5 seconds
-and picks the best variant whose `BANDWIDTH` × 1.5 fits the measured rate and whose height fits
-the screen. If the measurement fails, the middle variant is used. A manual choice lasts for the
-current stream. Switching quality or audio format reloads and restores the position and play
-state.
+Automatic choice measures download speed on the best variant that fits the screen, because its
+segments are the largest. It downloads segments from the middle of that variant's playlist, one
+after another, for up to 5 seconds or 60 MB (8 seconds overall, counting the wait for the first
+byte), and stops after half a second if the rate already
+covers that variant. It then picks the best variant whose `BANDWIDTH` × 1.5 fits the measured rate
+and whose height fits the screen. If the measurement fails, the middle variant is used. (Sampling
+only the first segment of the middle variant gave 1 to 10 Mbit/s on a fast connection when that
+segment was a few dozen kilobytes.) A manual choice lasts for the current stream. Switching quality
+or audio format reloads and restores the position and play state.
 
 **Limits**
 

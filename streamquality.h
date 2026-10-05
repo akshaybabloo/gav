@@ -41,10 +41,11 @@ public:
 
     static constexpr int requestTimeoutMs = 10000;
     static constexpr qint64 maxPlaylistBytes = 25 * 1024 * 1024;
-    static constexpr int probeWindowMs = 1500;
+    static constexpr int probeWindowMs = 5000;
+    static constexpr int probeEarlyMs = 500;
     static constexpr int probeTailMs = 750;
-    static constexpr int probeDeadlineMs = 4000;
-    static constexpr qint64 maxProbeBytes = 4 * 1024 * 1024;
+    static constexpr int probeDeadlineMs = 8000;
+    static constexpr qint64 maxProbeBytes = 60 * 1024 * 1024;
 
 signals:
     void subtitlesFound(const QList<HlsSubtitle> &subtitles);
@@ -56,8 +57,10 @@ private:
     using Handler = std::function<void(QNetworkReply *reply, const QByteArray &data)>;
 
     void fetch(const QUrl &url, Handler handler);
-    void measure(const QUrl &segment);
-    void finishMeasurement(QNetworkReply *reply);
+    void measure(const QList<QUrl> &segments, qint64 enoughBitsPerSecond);
+    void requestNextSegment();
+    void finishMeasurement();
+    qint64 measuredRate() const;
     void choose(qint64 bitsPerSecond);
     int automaticIndex() const;
     Playback playbackFor(int index) const;
@@ -79,7 +82,11 @@ private:
 
     QElapsedTimer m_probeClock;
     QList<Sample> m_probeSamples;
+    QList<QUrl> m_probeSegments;
     qint64 m_probeBytes = 0;
+    qint64 m_probeEnough = 0;
+    quint64 m_probeRun = 0;
+    bool m_probing = false;
 };
 
 #endif // STREAMQUALITY_H

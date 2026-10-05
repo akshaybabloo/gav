@@ -426,7 +426,8 @@ int indexForBitrate(const QList<HlsVariant> &variants, qint64 bitsPerSecond, int
     return candidates - 1;
 }
 
-QUrl firstSegment(const QByteArray &mediaPlaylist, const QUrl &base) {
+QList<QUrl> segments(const QByteArray &mediaPlaylist, const QUrl &base) {
+    QList<QUrl> result;
     const QStringList lines = QString::fromUtf8(mediaPlaylist).split(QLatin1Char('\n'));
     for (QString line : lines) {
         line = line.trimmed();
@@ -434,9 +435,11 @@ QUrl firstSegment(const QByteArray &mediaPlaylist, const QUrl &base) {
             continue;
         }
         const QUrl url = base.resolved(QUrl(line));
-        return url.isValid() ? url : QUrl();
+        if (isHttpUrl(url) && (result.isEmpty() || result.last() != url)) {
+            result.append(url);
+        }
     }
-    return {};
+    return result;
 }
 
 }
