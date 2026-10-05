@@ -40,7 +40,7 @@ public:
     int activeAudioFormat() const;
 
     static constexpr int requestTimeoutMs = 10000;
-    static constexpr qint64 maxPlaylistBytes = 4 * 1024 * 1024;
+    static constexpr qint64 maxPlaylistBytes = 25 * 1024 * 1024;
     static constexpr int probeWindowMs = 1500;
     static constexpr int probeTailMs = 750;
     static constexpr int probeDeadlineMs = 4000;
