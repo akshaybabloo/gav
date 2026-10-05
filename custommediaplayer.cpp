@@ -1,7 +1,10 @@
 #include "custommediaplayer.h"
 #include "playbackutils.h"
 #include "previewimageprovider.h"
+#include "streamquality.h"
 #include "subtitlefiles.h"
+#include <QQuickWindow>
+#include <QScreen>
 #include <QVideoSink>
 #include <QVideoFrame>
 #include <QImage>
@@ -21,13 +24,12 @@
 
 #include <chrono>
 #include <memory>
+#include <utility>
 
 CustomMediaPlayer::CustomMediaPlayer() {
   m_mediaPlayer = new QMediaPlayer(this);
 
   // Forward signals from QMediaPlayer
-  connect(m_mediaPlayer, &QMediaPlayer::sourceChanged, this,
-          &CustomMediaPlayer::sourceChanged);
   connect(m_mediaPlayer, &QMediaPlayer::playbackStateChanged, this,
           &CustomMediaPlayer::playbackStateChanged);
   connect(m_mediaPlayer, &QMediaPlayer::mediaStatusChanged, this,
@@ -74,14 +76,19 @@ CustomMediaPlayer::CustomMediaPlayer() {
 
   connect(m_mediaPlayer, &QMediaPlayer::seekableChanged, this, &CustomMediaPlayer::liveChanged);
   connect(m_mediaPlayer, &QMediaPlayer::durationChanged, this, &CustomMediaPlayer::liveChanged);
-  connect(m_mediaPlayer, &QMediaPlayer::sourceChanged, this, &CustomMediaPlayer::liveChanged);
+  connect(this, &CustomMediaPlayer::sourceChanged, this, &CustomMediaPlayer::liveChanged);
   connect(this, &CustomMediaPlayer::mediaLoadedChanged, this, &CustomMediaPlayer::liveChanged);
   connect(m_mediaPlayer, &QMediaPlayer::metaDataChanged, this, &CustomMediaPlayer::nowPlayingChanged);
-  connect(m_mediaPlayer, &QMediaPlayer::sourceChanged, this, &CustomMediaPlayer::nowPlayingChanged);
+  connect(this, &CustomMediaPlayer::sourceChanged, this, &CustomMediaPlayer::nowPlayingChanged);
 
   QPlaybackOptions playbackOptions = m_mediaPlayer->playbackOptions();
   playbackOptions.setNetworkTimeout(std::chrono::milliseconds(streamNetworkTimeoutMs));
   m_mediaPlayer->setPlaybackOptions(playbackOptions);
+
+  m_quality = new StreamQuality(this);
+  connect(m_quality, &StreamQuality::changed, this, &CustomMediaPlayer::qualitiesChanged);
+  connect(m_quality, &StreamQuality::resolved, this, &CustomMediaPlayer::onQualityResolved);
+  connect(m_quality, &StreamQuality::failed, this, &CustomMediaPlayer::onQualityFailed);
 
   m_streamLoadTimer = new QTimer(this);
   m_streamLoadTimer->setSingleShot(true);
@@ -112,7 +119,7 @@ SubtitleController *CustomMediaPlayer::subtitles() const { return m_subtitles; }
 bool CustomMediaPlayer::seekable() const { return m_mediaLoaded && m_mediaPlayer->isSeekable(); }
 
 bool CustomMediaPlayer::isLive() const {
-  const QUrl current = m_mediaPlayer->source();
+  const QUrl current = m_source;
   return m_mediaLoaded && !current.isEmpty() && !current.isLocalFile() && m_mediaPlayer->duration() <= 0 && !m_mediaPlayer->isSeekable();
 }
 
@@ -153,9 +160,9 @@ void CustomMediaPlayer::checkForStall() {
 }
 
 void CustomMediaPlayer::onStreamLoadTimeout() {
-  if (m_mediaLoaded || m_mediaPlayer->source().isEmpty())
+  if (m_mediaLoaded || m_source.isEmpty())
     return;
-  qWarning() << "Stream did not load within" << streamLoadTimeoutMs << "ms:" << m_mediaPlayer->source();
+  qWarning() << "Stream did not load within" << streamLoadTimeoutMs << "ms:" << m_source;
   emit errorOccurred(tr("The stream took too long to open. Check the address and your connection."));
   stop();
 }
@@ -249,7 +256,7 @@ QString CustomMediaPlayer::nextChapter() { return jumpChapter(1); }
 QString CustomMediaPlayer::previousChapter() { return jumpChapter(-1); }
 
 void CustomMediaPlayer::checkpoint() {
-  const QUrl current = m_mediaPlayer->source();
+  const QUrl current = m_source;
   if (current.isEmpty() || !m_mediaLoaded || m_mediaPlayer->duration() <= 0)
     return;
   emit positionCheckpoint(current, m_mediaPlayer->position(), m_mediaPlayer->duration());
@@ -340,7 +347,7 @@ void CustomMediaPlayer::applyAudioSelection() {
   emit audioTracksChanged();
 }
 
-QUrl CustomMediaPlayer::source() const { return m_mediaPlayer->source(); }
+QUrl CustomMediaPlayer::source() const { return m_source; }
 
 void CustomMediaPlayer::setSource(const QUrl &source) {
   if (source.isEmpty()) {
@@ -369,8 +376,101 @@ void CustomMediaPlayer::setSource(const QUrl &source) {
     m_streamLoadTimer->stop();
   else
     m_streamLoadTimer->start();
-  m_mediaPlayer->setSource(source);
+
+  const bool changed = m_source != source;
+  m_source = source;
+  m_resumePositionMs = -1;
+  m_pauseWhenLoaded = false;
+  m_quality->cancel();
+  if (StreamQuality::handles(source)) {
+    m_resolvingQuality = true;
+    setPlaybackSource({});
+    emit mediaStatusChanged(QMediaPlayer::LoadingMedia);
+    m_quality->resolve(source, screenHeight());
+  } else {
+    m_resolvingQuality = false;
+    setPlaybackSource({source, {}});
+  }
   m_subtitles->setSource(source);
+  if (changed)
+    emit sourceChanged();
+}
+
+void CustomMediaPlayer::onQualityResolved(const StreamQuality::Playback &playback) {
+  if (!m_resolvingQuality)
+    return;
+  m_resolvingQuality = false;
+  setPlaybackSource(playback);
+}
+
+void CustomMediaPlayer::setPlaybackSource(const StreamQuality::Playback &playback) {
+  QBuffer *previous = m_manifest;
+  m_manifest = nullptr;
+  if (playback.manifest.isEmpty()) {
+    m_mediaPlayer->setSource(playback.url);
+  } else {
+    m_manifest = new QBuffer(this);
+    m_manifest->setData(playback.manifest);
+    m_manifest->open(QIODevice::ReadOnly);
+    m_mediaPlayer->setSourceDevice(m_manifest, playback.url);
+  }
+  if (previous)
+    previous->deleteLater();
+}
+
+void CustomMediaPlayer::onQualityFailed(const QString &error) {
+  if (!m_resolvingQuality)
+    return;
+  emit errorOccurred(error);
+  stop();
+}
+
+void CustomMediaPlayer::selectQuality(int index) {
+  if (m_resolvingQuality)
+    return;
+  switchPlayback(m_quality->select(index));
+}
+
+void CustomMediaPlayer::selectAudioFormat(int index) {
+  if (m_resolvingQuality)
+    return;
+  switchPlayback(m_quality->selectAudioFormat(index));
+}
+
+void CustomMediaPlayer::switchPlayback(const StreamQuality::Playback &playback) {
+  if (playback.url.isEmpty())
+    return;
+
+  const QMediaPlayer::PlaybackState state = m_mediaPlayer->playbackState();
+  const qint64 resumePosition = m_mediaLoaded && m_mediaPlayer->isSeekable() && m_mediaPlayer->duration() > 0 ? m_mediaPlayer->position() : -1;
+  const bool playAfter = m_playWhenLoaded || state == QMediaPlayer::PlayingState;
+
+  resetPreviewPlayer();
+  clearPendingStep();
+  m_pendingAudioTrack = -1;
+  m_audioSelectionApplied = false;
+  m_streamLoadTimer->start();
+  setPlaybackSource(playback);
+
+  m_resumePositionMs = resumePosition;
+  m_playWhenLoaded = playAfter;
+  m_pauseWhenLoaded = state == QMediaPlayer::PausedState;
+}
+
+QStringList CustomMediaPlayer::qualities() const { return m_quality->labels(); }
+
+int CustomMediaPlayer::activeQuality() const { return m_quality->activeIndex(); }
+
+bool CustomMediaPlayer::autoQuality() const { return m_quality->automatic(); }
+
+QStringList CustomMediaPlayer::audioFormats() const { return m_quality->audioFormats(); }
+
+int CustomMediaPlayer::activeAudioFormat() const { return m_quality->activeAudioFormat(); }
+
+int CustomMediaPlayer::screenHeight() const {
+  const QQuickWindow *quickWindow = window();
+  const QScreen *screen = quickWindow ? quickWindow->screen() : nullptr;
+  return screen ? qRound(screen->size().height() * screen->devicePixelRatio()) : 0;
 }
 
 QObject *CustomMediaPlayer::videoOutput() const {
@@ -594,7 +694,7 @@ void CustomMediaPlayer::updateMediaInfo() {
     info.insert("container", QMediaFormat::fileFormatName(fileFormat.value<QMediaFormat::FileFormat>()));
   }
 
-  const QUrl source = m_mediaPlayer->source();
+  const QUrl source = m_source;
   if (source.isLocalFile()) {
     const QFileInfo fileInfo(source.toLocalFile());
     if (fileInfo.exists()) {
@@ -698,6 +798,8 @@ QMediaPlayer::PlaybackState CustomMediaPlayer::playbackState() const {
 }
 
 QMediaPlayer::MediaStatus CustomMediaPlayer::mediaStatus() const {
+  if (m_resolvingQuality)
+    return QMediaPlayer::LoadingMedia;
   return m_mediaPlayer->mediaStatus();
 }
 
@@ -716,11 +818,12 @@ void CustomMediaPlayer::setPosition(qint64 position) {
 bool CustomMediaPlayer::mediaLoaded() const { return m_mediaLoaded; }
 
 void CustomMediaPlayer::play() {
-  if (m_mediaPlayer->source().isEmpty()) {
+  if (m_source.isEmpty()) {
     return;
   }
   clearPendingStep();
-  if (m_mediaPlayer->mediaStatus() < QMediaPlayer::LoadedMedia) {
+  m_pauseWhenLoaded = false;
+  if (m_resolvingQuality || m_mediaPlayer->mediaStatus() < QMediaPlayer::LoadedMedia) {
     m_playWhenLoaded = true;
   } else {
     m_mediaPlayer->play();
@@ -729,6 +832,8 @@ void CustomMediaPlayer::play() {
 
 void CustomMediaPlayer::pause() {
   m_playWhenLoaded = false;
+  if (m_resumePositionMs >= 0)
+    m_pauseWhenLoaded = true;
   m_mediaPlayer->pause();
 }
 
@@ -740,8 +845,16 @@ void CustomMediaPlayer::stop() {
   m_subtitles->clear();
   m_pendingAudioTrack = -1;
   m_audioSelectionApplied = false;
+  m_resolvingQuality = false;
+  m_pauseWhenLoaded = false;
+  m_resumePositionMs = -1;
+  m_quality->cancel();
   m_mediaPlayer->stop();
-  m_mediaPlayer->setSource(QUrl());
+  setPlaybackSource({});
+  if (!m_source.isEmpty()) {
+    m_source.clear();
+    emit sourceChanged();
+  }
   m_mediaPlayer->setPosition(0);
   
   // Explicitly clear the video sink to release video frames
@@ -797,9 +910,19 @@ void CustomMediaPlayer::onStatusChanged(QMediaPlayer::MediaStatus status) {
     m_streamLoadTimer->stop();
   }
 
-  if (status == QMediaPlayer::LoadedMedia && m_playWhenLoaded) {
+  if (status == QMediaPlayer::LoadedMedia && m_resumePositionMs >= 0) {
+    const qint64 position = std::exchange(m_resumePositionMs, -1);
+    const bool playAfter = std::exchange(m_playWhenLoaded, false);
+    m_pauseWhenLoaded = false;
+    m_mediaPlayer->pause();
+    m_mediaPlayer->setPosition(position);
+    if (playAfter)
+      m_mediaPlayer->play();
+  } else if (status == QMediaPlayer::LoadedMedia && m_playWhenLoaded) {
     m_mediaPlayer->play();
     m_playWhenLoaded = false;
+  } else if (status == QMediaPlayer::LoadedMedia && std::exchange(m_pauseWhenLoaded, false)) {
+    m_mediaPlayer->pause();
   }
 
   // Connected after the QML-facing forward above, so a repeat mode has already restarted playback.
@@ -841,7 +964,7 @@ void CustomMediaPlayer::captureFrame() {
     return;
   }
 
-  QString videoName = m_mediaPlayer->source().fileName();
+  QString videoName = m_source.fileName();
   videoName = videoName.left(videoName.lastIndexOf('.'));
 
   qint64 pos = m_mediaPlayer->position();
@@ -872,7 +995,7 @@ void CustomMediaPlayer::captureFrame() {
 }
 
 void CustomMediaPlayer::requestPreviewAt(qint64 position) {
-  if (!m_hasVideo || m_mediaPlayer->source().isEmpty() || position < 0) {
+  if (!m_hasVideo || m_source.isEmpty() || m_manifest || position < 0) {
     return;
   }
 

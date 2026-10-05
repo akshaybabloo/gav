@@ -175,6 +175,7 @@ qt_add_qml_module(appgav
         TitleBar.qml
         NerdStatsOverlay.qml
         TrackMenu.qml
+        QualityMenu.qml
         ResumeDialog.qml
         RecentFilesMenu.qml
         GoToTimeDialog.qml
@@ -198,6 +199,8 @@ qt_add_qml_module(appgav
         SOURCES subtitlecontroller.h subtitlecontroller.cpp
         SOURCES subtitleoverlay.h subtitleoverlay.cpp
         SOURCES shuffleorder.h shuffleorder.cpp
+        SOURCES hlsmaster.h hlsmaster.cpp
+        SOURCES streamquality.h streamquality.cpp
         SOURCES mediasession.h mediasession.cpp
 )
 
@@ -289,6 +292,7 @@ if (BUILD_TESTS)
             tests/test_probeprotocol.cpp
             tests/test_subtitlerenderer.cpp
             tests/test_shuffleorder.cpp
+            tests/test_hlsmaster.cpp
             collage.cpp
             collage.h
             playbackutils.cpp
@@ -307,6 +311,8 @@ if (BUILD_TESTS)
             subtitlerenderer.h
             shuffleorder.cpp
             shuffleorder.h
+            hlsmaster.cpp
+            hlsmaster.h
     )
 
     target_link_libraries(gav_tests

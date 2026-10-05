@@ -296,8 +296,7 @@ server)
 **Decision**: The per-operation network timeout carries SC-010 and the overall watchdog becomes a
 120-second backstop. An "Opening stream…" indicator shows while a network source is loading.
 
-**Open**: Choosing one variant of a master playlist (in GAV, or by patching the plugin to discard
-unselected streams) is not implemented.
+**Follow-up**: R18 makes GAV choose one variant itself.
 
 ## R17. Remote playlists
 
@@ -315,6 +314,43 @@ or no TLS backend is available, the address is handed to the player unchanged.
 
 **Not covered**: per-entry options such as `#EXTVLCOPT` and `http-user-agent`, so channels that
 need them will not play.
+
+## R18. Stream quality selection (FR-031b)
+
+**Findings**
+
+- Qt offers no way to make FFmpeg skip the unselected variants of a master playlist, and FFmpeg
+  refuses a rewritten one-variant master handed over as a `data:` address or a local file.
+- Handing FFmpeg a single variant's own playlist works: the eight-variant test stream starts in
+  about 9 seconds instead of 45 and plays in real time.
+- Nothing in Qt reports connection speed. `QNetworkInformation` only gives the transport type.
+- `QMediaPlayer::setSource` stops the old media first, which reports `LoadedMedia` for it, so
+  resume state has to be armed after the call.
+
+**Decision**: For an `http(s)` address ending in `.m3u8` or `.m3u`, `StreamQuality` downloads the
+master playlist and `Hls::parseMaster` lists every video rendition (best first, labelled by height,
+with the codec or bitrate added when a height occurs more than once) and every audio group as an
+audio format (AAC first, named from the codec and channel count). Nothing is merged or dropped
+from the lists. The player's `source` stays the address the user opened.
+
+- When audio is muxed into the variants, Qt plays the chosen variant's own playlist.
+- When audio comes from separate playlists, `Hls::playback` builds a master playlist that holds
+  only the chosen video rendition and the chosen audio group (all of its languages, default
+  first, addresses made absolute). Qt reads it from memory through
+  `QMediaPlayer::setSourceDevice`, with the opened address as the name so FFmpeg recognises HLS.
+  A 65-variant sample (13 video renditions, 5 audio formats) starts in about 2 seconds this way.
+
+Automatic choice downloads the start of one segment of the middle variant for up to 1.5 seconds
+and picks the best variant whose `BANDWIDTH` × 1.5 fits the measured rate and whose height fits
+the screen. If the measurement fails, the middle variant is used. A manual choice lasts for the
+current stream. Switching quality or audio format reloads and restores the position and play
+state.
+
+**Limits**
+
+- Streams whose address has no `.m3u8`/`.m3u` ending are not inspected.
+- The quality does not adapt during playback.
+- Seek-bar previews are off while a stream plays from an in-memory playlist.
 
 ## Open items
 

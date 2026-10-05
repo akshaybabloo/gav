@@ -543,6 +543,9 @@ Item {
                     TrackMenu {
                         player: root.player
                     }
+                    QualityMenu {
+                        player: root.player
+                    }
                     BrightnessContrastPopup {
                         hasVideo: player.hasVideo
                         videoOutput: root.videoOutput
