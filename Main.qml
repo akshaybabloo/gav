@@ -641,7 +641,8 @@ ApplicationWindow {
     }
     Connections {
         function onVisibleEntriesChanged() {
-            shuffleOrder.setCandidates(playlistView.visibleIds());
+            if (appSettings.shuffle)
+                shuffleOrder.setCandidates(playlistView.visibleIds());
         }
 
         target: playlistView

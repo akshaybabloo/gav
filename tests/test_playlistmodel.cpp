@@ -194,6 +194,30 @@ TEST(PlaylistModelTest, RemovingEntriesKeepsOrClearsTheCurrentEntry) {
     EXPECT_EQ(model.remove({}), 0);
 }
 
+TEST(PlaylistModelTest, RemovesNeighbouringRowsInOneNotification) {
+    PlaylistModel model;
+    QAbstractItemModelTester tester(&model, QAbstractItemModelTester::FailureReportingMode::Fatal);
+    model.append(files(10));
+    QSignalSpy removed(&model, &QAbstractItemModel::rowsRemoved);
+
+    EXPECT_EQ(model.remove({model.idAt(3), model.idAt(8), model.idAt(2), model.idAt(4), model.idAt(7)}), 5);
+    ASSERT_EQ(removed.size(), 2);
+    EXPECT_EQ(removed[0][1].toInt(), 7);
+    EXPECT_EQ(removed[0][2].toInt(), 8);
+    EXPECT_EQ(removed[1][1].toInt(), 2);
+    EXPECT_EQ(removed[1][2].toInt(), 4);
+    EXPECT_EQ(titles(model), QStringList({"0.mp4", "1.mp4", "5.mp4", "6.mp4", "9.mp4"}));
+
+    QList<int> all;
+    for (int row = 0; row < model.count(); ++row) {
+        all.append(model.idAt(row));
+    }
+    removed.clear();
+    EXPECT_EQ(model.remove(all), 5);
+    EXPECT_EQ(removed.size(), 1);
+    EXPECT_EQ(model.count(), 0);
+}
+
 TEST(PlaylistModelTest, AnchorMarksWhereTheRemovedCurrentEntryWas) {
     PlaylistModel model;
     model.append(files(4));

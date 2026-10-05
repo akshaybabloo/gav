@@ -205,13 +205,18 @@ int PlaylistModel::remove(const QList<int> &ids) {
     const int previousCurrentRow = currentRow();
     const bool removesCurrent = previousCurrentRow >= 0 && rows.contains(previousCurrentRow);
     int anchor = removesCurrent ? previousCurrentRow : m_anchorRow;
-    for (const int row : rows) {
-        beginRemoveRows(QModelIndex(), row, row);
-        m_entries.removeAt(row);
-        endRemoveRows();
-        if (anchor > row) {
-            --anchor;
+    anchor -= int(std::count_if(rows.cbegin(), rows.cend(), [anchor](int row) { return row < anchor; }));
+
+    for (qsizetype i = 0; i < rows.size();) {
+        const int last = rows[i];
+        int first = last;
+        while (i + 1 < rows.size() && rows[i + 1] == first - 1) {
+            first = rows[++i];
         }
+        ++i;
+        beginRemoveRows(QModelIndex(), first, last);
+        m_entries.remove(first, last - first + 1);
+        endRemoveRows();
     }
     m_anchorRow = m_entries.isEmpty() ? -1 : anchor;
     emit countChanged();
