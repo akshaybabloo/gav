@@ -1,19 +1,3 @@
-<!--
-Sync Impact Report
-- Version change: (unfilled template) → 1.0.0
-- Modified principles:
-  - [PRINCIPLE_1_NAME] → I. Simple, Focused Player
-  - [PRINCIPLE_2_NAME] → II. Responsive UI Through Isolation
-  - [PRINCIPLE_3_NAME] → III. Cross-Platform Parity
-  - [PRINCIPLE_4_NAME] → IV. Pinned, Patchable Dependencies
-  - [PRINCIPLE_5_NAME] → V. Tested Core Logic
-- Added sections: Technology Constraints, Development Workflow, Governance (filled)
-- Removed sections: none
-- Templates: plan-template.md, spec-template.md and tasks-template.md read the constitution at
-  runtime; no edits made or required.
-- Deferred TODOs: none
--->
-
 # GAV Constitution
 
 ## Core Principles

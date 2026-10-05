@@ -409,11 +409,11 @@ with no comments by default (Constitution: Development Workflow).
 
 **Purpose**: Documentation, packaging checks and full validation across stories
 
-- [ ] T071 [P] Update `CLAUDE.md`:
+- [X] T071 [P] Update `CLAUDE.md`:
   - Architecture: the `GAV_SUBPROCESS=probe` mode, `MediaProbe`/`ProbeWorker`/`SubtitleRenderer`/`SubtitleOverlay`, `PlaybackHistory`, `PlaylistFiles`, `MediaSession` back-ends, and the new QML files
   - Dependencies: libass, uchardet, the FFmpeg `iconv`/`openssl` features, and FFmpeg being linked into `gav`
   - Custom FFmpeg plugin section: CI no longer uses `--x-no-default-features` on cache hits
-- [ ] T072 [P] Update `README.md` Usage: subtitles (sidecar naming, drag and drop), playlists (`.m3u8`), opening URLs (`gav https://…`), and a link to the shortcut list in Settings.
+- [X] T072 [P] Update `README.md` Usage: subtitles (sidecar naming, drag and drop), playlists (`.m3u8`), opening URLs (`gav https://…`), and a link to the shortcut list in Settings.
 - [ ] T073 Check packaging in `support/cpack.cmake`:
   - Qt DBus is deployed on Linux, and DEB/RPM/AppImage run on a clean Ubuntu 24.04 VM with subtitles rendering (quickstart Q1.11)
   - the NSIS/ZIP install runs SMTC on Windows
@@ -421,7 +421,7 @@ with no comments by default (Constitution: Development Workflow).
   - fix any missing deploy entries
 - [ ] T074 Check the `SubtitleOverlay` render cost against the plan's "under 4 ms at 1080p" target, using `test_subtitlerenderer` timings and a debug-level timing log in `subtitleoverlay.cpp`. Optimise compositing (e.g. a reused buffer, dirty-rect copy) if it's over.
 - [ ] T075 Run the full [quickstart.md](./quickstart.md) on Linux, Windows and macOS and record the results in the final PR description, including the SC-007 frame-step count and the SC-011 comparison screenshots.
-- [ ] T076 Remove the Sync Impact Report HTML comment from `.specify/memory/constitution.md` before the first PR from this plan merges, as the constitution workflow expects.
+- [X] T076 Remove the Sync Impact Report HTML comment from `.specify/memory/constitution.md` before the first PR from this plan merges, as the constitution workflow expects.
 
 ---
 
