@@ -382,7 +382,7 @@ Rectangle {
 
                         readonly property bool copied: copiedResetTimer.running
 
-                        text: copied ? "" : ""
+                        text: copied ? "\ue5ca" : "\ue14d"
                         font.family: materialSymbolsOutlined.name
                         font.pixelSize: 16
                         flat: true
@@ -416,7 +416,7 @@ Rectangle {
                     }
                     Button {
                         id: closeButton
-                        text: ""
+                        text: "\ue5cd"
                         font.family: materialSymbolsOutlined.name
                         font.pixelSize: 16
                         flat: true

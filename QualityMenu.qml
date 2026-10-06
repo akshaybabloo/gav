@@ -25,7 +25,7 @@ Button {
     font.weight: Font.Light
     hoverEnabled: true
     scale: 1.5
-    text: ""
+    text: "\ue024"
     visible: qualities.length > 0
 
     onClicked: popup.open()
