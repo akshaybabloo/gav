@@ -21,6 +21,7 @@ class PlaylistView : public QAbstractListModel {
     Q_PROPERTY(int matchCount READ matchCount NOTIFY matchCountChanged)
     Q_PROPERTY(bool hasGroups READ hasGroups NOTIFY hasGroupsChanged)
     Q_PROPERTY(bool canReorder READ canReorder NOTIFY canReorderChanged)
+    Q_PROPERTY(int selectionCount READ selectionCount NOTIFY selectionChanged)
     Q_PROPERTY(int currentViewRow READ currentViewRow NOTIFY currentViewRowChanged)
     Q_PROPERTY(bool canGoNext READ canGoNext NOTIFY navigationChanged)
     Q_PROPERTY(bool canGoPrevious READ canGoPrevious NOTIFY navigationChanged)
@@ -59,12 +60,17 @@ public:
     int matchCount() const;
     bool hasGroups() const;
     bool canReorder() const;
+    int selectionCount() const;
     int currentViewRow() const;
     bool canGoNext() const;
     bool canGoPrevious() const;
 
     Q_INVOKABLE void toggleGroup(const QString &group);
     Q_INVOKABLE void clearSearchAndFilter();
+    Q_INVOKABLE void select(int viewRow, int modifiers);
+    Q_INVOKABLE void selectAll();
+    Q_INVOKABLE void clearSelection();
+    Q_INVOKABLE QList<int> selectedIds() const;
     Q_INVOKABLE int viewRowFor(int sourceRow) const;
     Q_INVOKABLE int sourceRowFor(int viewRow) const;
     Q_INVOKABLE int nextRow(bool repeat) const;
@@ -81,6 +87,7 @@ signals:
     void matchCountChanged();
     void hasGroupsChanged();
     void canReorderChanged();
+    void selectionChanged();
     void currentViewRowChanged();
     void navigationChanged();
     void visibleEntriesChanged();
@@ -124,6 +131,8 @@ private:
     void assign(const Layout &layout);
     void resetLayout(const State &before);
     void updateCurrent();
+    void setSelection(const QSet<int> &selection);
+    void countSelection();
     void removeHiddenRows();
     State state() const;
     void notify(const State &before);
@@ -136,6 +145,9 @@ private:
     QList<int> m_viewRows;
     QList<Folded> m_folded;
     QSet<QString> m_collapsed;
+    QSet<int> m_selected;
+    int m_selectionAnchor = -1;
+    int m_selectionCount = 0;
     QString m_searchText;
     QString m_needle;
     Filter m_filter = All;

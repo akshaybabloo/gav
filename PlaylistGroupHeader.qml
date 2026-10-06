@@ -9,6 +9,7 @@ ItemDelegate {
     id: root
 
     required property bool collapsed
+    property bool focused: false
     required property string group
     required property int groupCount
     readonly property string label: group !== "" ? group : qsTr("Ungrouped")
@@ -22,6 +23,8 @@ ItemDelegate {
     topPadding: 0
 
     background: Rectangle {
+        border.color: Material.foreground
+        border.width: root.focused ? 2 : 0
         color: root.down ? Material.listHighlightColor : (root.hovered ? Material.dividerColor : Qt.rgba(Material.foreground.r, Material.foreground.g, Material.foreground.b, 0.06))
     }
     contentItem: RowLayout {

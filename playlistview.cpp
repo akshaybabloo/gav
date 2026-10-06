@@ -45,9 +45,10 @@ QVariant PlaylistView::data(const QModelIndex &index, int role) const {
     }
     switch (role) {
     case IsHeaderRole:
-    case SelectedRole:
     case CollapsedRole:
         return false;
+    case SelectedRole:
+        return m_selected.contains(m_source->idAt(row.sourceRow));
     case GroupCountRole:
         return 0;
     case SourceRowRole:
@@ -113,6 +114,13 @@ void PlaylistView::setSource(PlaylistModel *source) {
             }
         });
         connect(m_source, &QAbstractItemModel::rowsAboutToBeRemoved, this, [this](const QModelIndex &, int first, int last) {
+            for (int row = first; row <= last; ++row) {
+                const int id = m_source->idAt(row);
+                m_selected.remove(id);
+                if (m_selectionAnchor == id) {
+                    m_selectionAnchor = -1;
+                }
+            }
             m_before = state();
             m_forwarding = canReorder() && !m_grouped;
             if (m_forwarding) {
@@ -140,11 +148,46 @@ void PlaylistView::setSource(PlaylistModel *source) {
             }
             notify(m_before);
         });
+        connect(m_source, &QAbstractItemModel::rowsAboutToBeMoved, this,
+                [this](const QModelIndex &, int first, int last, const QModelIndex &, int destination) {
+                    m_before = state();
+                    m_forwarding = canReorder() && !m_grouped && beginMoveRows(QModelIndex(), first, last, QModelIndex(), destination);
+                    if (!m_forwarding) {
+                        beginResetModel();
+                    }
+                });
+        connect(m_source, &QAbstractItemModel::rowsMoved, this, [this](const QModelIndex &, int first, int last, const QModelIndex &, int destination) {
+            const int size = last - first + 1;
+            const QList<Folded> moved = m_folded.mid(first, size);
+            m_folded.remove(first, size);
+            const int at = destination > last ? destination - size : destination;
+            for (int offset = 0; offset < size; ++offset) {
+                m_folded.insert(at + offset, moved[offset]);
+            }
+            assign(build());
+            if (m_forwarding) {
+                endMoveRows();
+            } else {
+                endResetModel();
+            }
+            notify(m_before);
+        });
         connect(m_source, &QAbstractItemModel::modelAboutToBeReset, this, [this] {
             m_before = state();
             beginResetModel();
         });
         connect(m_source, &QAbstractItemModel::modelReset, this, [this] {
+            QSet<int> remaining;
+            for (int row = 0; row < m_source->count(); ++row) {
+                const int id = m_source->idAt(row);
+                if (m_selected.contains(id)) {
+                    remaining.insert(id);
+                }
+            }
+            m_selected = remaining;
+            if (!m_selected.contains(m_selectionAnchor)) {
+                m_selectionAnchor = -1;
+            }
             refold();
             assign(build());
             endResetModel();
@@ -485,8 +528,77 @@ void PlaylistView::notify(const State &before) {
         emit matchCountChanged();
     }
     emit visibleEntriesChanged();
+    countSelection();
     updateCurrent();
     updateNavigation();
+}
+
+int PlaylistView::selectionCount() const { return m_selectionCount; }
+
+void PlaylistView::select(int viewRow, int modifiers) {
+    const int sourceRow = sourceRowFor(viewRow);
+    if (sourceRow < 0) {
+        return;
+    }
+    const int id = m_source->idAt(sourceRow);
+    const bool toggle = modifiers & Qt::ControlModifier;
+    const int anchorRow = modifiers & Qt::ShiftModifier ? viewRowFor(m_source->rowForId(m_selectionAnchor)) : -1;
+    QSet<int> selection = toggle ? m_selected : QSet<int>();
+    if (anchorRow >= 0) {
+        for (int row = qMin(anchorRow, viewRow); row <= qMax(anchorRow, viewRow); ++row) {
+            if (m_rows[row].sourceRow >= 0) {
+                selection.insert(m_source->idAt(m_rows[row].sourceRow));
+            }
+        }
+    } else {
+        m_selectionAnchor = id;
+        if (toggle && m_selected.contains(id)) {
+            selection.remove(id);
+        } else {
+            selection.insert(id);
+        }
+    }
+    setSelection(selection);
+}
+
+void PlaylistView::selectAll() {
+    const QList<int> ids = visibleIds();
+    setSelection(QSet<int>(ids.cbegin(), ids.cend()));
+}
+
+void PlaylistView::clearSelection() {
+    m_selectionAnchor = -1;
+    setSelection({});
+}
+
+QList<int> PlaylistView::selectedIds() const {
+    QList<int> ids;
+    for (const Row &row : m_rows) {
+        if (row.sourceRow >= 0 && m_selected.contains(m_source->idAt(row.sourceRow))) {
+            ids.append(m_source->idAt(row.sourceRow));
+        }
+    }
+    return ids;
+}
+
+void PlaylistView::setSelection(const QSet<int> &selection) {
+    if (selection == m_selected) {
+        return;
+    }
+    m_selected = selection;
+    if (!m_rows.isEmpty()) {
+        emit dataChanged(index(0), index(int(m_rows.size()) - 1), {SelectedRole});
+    }
+    m_selectionCount = int(selectedIds().size());
+    emit selectionChanged();
+}
+
+void PlaylistView::countSelection() {
+    const int count = m_selected.isEmpty() ? 0 : int(selectedIds().size());
+    if (count != m_selectionCount) {
+        m_selectionCount = count;
+        emit selectionChanged();
+    }
 }
 
 void PlaylistView::updateCurrent() {

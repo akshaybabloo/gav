@@ -17,6 +17,8 @@ class PlaylistModel : public QAbstractListModel {
     Q_PROPERTY(int currentRow READ currentRow WRITE setCurrentRow NOTIFY currentRowChanged)
     Q_PROPERTY(int currentId READ currentId NOTIFY currentChanged)
     Q_PROPERTY(QStringList audioExtensions READ audioExtensions WRITE setAudioExtensions NOTIFY audioExtensionsChanged)
+    Q_PROPERTY(int queueLength READ queueLength NOTIFY queueChanged)
+    Q_PROPERTY(bool canUndoRemove READ canUndoRemove NOTIFY undoChanged)
 
 public:
     enum Kind { LocalVideo, LocalAudio, Stream };
@@ -70,12 +72,19 @@ public:
     int anchorRow() const;
     QStringList audioExtensions() const;
     void setAudioExtensions(const QStringList &extensions);
+    int queueLength() const;
+    bool canUndoRemove() const;
 
     const Entry *entry(int row) const;
 
     Q_INVOKABLE int append(const QVariantList &entries);
     Q_INVOKABLE int insert(int row, const QVariantList &entries);
     Q_INVOKABLE int remove(const QList<int> &ids);
+    Q_INVOKABLE int undoRemove();
+    Q_INVOKABLE bool move(const QList<int> &ids, int destinationRow);
+    Q_INVOKABLE int removeDuplicates();
+    Q_INVOKABLE void playNext(int id);
+    Q_INVOKABLE int takeQueued();
     Q_INVOKABLE void clear();
     Q_INVOKABLE void setLoaded(int id, qint64 durationMs, bool isLive);
     Q_INVOKABLE void setUnavailable(int id, const QString &reason);
@@ -90,13 +99,24 @@ signals:
     void currentChanged();
     void currentRowChanged();
     void audioExtensionsChanged();
+    void queueChanged();
+    void undoChanged();
 
 private:
+    struct Removed {
+        int row = -1;
+        Entry entry;
+    };
+
     bool makeEntry(const QVariantMap &map, Entry *entry);
+    void setUndoStep(const QList<Removed> &step);
+    void setQueue(const QList<int> &queue);
     QVariantMap toMap(const Entry &entry) const;
     void setCurrentId(int id);
 
     QList<Entry> m_entries;
+    QList<Removed> m_undoStep;
+    QList<int> m_queue;
     QStringList m_audioExtensions;
     int m_nextId = 1;
     int m_currentId = -1;

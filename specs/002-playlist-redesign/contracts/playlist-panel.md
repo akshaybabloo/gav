@@ -66,12 +66,12 @@ list scrolls only if the panel is open and the user is not interacting with it.
 
 | Action | Result |
 |---|---|
-| Click | Selects the row. |
+| Click | Selects the row and gives the list keyboard focus. It no longer starts playback; double-click does. |
 | Ctrl+click / Shift+click | Toggles / extends the selection. |
 | Double-click | Plays the entry. |
 | Right-click | Opens the row menu for the selection. |
 | Drag the handle | Moves the selected entries. Disabled, with a tooltip explaining why, unless the view is in playlist order with no search, filter or grouping. |
-| Drop files, a playlist or an address on the list | Inserts at the row under the pointer. A drop elsewhere in the window appends, as today. |
+| Drop files, a playlist or an address on the list | Inserts at the row under the pointer, shown by a line, without interrupting what is playing. In a searched, filtered, sorted or grouped view that is just before the entry under the pointer in playlist order. Files and playlists dropped together keep the order they were dropped in. A drop on a group heading, below the last row, or elsewhere in the window appends, as today. |
 
 ## Row menu
 
@@ -85,12 +85,12 @@ With several entries selected: Play next (all, in order) · Remove.
 
 | Key | Result |
 |---|---|
-| `Up` / `Down` | Move focus one row. With `Shift`, extend the selection. |
+| `Up` / `Down` | Move focus one row and select it. With `Shift`, extend the selection instead. `Down` in the search field moves focus into the list. |
 | `Page Up` / `Page Down` / `Home` / `End` | Move focus by a page or to the ends. |
 | `Enter` | Play the focused entry, or toggle the focused group. |
 | `Ctrl+Space` | Toggle selection of the focused row. |
 | `Ctrl+A` | Select all visible entries. |
-| `Delete` | Remove the selected entries. |
+| `Delete` | Remove the selected entries, or the focused one when nothing is selected. |
 | `Ctrl+Z` | Undo the last removal. |
 | `Q` | Play the focused entry next. |
 | `Alt+Up` / `Alt+Down` | Move the selected entries up or down one row, when reordering is allowed. |
