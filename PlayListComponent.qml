@@ -1,3 +1,4 @@
+import QtQml.Models
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Material
@@ -10,19 +11,17 @@ Item {
 
     required property PlaylistModel playList
     required property PlaylistView playlistView
-    property string searchFilter: ""
     property bool showLogos: false
 
     signal itemSelected(string path, string name)
     signal playRequested
 
-    function matchesFilter(name) {
-        if (!searchFilter || searchFilter.length === 0)
-            return true;
-        return name.toLowerCase().indexOf(searchFilter.toLowerCase()) !== -1;
-    }
     function removeItem(sourceRow) {
         playList.remove([playList.idAt(sourceRow)]);
+    }
+    function showStart() {
+        playListView.forceLayout();
+        playListView.positionViewAtBeginning();
     }
     function showCurrent() {
         var row = playlistView.currentViewRow;
@@ -41,14 +40,14 @@ Item {
                 return;
             var item = root.playList.entryAt(root.playList.currentRow);
             root.itemSelected(item.path, item.title);
+            Qt.callLater(root.showCurrent);
         }
 
         target: root.playList
     }
     Connections {
-        function onCurrentViewRowChanged() {
-            playListView.currentIndex = root.playlistView.currentViewRow;
-            root.showCurrent();
+        function onModelReset() {
+            Qt.callLater(root.showStart);
         }
 
         target: root.playlistView
@@ -58,30 +57,40 @@ Item {
 
         anchors.fill: parent
         boundsBehavior: Flickable.StopAtBounds
+        cacheBuffer: AppConstants.playlistRowHeight * 3
         clip: true
-        currentIndex: root.playlistView.currentViewRow
+        highlightFollowsCurrentItem: false
         model: root.playlistView
+        reuseItems: true
         topMargin: 5
 
         ScrollBar.vertical: ScrollBar {
         }
-        delegate: PlaylistRow {
-            readonly property bool matches: root.matchesFilter(title)
+        delegate: DelegateChooser {
+            role: "isHeader"
 
-            height: matches ? implicitHeight : 0
-            showLogo: root.showLogos
-            visible: matches
-            width: ListView.view.width
+            DelegateChoice {
+                roleValue: true
 
-            Behavior on height {
-                NumberAnimation {
-                    duration: 150
+                PlaylistGroupHeader {
+                    width: ListView.view.width
+
+                    onClicked: root.playlistView.toggleGroup(group)
                 }
             }
+            DelegateChoice {
+                roleValue: false
 
-            onClicked: root.playList.currentRow = sourceRow
-            onDoubleClicked: root.playRequested()
-            onRemoveRequested: root.removeItem(sourceRow)
+                PlaylistRow {
+                    showGroup: !(root.playlistView.grouped && root.playlistView.hasGroups)
+                    showLogo: root.showLogos
+                    width: ListView.view.width
+
+                    onClicked: root.playList.currentRow = sourceRow
+                    onDoubleClicked: root.playRequested()
+                    onRemoveRequested: root.removeItem(sourceRow)
+                }
+            }
         }
     }
 }

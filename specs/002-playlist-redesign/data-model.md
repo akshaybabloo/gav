@@ -94,7 +94,11 @@ How the user is looking at the playlist. It never changes playlist order.
 
 **Rules**
 
-- Sorting by duration puts unknown durations last. Ties keep playlist order.
+- Sorting by duration puts unknown durations last. Ties keep playlist order. Sorting by title is
+  case-insensitive and puts numbers in counting order.
+- Grouping takes effect only when at least one entry has a group.
+- When the current entry is hidden by the search, filter or a collapsed group, "next" starts at
+  the first visible entry and "previous" does nothing.
 - When grouping is on, groups appear in the order their first entry appears in the playlist, with
   the catch-all last, and the sort order applies inside each group.
 - Selection only ever contains ids that exist. Entries hidden by a later search stay selected

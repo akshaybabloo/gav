@@ -178,3 +178,49 @@ TEST(ShuffleOrder, SelectingAnIdOutsideTheCandidatesIsIgnored) {
     order.setCurrent(999);
     EXPECT_EQ(order.current(), 100);
 }
+
+TEST(ShuffleOrder, ShrinkingTheCandidatesMidRoundNeverPlaysAnythingElse) {
+    ShuffleOrder order;
+    order.setSeed(7);
+    QList<int> all;
+    for (int id = 1; id <= 12; ++id) {
+        all.append(id);
+    }
+    order.reset(all, 1);
+    order.next(false);
+    order.next(false);
+
+    const QList<int> narrowed{2, 5, 8, 11};
+    order.setCandidates(narrowed);
+    EXPECT_LE(order.remaining(), narrowed.size());
+    QSet<int> played;
+    for (int id = order.next(false); id >= 0; id = order.next(false)) {
+        EXPECT_TRUE(narrowed.contains(id)) << id;
+        EXPECT_FALSE(played.contains(id)) << id;
+        played.insert(id);
+    }
+    for (int step = 0; step < 8; ++step) {
+        const int id = order.next(true);
+        EXPECT_TRUE(narrowed.contains(id)) << id;
+    }
+    for (int id = order.previous(); id >= 0; id = order.previous()) {
+        EXPECT_TRUE(narrowed.contains(id)) << id;
+    }
+}
+
+TEST(ShuffleOrder, GrowingTheCandidatesAddsThemToTheCurrentRound) {
+    ShuffleOrder order;
+    order.setSeed(11);
+    order.reset({1, 2, 3}, 1);
+    EXPECT_EQ(order.remaining(), 2);
+    const int second = order.next(false);
+
+    order.setCandidates({1, 2, 3, 4, 5, 6});
+    EXPECT_EQ(order.remaining(), 4);
+    QSet<int> played{1, second};
+    for (int id = order.next(false); id >= 0; id = order.next(false)) {
+        EXPECT_FALSE(played.contains(id)) << id;
+        played.insert(id);
+    }
+    EXPECT_EQ(played, QSet<int>({1, 2, 3, 4, 5, 6}));
+}

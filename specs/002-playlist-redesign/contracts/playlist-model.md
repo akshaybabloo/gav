@@ -70,7 +70,7 @@ rows every `PlaylistModel` role plus `selected` and `sourceRow`.
 | `grouped` | bool | |
 | `matchCount` | int | Entries passing search and filter. |
 | `hasGroups` | bool | Whether any entry has a group, so the UI can hide the grouping control. |
-| `canReorder` | bool | See the data model. |
+| `canReorder` | bool | See the data model. Grouping counts only while it is in effect (some entry has a group). |
 | `selectionCount` | int | Visible selected entries. |
 | `currentViewRow` | int | View row of the current entry, `-1` if hidden. |
 | `canGoNext` / `canGoPrevious` | bool | Whether `nextRow(false)` / `previousRow()` would return an entry. For bindings. |
@@ -79,7 +79,7 @@ rows every `PlaylistModel` role plus `selected` and `sourceRow`.
 
 | Method | Effect |
 |---|---|
-| `toggleGroup(group)` | Collapses or expands a group. |
+| `toggleGroup(group)` | Collapses or expands a group. The catch-all group's name is the empty string. |
 | `select(viewRow, modifiers)` | Applies click, Ctrl+click or Shift+click selection rules. |
 | `selectAll()` / `clearSelection()` | Over visible entries. |
 | `selectedIds()` | Ids of visible selected entries, in view order. |
@@ -91,8 +91,12 @@ rows every `PlaylistModel` role plus `selected` and `sourceRow`.
 | `clearSearchAndFilter()` | Resets `searchText` and `filter`. |
 
 **Signals**: the standard list-model signals, plus `visibleEntriesChanged()` (the set or order of
-visible entries changed), `playableEntriesChanged()` (an entry became available or unavailable)
-and `selectionChanged()`.
+visible entries changed), `playableEntriesChanged()` (an entry became available or unavailable),
+`addedEntriesHidden(added, hidden)` (entries were added and the search or filter hides `hidden` of
+them) and `selectionChanged()`.
+
+**Header rows** carry `isHeader`, `group` (empty for the catch-all, shown as "Ungrouped"),
+`groupCount` and `collapsed`. `sourceRow` and `entryId` are `-1`.
 
 **Guarantees**
 

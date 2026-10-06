@@ -24,6 +24,39 @@ Item {
     signal shuffleToggled(bool enabled)
     signal widthRequested(int requestedWidth)
 
+    component PanelButton: Button {
+        property string tip: ""
+
+        Accessible.role: Accessible.Button
+        Layout.preferredHeight: 30
+        Layout.preferredWidth: 25
+        Material.roundedScale: Material.NotRounded
+        font.family: materialSymbolsOutlined.name
+        font.weight: Font.Light
+        hoverEnabled: true
+        scale: 1.5
+
+        ToolTip {
+            delay: AppConstants.tooltipDelay
+            text: parent.tip
+            timeout: AppConstants.tooltipTimeout
+            visible: parent.hovered && parent.tip !== ""
+        }
+    }
+
+    function focusSearch() {
+        searchField.forceActiveFocus();
+        searchField.selectAll();
+    }
+
+    Connections {
+        function onSearchTextChanged() {
+            if (searchField.text !== root.playlistView.searchText)
+                searchField.text = root.playlistView.searchText;
+        }
+
+        target: root.playlistView
+    }
     Rectangle {
         anchors.fill: parent
         color: Material.background
@@ -76,7 +109,7 @@ Item {
                         elide: Text.ElideRight
                         font.pixelSize: 12
                         opacity: 0.7
-                        text: root.playList.count + " " + (root.playList.count === 1 ? qsTr("item") : qsTr("items"))
+                        text: root.playlistView.searchText.trim() !== "" || root.playlistView.filter !== PlaylistView.All ? qsTr("%1 of %2").arg(root.playlistView.matchCount).arg(root.playList.count) : root.playList.count + " " + (root.playList.count === 1 ? qsTr("item") : qsTr("items"))
                     }
                     Button {
                         id: shuffleButton
@@ -209,6 +242,10 @@ Item {
                         }
                     }
                 }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 15
+
                 TextField {
                     id: searchField
 
@@ -216,6 +253,8 @@ Item {
                     Layout.fillWidth: true
                     placeholderText: qsTr("Search playlist...")
                     selectByMouse: true
+
+                    onTextChanged: root.playlistView.searchText = text
 
                     Keys.onEscapePressed: {
                         if (text.length > 0) {
@@ -252,6 +291,125 @@ Item {
                         }
                     }
                 }
+                PanelButton {
+                    id: filterButton
+
+                    readonly property string current: root.playlistView.filter === PlaylistView.LocalFiles ? qsTr("Local files") : (root.playlistView.filter === PlaylistView.Streams ? qsTr("Streams") : qsTr("All"))
+
+                    Accessible.description: qsTr("Choose which kinds of entry are shown")
+                    Accessible.name: qsTr("Filter: %1").arg(current)
+                    Material.foreground: root.playlistView.filter !== PlaylistView.All ? Material.accent : undefined
+                    text: "\ue152"
+                    tip: qsTr("Filter: %1").arg(current)
+
+                    onClicked: filterMenu.popup(filterButton, 0, filterButton.height)
+
+                    Menu {
+                        id: filterMenu
+
+                        ActionGroup {
+                            id: filterGroup
+
+                        }
+                        MenuItem {
+                            action: Action {
+                                ActionGroup.group: filterGroup
+                                checkable: true
+                                checked: root.playlistView.filter === PlaylistView.All
+                                text: qsTr("All")
+
+                                onTriggered: root.playlistView.filter = PlaylistView.All
+                            }
+                        }
+                        MenuItem {
+                            action: Action {
+                                ActionGroup.group: filterGroup
+                                checkable: true
+                                checked: root.playlistView.filter === PlaylistView.LocalFiles
+                                text: qsTr("Local files")
+
+                                onTriggered: root.playlistView.filter = PlaylistView.LocalFiles
+                            }
+                        }
+                        MenuItem {
+                            action: Action {
+                                ActionGroup.group: filterGroup
+                                checkable: true
+                                checked: root.playlistView.filter === PlaylistView.Streams
+                                text: qsTr("Streams")
+
+                                onTriggered: root.playlistView.filter = PlaylistView.Streams
+                            }
+                        }
+                    }
+                }
+                PanelButton {
+                    id: sortButton
+
+                    readonly property string current: root.playlistView.sortOrder === PlaylistView.Title ? qsTr("Title") : (root.playlistView.sortOrder === PlaylistView.Duration ? qsTr("Duration") : qsTr("Playlist order"))
+
+                    Accessible.description: qsTr("Choose the order entries are shown in")
+                    Accessible.name: qsTr("Sort: %1").arg(current)
+                    Material.foreground: root.playlistView.sortOrder !== PlaylistView.PlaylistOrder ? Material.accent : undefined
+                    text: "\ue8d5"
+                    tip: qsTr("Sort: %1").arg(current)
+
+                    onClicked: sortMenu.popup(sortButton, 0, sortButton.height)
+
+                    Menu {
+                        id: sortMenu
+
+                        ActionGroup {
+                            id: sortGroup
+
+                        }
+                        MenuItem {
+                            action: Action {
+                                ActionGroup.group: sortGroup
+                                checkable: true
+                                checked: root.playlistView.sortOrder === PlaylistView.PlaylistOrder
+                                text: qsTr("Playlist order")
+
+                                onTriggered: root.playlistView.sortOrder = PlaylistView.PlaylistOrder
+                            }
+                        }
+                        MenuItem {
+                            action: Action {
+                                ActionGroup.group: sortGroup
+                                checkable: true
+                                checked: root.playlistView.sortOrder === PlaylistView.Title
+                                text: qsTr("Title")
+
+                                onTriggered: root.playlistView.sortOrder = PlaylistView.Title
+                            }
+                        }
+                        MenuItem {
+                            action: Action {
+                                ActionGroup.group: sortGroup
+                                checkable: true
+                                checked: root.playlistView.sortOrder === PlaylistView.Duration
+                                text: qsTr("Duration")
+
+                                onTriggered: root.playlistView.sortOrder = PlaylistView.Duration
+                            }
+                        }
+                    }
+                }
+                PanelButton {
+                    id: groupButton
+
+                    Accessible.description: qsTr("Show entries under their group headings")
+                    Accessible.name: checked ? qsTr("Grouping: On") : qsTr("Grouping: Off")
+                    Material.foreground: checked ? Material.accent : undefined
+                    checkable: true
+                    checked: root.playlistView.grouped
+                    text: "\ue574"
+                    tip: checked ? qsTr("Grouping: On") : qsTr("Grouping: Off")
+                    visible: root.playlistView.hasGroups
+
+                    onToggled: root.playlistView.grouped = checked
+                }
+                }
             }
         }
         Item {
@@ -262,14 +420,41 @@ Item {
                 anchors.fill: parent
                 playList: root.playList
                 playlistView: root.playlistView
-                searchFilter: searchField.text
                 showLogos: root.showLogos
-                visible: root.playList.count > 0
+                visible: root.playlistView.matchCount > 0
 
                 onItemSelected: function (path, name) {
                     root.itemSelected(path, name);
                 }
                 onPlayRequested: root.playRequested()
+            }
+            ColumnLayout {
+                anchors.centerIn: parent
+                spacing: 10
+                visible: root.playList.count > 0 && root.playlistView.matchCount === 0
+                width: Math.min(parent.width - 40, 420)
+
+                Text {
+                    Layout.alignment: Qt.AlignHCenter
+                    color: Material.foreground
+                    font.family: materialSymbolsOutlined.name
+                    font.pixelSize: 48
+                    font.weight: Font.ExtraLight
+                    text: "\uea76"
+                }
+                Text {
+                    Layout.alignment: Qt.AlignHCenter
+                    color: Material.foreground
+                    font.pixelSize: 18
+                    text: qsTr("Nothing matches")
+                }
+                Button {
+                    Layout.alignment: Qt.AlignHCenter
+                    flat: true
+                    text: qsTr("Clear search and filter")
+
+                    onClicked: root.playlistView.clearSearchAndFilter()
+                }
             }
             ColumnLayout {
                 anchors.centerIn: parent

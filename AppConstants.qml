@@ -14,6 +14,7 @@ QtObject {
     // Playlist panel (in pixels, except the fraction of the window width)
     readonly property int playlistPanelDefaultWidth: 360
     readonly property int playlistPanelMinWidth: 280
+    readonly property int playlistGroupHeaderHeight: 36
     readonly property int playlistRowHeight: 68
     readonly property real playlistPanelMaxFraction: 0.6
     readonly property int playlistNarrowWindowWidth: 560
@@ -83,6 +84,7 @@ QtObject {
         { "keys": "Shift+N / Shift+P", "action": qsTr("Next / previous chapter") },
         { "keys": "N / P", "action": qsTr("Next / previous playlist item") },
         { "keys": "Ctrl+L", "action": qsTr("Show / hide playlist") },
+        { "keys": "Ctrl+F", "action": qsTr("Search the playlist") },
         { "keys": "[ / ] / =", "action": qsTr("Slower / faster / normal speed") },
         { "keys": "Scroll", "action": qsTr("Volume") },
         { "keys": "Ctrl+Up / Ctrl+Down", "action": qsTr("Volume up / down") },
