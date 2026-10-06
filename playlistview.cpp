@@ -2,6 +2,7 @@
 
 #include <QCollator>
 #include <QHash>
+#include <QLocale>
 
 #include <algorithm>
 #include <limits>
@@ -336,7 +337,11 @@ PlaylistView::Layout PlaylistView::build() const {
     layout.matchCount = int(matched.size());
 
     if (m_sortOrder == Title) {
-        QCollator collator;
+        QLocale locale;
+        if (locale.language() == QLocale::C) {
+            locale = QLocale(QLocale::English);
+        }
+        QCollator collator(locale);
         collator.setCaseSensitivity(Qt::CaseInsensitive);
         collator.setNumericMode(true);
         std::vector<QCollatorSortKey> keys;

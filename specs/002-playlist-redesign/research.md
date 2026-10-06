@@ -65,7 +65,8 @@ and the set of collapsed groups, and rebuilds its row list when any of them or t
   express to a QML view, and for a pure sort Qt's QML delegate model turns a layout change into one
   move per row. That per-row cost was read from Qt's source, not measured.
 - Title sort is case-insensitive, follows the locale, and puts numbers in counting order
-  ("Channel 2" before "Channel 10").
+  ("Channel 2" before "Channel 10"). Under the `C` locale Qt's collator compares raw bytes, which
+  is neither, so English rules are used there instead. CI runs the tests under the `C` locale.
 - Grouping only takes effect when at least one entry has a group. Without groups the list stays
   flat and reordering stays allowed.
 - A duration learned while the list is sorted by duration does not move the row until the view is
