@@ -31,16 +31,13 @@ Item {
 
         anchors.centerIn: parent
         modal: true
+        parent: Overlay.overlay
         standardButtons: Dialog.Yes | Dialog.No
         title: qsTr("Clear Playlist")
-        width: Math.min(360, root.width - 24)
 
         Text {
-            anchors.left: parent.left
-            anchors.right: parent.right
             color: Material.foreground
             text: qsTr("Are you sure you want to clear the playlist?") + "\n" + qsTr("This will remove all ") + root.playList.count + qsTr(" items.")
-            wrapMode: Text.WordWrap
         }
 
         onAccepted: root.playList.clear()
@@ -210,6 +207,16 @@ Item {
                     Layout.fillWidth: true
                     placeholderText: qsTr("Search playlist...")
                     selectByMouse: true
+
+                    Keys.onEscapePressed: {
+                        if (text.length > 0) {
+                            text = "";
+                            return;
+                        }
+                        focus = false;
+                        if (root.overlay)
+                            root.closeRequested();
+                    }
 
                     Button {
                         Accessible.name: qsTr("Clear search")
