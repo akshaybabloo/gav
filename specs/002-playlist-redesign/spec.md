@@ -35,6 +35,9 @@ a time.
 - Q: Should channel logos stay in this redesign, given that they break two constitution rules? →
   A: Yes. The constitution is amended first so that opt-in logos, with size and format limits and
   decoding on a background thread, are explicitly allowed.
+- Decision after trying the feature: channel logos are on by default. The setting, the limits and
+  "turning it off stops requests" stay as they are. Constitution v1.2.0 required the setting to be
+  off by default; it was amended to v1.3.0 the same day to allow on by default.
 - Q: How should a stream be labelled and filtered before GAV has opened it and learned whether it
   is live or on-demand? → A: Three kinds (local video, local audio, stream). A stream row says
   "Stream" until it has been opened, then shows "Live" or its duration. Filters are All, Local
@@ -118,9 +121,9 @@ rows change to a duration and to "Live".
 4. **Given** a location is too long for the row, **When** the user views it, **Then** it is
    shortened in the middle with its file name visible, and widening the playlist shows more of it.
    Pointing at the row does not open a tooltip.
-5. **Given** a playlist provides an image for an entry and the user has turned channel logos on,
-   **When** the row is shown, **Then** the image appears next to the title. With the setting off,
-   which is the default, no image is requested and the row shows its kind icon.
+5. **Given** a playlist provides an image for an entry and channel logos are on, which is the
+   default, **When** the row is shown, **Then** the image appears next to the title. With the
+   setting off, no image is requested and the row shows its kind icon.
 6. **Given** the light or dark theme, **When** the playlist is shown, **Then** it follows the
    theme, text and icons meet the contrast ratios in FR-013, and the focused control is visibly
    marked.
@@ -251,8 +254,8 @@ change.
   the row is shortened in the middle so that its start and its file name stay visible; widening
   the playlist shows more of both. They are not shown in a hover tooltip.
 - **FR-012**: When a playlist provides an image for an entry, the system MUST show it on the row
-  only if the user has turned channel logos on. The setting MUST be off by default. With it off,
-  no image is requested.
+  only while the "Show channel logos" setting is on. The setting is on by default and the user
+  can turn it off. With it off, no image is requested.
 - **FR-012a**: With channel logos on, images MUST be requested only for rows the user can see or
   is about to scroll to, only from `http` and `https` addresses, and with a time limit and a size
   limit per image. Only common still-image formats are accepted, with a limit on pixel dimensions,
@@ -308,7 +311,7 @@ change.
 - **FR-028**: Opening, scrolling, searching, grouping, sorting and clearing a playlist of 10,000
   entries MUST NOT make the window unresponsive.
 - **FR-029**: The playlist MUST NOT cause any network request by itself, apart from channel logos
-  when the user has turned them on (FR-012). Listing, searching, grouping and sorting use only
+  while that setting is on (FR-012). Listing, searching, grouping and sorting use only
   what is already known about the entries.
 
 ### Key Entities
@@ -359,9 +362,9 @@ change.
   provides. GAV does not look anything up, and programme guides are out of scope.
 - Durations are shown when they are already known or become known through normal use. GAV does
   not open every entry in advance to measure it.
-- Channel logos depend on a constitution amendment that explicitly allows opt-in logo downloads
-  and in-app decoding of small still images within the limits in FR-012a. No logo work starts
-  before that amendment is made.
+- Channel logos depend on constitution amendments that explicitly allow logo downloads behind a
+  setting and in-app decoding of small still images within the limits in FR-012a (v1.2.0), and
+  that allow the setting to be on by default (v1.3.0).
 - Favourites are out of scope for this redesign and can be specified as their own feature later.
 - Channel logos are the only images shown. Thumbnails generated from local videos are out of scope. Local entries are told apart by kind
   and duration.

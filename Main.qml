@@ -367,9 +367,15 @@ ApplicationWindow {
         property bool rememberPositions: false
         property bool rememberRecentFiles: false
         property bool restoreLastPlaylist: false
+        property bool showChannelLogos: true
         property bool shuffle: false
         property real subtitleScale: 1.0
         property real volume: AppConstants.defaultVolume
+
+        onShowChannelLogosChanged: {
+            if (!showChannelLogos)
+                LogoProvider.cancelPending();
+        }
     }
     TitleBar {
         id: titleBar
@@ -1285,6 +1291,7 @@ ApplicationWindow {
         rememberPositions: appSettings.rememberPositions
         rememberRecentFiles: appSettings.rememberRecentFiles
         restoreLastPlaylist: appSettings.restoreLastPlaylist
+        showChannelLogos: appSettings.showChannelLogos
 
         onCheckUpdatesOnStartupToggled: function (enabled) {
             appSettings.checkUpdatesOnStartup = enabled;
@@ -1295,6 +1302,7 @@ ApplicationWindow {
         onClearHistoryRequested: {
             PlaybackHistory.clear();
             PlaylistFiles.remove(mainWindow.sessionPlaylistUrl);
+            LogoProvider.clearCache();
             captureSnackbar.message = qsTr("History cleared");
             captureSnackbar.show();
         }
@@ -1306,6 +1314,9 @@ ApplicationWindow {
         }
         onRestoreLastPlaylistToggled: function (enabled) {
             appSettings.restoreLastPlaylist = enabled;
+        }
+        onShowChannelLogosToggled: function (enabled) {
+            appSettings.showChannelLogos = enabled;
         }
         onPreferredAudioLanguageEdited: function (language) {
             appSettings.preferredAudioLanguage = language;
@@ -1712,6 +1723,7 @@ ApplicationWindow {
         overlay: mainWindow.playlistOverlay
         playList: playList
         playlistView: playlistView
+        showLogos: appSettings.showChannelLogos
         shuffleEnabled: appSettings.shuffle
         visible: overlay ? appSettings.playlistPanelOpen : true
         width: !overlay || narrow ? parent.width : Math.max(AppConstants.playlistPanelMinWidth, Math.min(appSettings.playlistPanelWidth, mainWindow.width * AppConstants.playlistPanelMaxFraction))
@@ -1719,6 +1731,9 @@ ApplicationWindow {
 
         onCloseRequested: appSettings.playlistPanelOpen = false
         onSaveRequested: savePlaylistDialog.open()
+        onShowLogosToggled: function (enabled) {
+            appSettings.showChannelLogos = enabled;
+        }
         onWidthRequested: function (requestedWidth) {
             appSettings.playlistPanelWidth = Math.round(Math.max(AppConstants.playlistPanelMinWidth, Math.min(requestedWidth, mainWindow.width * AppConstants.playlistPanelMaxFraction)));
         }

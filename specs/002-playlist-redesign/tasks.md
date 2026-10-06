@@ -185,19 +185,21 @@ playing it (quickstart Q2.1–Q2.9).
 ### Implementation for User Story 2: channel logos (own PR, after the constitution amendment)
 
 - [X] T025 [US2] Gate for the logo tasks: amend `.specify/memory/constitution.md` with `/speckit-constitution` so that Principle I's network rule names opt-in channel logos (limited, cancelled when turned off) and Principle II allows in-app decoding of small still images within the limits in spec FR-012a. Then update the Constitution Check and Complexity Tracking in `specs/002-playlist-redesign/plan.md` to cite the amended version. No task below starts before the amendment is merged. Done 2026-10-06: constitution v1.2.0.
-- [ ] T026 [US2] Write `tests/test_logocache.cpp` for the pure parts of the logo cache: only `http`/`https` addresses are accepted; the file name is the SHA-256 hex of the address plus `.png`; storing past 20 MB removes the oldest files first; `clear()` empties the directory; no file content or name contains the address.
-- [ ] T027 [US2] Implement the cache half of `logoprovider.h` / `logoprovider.cpp` as a plain class `LogoCache` (directory, key, store, lookup, eviction at 20 MB oldest first, `clear`). Make T026 pass.
-- [ ] T028 [US2] Implement `LogoProvider` (`QQuickAsyncImageProvider`) in `logoprovider.h` / `logoprovider.cpp` per [research R6](./research.md) and register it as `logo` in `main.cpp`:
+- [X] T026 [US2] Write `tests/test_logocache.cpp` for the pure parts of the logo cache: only `http`/`https` addresses are accepted; the file name is the SHA-256 hex of the address plus `.png`; storing past 20 MB removes the oldest files first; `clear()` empties the directory; no file content or name contains the address. The same file also covers decoding (format allow-list, 1024 × 1024 limit, scaling) and, against an in-process HTTP server, the provider's size limit, redirect rule, four-at-a-time limit and cancellation.
+- [X] T027 [US2] Implement the cache half of `logoprovider.h` / `logoprovider.cpp` as a plain class `LogoCache` (directory, key, store, lookup, eviction at 20 MB oldest first, `clear`). Make T026 pass.
+- [X] T028 [US2] Implement `LogoProvider` (`QQuickAsyncImageProvider`) in `logoprovider.h` / `logoprovider.cpp` per [research R6](./research.md) and register it as `logo` in `main.cpp`:
   - own `QNetworkAccessManager`; `http`/`https` only, redirects limited to those schemes; 10 s transfer timeout; abort above 512 KB; at most 4 requests in flight, the rest queued
   - decode on a worker thread with `QImageReader` restricted to PNG, JPEG and WebP, reject images larger than 1024 × 1024, set an allocation limit, scale to the requested size, store through `LogoCache`
-  - any failure returns an empty image without logging above debug level
+  - any failure returns an empty image without logging above debug level. To QML a failure is a 1 × 1 transparent image, because an empty one makes `Image` log a warning; the row treats that as "no logo"
+  - split into `LogoProvider` (a QML singleton on the UI thread that owns the network, the queue and the cache) and `LogoImageProvider` (the `QQuickAsyncImageProvider` registered as `logo`), because image requests arrive on Qt's image-loading thread
+  - the allocation limit is Qt's process-wide one, so it is only set when none is in force; the 1024 × 1024 check before decoding bounds a logo to 4 MB
   - `Q_INVOKABLE clearCache()` and `Q_INVOKABLE cancelPending()` (aborts queued and in-flight downloads) reachable from QML
-- [ ] T029 [US2] Add the setting and use it:
-  - `appSettings.showChannelLogos` (default `false`) in `Main.qml`; a "Show channel logos" switch in `SettingsDialog.qml` with one line saying images are downloaded from addresses in the playlist; the same toggle in the panel's "more" menu
+- [X] T029 [US2] Add the setting and use it:
+  - `appSettings.showChannelLogos` (default `true`, changed from `false` on review, 2026-10-06) in `Main.qml`; a "Show channel logos" switch in `SettingsDialog.qml` with one line saying images are downloaded from addresses in the playlist; the same toggle in the panel's "more" menu
   - `PlaylistRow.qml` sets `image://logo/<encodeURIComponent(logo)>` only when the setting is on and `logo` is not empty, and falls back to the kind icon while the image is not `Ready`
   - turning the setting off calls `cancelPending()` (FR-012b)
   - "Clear history" in `SettingsDialog.qml` also calls `clearCache()`
-- [ ] T030 [US2] Validate quickstart [Q2.6–Q2.8](./quickstart.md#story-2-rows-that-tell-you-what-each-item-is): no image request with the setting off (network monitor), logos and fallbacks with it on, requests stop when it is turned off, and "Clear history" empties the cache. Fix what fails.
+- [X] T030 [US2] Validate quickstart [Q2.6–Q2.8](./quickstart.md#story-2-rows-that-tell-you-what-each-item-is): no image request with the setting off (network monitor), logos and fallbacks with it on, requests stop when it is turned off, and "Clear history" empties the cache. Fix what fails. Checked headless on 2026-10-06 against a local image server that logs requests: 0 requests with the setting off; with it on, 10 requests for a 68-entry playlist (the rows on screen and a few either side), logos shown for PNG and JPEG, and the kind icon for an oversized file, an HTML page, an SVG, a 2000-pixel-wide image and a 404, with nothing above debug level in the log; turning it off from the panel menu left the count at 10 while scrolling, against 14 with it on; "Clear history" left the cache directory empty. Not checked: WebP (needs Qt's image-formats plugin in the package) and how logos with transparent backgrounds look in the light theme.
 
 **Checkpoint**: Logos work when turned on and cause no network traffic when off. Ships as its own PR.
 

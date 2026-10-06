@@ -16,6 +16,7 @@
 #include "collage.h"
 #include "instancemanager.h"
 #include "previewimageprovider.h"
+#include "logoprovider.h"
 #include "probeworker.h"
 
 #include <spdlog/spdlog.h>
@@ -423,6 +424,7 @@ int main(int argc, char *argv[]) {
 
     QQmlApplicationEngine engine;
     engine.addImageProvider("preview", new PreviewImageProvider());
+    engine.addImageProvider("logo", new LogoImageProvider(new LogoProvider(LogoProvider::defaultCacheDirectory(), &app)));
 
     QObject::connect(
         &engine,

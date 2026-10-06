@@ -24,7 +24,7 @@ Button {
     font.weight: Font.Light
     hoverEnabled: true
     scale: 1.5
-    text: ""
+    text: "\ue048"
     visible: player.hasVideo || audioTracks.length > 1
 
     onClicked: popup.open()

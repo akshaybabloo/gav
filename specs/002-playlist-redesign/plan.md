@@ -27,8 +27,8 @@ when it holds thousands of channels, and edit several entries at a time.
   what removes today's per-row cost on large lists.
 - The M3U reader and writer keep each entry's group, logo address and raw attribute text, so IPTV
   playlists survive a save.
-- Channel logos come through an opt-in image provider with scheme, size and time limits and a
-  small hashed cache.
+- Channel logos come through an image provider with scheme, size and time limits and a small
+  hashed cache, behind a setting that is on by default.
 - `ShuffleOrder` switches from row indices to entry ids so it can follow the filtered view.
 - Delivery is in six pull requests so the app works after each: the model swap with no visible
   change, then one per user story, with logos as their own step after a constitution amendment.
@@ -49,19 +49,19 @@ when it holds thousands of channels, and edit several entries at a time.
 
 **Performance Goals**: With 10,000 entries: first rows within 2 s of the playlist being read (SC-004); each search keystroke, sort or group change applied within 200 ms (SC-003); no UI stall longer than that (FR-028).
 
-**Constraints**: No network request from the playlist unless the user has turned logos on (FR-029). Logo requests limited to `http`/`https`, 10 s, 512 KB, 4 in flight. Offline behaviour unchanged. The mini player is untouched.
+**Constraints**: No network request from the playlist unless the logo setting is on, which it is by default (FR-029). Logo requests limited to `http`/`https`, 10 s, 512 KB, 4 in flight. Offline behaviour unchanged. The mini player is untouched.
 
 **Scale/Scope**: Playlists up to tens of thousands of entries. About 2 new C++ model classes, 1 image provider, 3 new QML files, and changes to `Main.qml`, `PlayListComponent.qml`, `playlistio`, `shuffleorder`, `SettingsDialog.qml` and `AppConstants.qml`.
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.* Checked against
-constitution v1.2.0.
+constitution v1.3.0.
 
 | Principle | Gate | Before research | After design |
 |---|---|---|---|
-| I. Simple, Focused Player | Serves playing and navigating. Offline by default. Network only on user action, with limits. Nothing recording playback unless opted in. Choices the media offers stay selectable. No permanent clutter. | PASS, with one point to resolve: channel logos need network access that is not "needed to play". | PASS. Constitution v1.2.0 allows opt-in download of decorative playlist images under conditions this design meets: logos are off by default, requested only for rows in view, cancelled when the setting is turned off, limited, cached as scaled images under a hash, and cleared with history. The panel is closed by default while a video shows. The play queue is not saved. |
-| II. Responsive UI Through Isolation | Slow work off the UI thread. Untrusted media processing in a subprocess. Network content cannot reach local files. Failures surfaced. | PASS (provisional): view rebuild cost unknown. | PASS. Rebuild is measured and moves to a worker if above 50 ms (R3). Logos are decoded on a worker thread, in-process, which v1.2.0 allows for small still images with a format allow-list and input-size and pixel limits (R6). Logo addresses are restricted to `http`/`https`. No file-system check runs on the UI thread before playing; a vanished file is reported by the player's error (R9). Unavailable entries show their reason. |
+| I. Simple, Focused Player | Serves playing and navigating. Offline by default. Network only on user action, with limits. Nothing recording playback unless opted in. Choices the media offers stay selectable. No permanent clutter. | PASS, with one point to resolve: channel logos need network access that is not "needed to play". | PASS. Constitution v1.3.0 allows download of decorative playlist images behind a setting that may be on by default, under conditions this design meets: the setting can be turned off in Settings and nothing is requested while it is off, logos are requested only for rows in view, cancelled when the setting is turned off, limited, cached as scaled images under a hash, and cleared with history. The panel is closed by default while a video shows. The play queue is not saved. |
+| II. Responsive UI Through Isolation | Slow work off the UI thread. Untrusted media processing in a subprocess. Network content cannot reach local files. Failures surfaced. | PASS (provisional): view rebuild cost unknown. | PASS. Rebuild is measured and moves to a worker if above 50 ms (R3). Logos are decoded on a worker thread, in-process, which the constitution allows (since v1.2.0) for small still images with a format allow-list and input-size and pixel limits (R6). Logo addresses are restricted to `http`/`https`. No file-system check runs on the UI thread before playing; a vanished file is reported by the player's error (R9). Unavailable entries show their reason. |
 | III. Cross-Platform Parity | Same behaviour everywhere. Platform code behind one interface. Packaging keeps working. | PASS | PASS. Only "Show in file manager" is platform-specific, behind `revealInFileManager` with a fallback (R12). No packaging change. |
 | IV. Pinned, Patchable Dependencies | No unpinned or unjustified dependency. | PASS | PASS. No new dependency. |
 | V. Tested Core Logic | Non-visual logic has unit tests. Bug fixes get regression tests. UI has quickstart steps. | PASS | PASS. All playlist logic moves into tested C++ classes; today it is untested QML. |
@@ -139,9 +139,15 @@ are named `<issue-number>-<short-slug>`.
 
 ## Complexity Tracking
 
-No violations. Under constitution v1.1.0 two logo items were deviations: downloading images that
-are not needed to play the media (Principle I) and decoding them in the main process (Principle
-II). The user chose to keep opt-in logos and the constitution was amended to v1.2.0 on 2026-10-06
-to permit both under conditions. The design meets those conditions: off by default, rows in view
-only, `http`/`https`, 10 s and 512 KB limits, cancelled when turned off, a clearable cache, and
-decoding off the UI thread restricted to PNG, JPEG and WebP up to 1024 × 1024 pixels.
+No violations. The constitution was amended twice for channel logos, both on 2026-10-06:
+
+- Under v1.1.0 two logo items were deviations: downloading images that are not needed to play the
+  media (Principle I) and decoding them in the main process (Principle II). v1.2.0 permits both
+  under conditions, one of which was that the setting is off by default.
+- After trying the feature the user chose to have "Show channel logos" on by default. v1.3.0
+  allows the setting to be on by default, provided it can be turned off in Settings and nothing is
+  requested while it is off.
+
+The design meets the conditions of v1.3.0: a setting that can be turned off, rows in view only,
+`http`/`https`, 10 s and 512 KB limits, cancelled when turned off, a clearable cache, and decoding
+off the UI thread restricted to PNG, JPEG and WebP up to 1024 × 1024 pixels.

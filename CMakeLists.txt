@@ -203,6 +203,7 @@ qt_add_qml_module(appgav
         SOURCES shuffleorder.h shuffleorder.cpp
         SOURCES playlistmodel.h playlistmodel.cpp
         SOURCES playlistview.h playlistview.cpp
+        SOURCES logoprovider.h logoprovider.cpp
         SOURCES hlsmaster.h hlsmaster.cpp
         SOURCES streamquality.h streamquality.cpp
         SOURCES mediasession.h mediasession.cpp
@@ -298,6 +299,7 @@ if (BUILD_TESTS)
             tests/test_shuffleorder.cpp
             tests/test_playlistmodel.cpp
             tests/test_playlistview.cpp
+            tests/test_logocache.cpp
             tests/test_hlsmaster.cpp
             collage.cpp
             collage.h
@@ -321,6 +323,8 @@ if (BUILD_TESTS)
             playlistmodel.h
             playlistview.cpp
             playlistview.h
+            logoprovider.cpp
+            logoprovider.h
             hlsmaster.cpp
             hlsmaster.h
     )
