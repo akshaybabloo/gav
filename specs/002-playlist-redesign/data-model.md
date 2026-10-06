@@ -62,6 +62,8 @@ The ordered list of entries plus the state that belongs to the playlist rather t
   file system is case-insensitive; addresses compared after normalising scheme and host case) and
   keeps the first of each.
 - Clearing the playlist clears the queue, the undo step and `currentId`.
+- Undoing a removal restores the entries and their ids only. If the playing entry was removed and
+  restored, it is listed again but not marked as playing until it is started again.
 - Availability is not saved in playlist files. On load a missing local file is marked unavailable
   again; every other entry starts as `Unknown`.
 

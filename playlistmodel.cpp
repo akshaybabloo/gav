@@ -1,6 +1,8 @@
 #include "playlistmodel.h"
 
+#include <QDir>
 #include <QFileInfo>
+#include <QSet>
 
 #include <algorithm>
 
@@ -21,6 +23,18 @@ QUrl toUrl(const QVariant &value) {
     }
     const QUrl url(text);
     return url.scheme().isEmpty() ? QUrl::fromLocalFile(text) : url;
+}
+
+QString duplicateKey(const QUrl &location) {
+    if (location.isLocalFile()) {
+        const QString path = QDir::cleanPath(location.toLocalFile());
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
+        return path.toCaseFolded();
+#else
+        return path;
+#endif
+    }
+    return location.adjusted(QUrl::NormalizePathSegments).toString(QUrl::FullyEncoded);
 }
 
 QString fallbackTitle(const QUrl &location) {
@@ -70,7 +84,7 @@ QVariant PlaylistModel::data(const QModelIndex &index, int role) const {
     case IsCurrentRole:
         return entry.id == m_currentId;
     case QueuePositionRole:
-        return 0;
+        return int(m_queue.indexOf(entry.id)) + 1;
     default:
         return {};
     }
@@ -92,6 +106,34 @@ int PlaylistModel::currentId() const { return m_currentId; }
 int PlaylistModel::anchorRow() const { return m_anchorRow; }
 
 QStringList PlaylistModel::audioExtensions() const { return m_audioExtensions; }
+
+int PlaylistModel::queueLength() const { return int(m_queue.size()); }
+
+bool PlaylistModel::canUndoRemove() const { return !m_undoStep.isEmpty(); }
+
+void PlaylistModel::setUndoStep(const QList<Removed> &step) {
+    const bool could = canUndoRemove();
+    m_undoStep = step;
+    if (could != canUndoRemove()) {
+        emit undoChanged();
+    }
+}
+
+void PlaylistModel::setQueue(const QList<int> &queue) {
+    if (queue == m_queue) {
+        return;
+    }
+    QSet<int> affected(m_queue.cbegin(), m_queue.cend());
+    affected.unite(QSet<int>(queue.cbegin(), queue.cend()));
+    m_queue = queue;
+    for (const int id : affected) {
+        const int row = rowForId(id);
+        if (row >= 0) {
+            emit dataChanged(index(row), index(row), {QueuePositionRole});
+        }
+    }
+    emit queueChanged();
+}
 
 void PlaylistModel::setAudioExtensions(const QStringList &extensions) {
     QStringList lowered;
@@ -173,6 +215,7 @@ int PlaylistModel::insert(int row, const QVariantList &entries) {
         return -1;
     }
 
+    setUndoStep({});
     const int previousCurrentRow = currentRow();
     beginInsertRows(QModelIndex(), at, at + int(accepted.size()) - 1);
     for (qsizetype i = 0; i < accepted.size(); ++i) {
@@ -207,6 +250,13 @@ int PlaylistModel::remove(const QList<int> &ids) {
     int anchor = removesCurrent ? previousCurrentRow : m_anchorRow;
     anchor -= int(std::count_if(rows.cbegin(), rows.cend(), [anchor](int row) { return row < anchor; }));
 
+    QList<Removed> step;
+    QList<int> queue = m_queue;
+    for (auto row = rows.crbegin(); row != rows.crend(); ++row) {
+        step.append({*row, m_entries[*row]});
+        queue.removeAll(m_entries[*row].id);
+    }
+
     for (qsizetype i = 0; i < rows.size();) {
         const int last = rows[i];
         int first = last;
@@ -220,6 +270,8 @@ int PlaylistModel::remove(const QList<int> &ids) {
     }
     m_anchorRow = m_entries.isEmpty() ? -1 : anchor;
     emit countChanged();
+    setQueue(queue);
+    setUndoStep(step);
     if (removesCurrent) {
         m_currentId = -1;
         emit currentChanged();
@@ -230,17 +282,137 @@ int PlaylistModel::remove(const QList<int> &ids) {
     return int(rows.size());
 }
 
+int PlaylistModel::undoRemove() {
+    if (m_undoStep.isEmpty()) {
+        return 0;
+    }
+    const QList<Removed> step = m_undoStep;
+    const int previousCurrentRow = currentRow();
+    for (qsizetype i = 0; i < step.size();) {
+        qsizetype last = i;
+        while (last + 1 < step.size() && step[last + 1].row == step[last].row + 1) {
+            ++last;
+        }
+        const int first = qMin(step[i].row, count());
+        const int size = int(last - i + 1);
+        beginInsertRows(QModelIndex(), first, first + size - 1);
+        for (int offset = 0; offset < size; ++offset) {
+            m_entries.insert(first + offset, step[i + offset].entry);
+        }
+        if (m_anchorRow >= first) {
+            m_anchorRow += size;
+        }
+        endInsertRows();
+        i = last + 1;
+    }
+    emit countChanged();
+    setUndoStep({});
+    if (currentRow() != previousCurrentRow) {
+        emit currentRowChanged();
+    }
+    return int(step.size());
+}
+
+bool PlaylistModel::move(const QList<int> &ids, int destinationRow) {
+    QList<int> rows;
+    for (const int id : ids) {
+        const int row = rowForId(id);
+        if (row >= 0 && !rows.contains(row)) {
+            rows.append(row);
+        }
+    }
+    if (rows.isEmpty()) {
+        return false;
+    }
+    std::sort(rows.begin(), rows.end());
+    const int destination = qBound(0, destinationRow, count());
+    const int above = int(std::count_if(rows.cbegin(), rows.cend(), [destination](int row) { return row < destination; }));
+
+    const int previousCurrentRow = currentRow();
+    bool changed = false;
+    int target = destination;
+    for (int i = above - 1; i >= 0; --i) {
+        const int row = rows[i];
+        if (row + 1 != target && beginMoveRows(QModelIndex(), row, row, QModelIndex(), target)) {
+            m_entries.move(row, target - 1);
+            endMoveRows();
+            changed = true;
+        }
+        --target;
+    }
+    target = destination;
+    for (int i = above; i < rows.size(); ++i) {
+        const int row = rows[i];
+        if (row != target && beginMoveRows(QModelIndex(), row, row, QModelIndex(), target)) {
+            m_entries.move(row, target);
+            endMoveRows();
+            changed = true;
+        }
+        ++target;
+    }
+    if (!changed) {
+        return false;
+    }
+    setUndoStep({});
+    if (currentRow() != previousCurrentRow) {
+        emit currentRowChanged();
+    }
+    return true;
+}
+
+int PlaylistModel::removeDuplicates() {
+    QSet<QString> seen;
+    QList<int> duplicates;
+    for (const Entry &entry : m_entries) {
+        const QString key = duplicateKey(entry.location);
+        if (seen.contains(key)) {
+            duplicates.append(entry.id);
+        } else {
+            seen.insert(key);
+        }
+    }
+    return duplicates.isEmpty() ? 0 : remove(duplicates);
+}
+
+void PlaylistModel::playNext(int id) {
+    if (rowForId(id) < 0 || m_queue.contains(id)) {
+        return;
+    }
+    QList<int> queue = m_queue;
+    queue.append(id);
+    setQueue(queue);
+}
+
+int PlaylistModel::takeQueued() {
+    QList<int> queue = m_queue;
+    int taken = -1;
+    while (!queue.isEmpty() && taken < 0) {
+        const Entry *candidate = entry(rowForId(queue.takeFirst()));
+        if (candidate && candidate->availability != Unavailable) {
+            taken = rowForId(candidate->id);
+        }
+    }
+    setQueue(queue);
+    return taken;
+}
+
 void PlaylistModel::clear() {
     if (m_entries.isEmpty()) {
         return;
     }
     const bool hadCurrent = m_currentId >= 0;
+    const bool hadQueue = !m_queue.isEmpty();
     beginResetModel();
     m_entries.clear();
+    m_queue.clear();
     m_currentId = -1;
     m_anchorRow = -1;
     endResetModel();
     emit countChanged();
+    setUndoStep({});
+    if (hadQueue) {
+        emit queueChanged();
+    }
     if (hadCurrent) {
         emit currentChanged();
         emit currentRowChanged();

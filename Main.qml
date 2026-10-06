@@ -21,7 +21,7 @@ ApplicationWindow {
     property int hiddenWhileNarrowed: 0
     property int loadedEntryId: -1
     property string loadedEntrySource: ""
-    readonly property bool hasNextItem: appSettings.shuffle ? shuffleOrder.remaining > 0 : playlistView.canGoNext
+    readonly property bool hasNextItem: playList.queueLength > 0 || (appSettings.shuffle ? shuffleOrder.remaining > 0 : playlistView.canGoNext)
     readonly property bool hasPreviousItem: appSettings.shuffle ? shuffleOrder.canGoBack : playlistView.canGoPrevious
     property bool restoringSession: false
     readonly property url sessionPlaylistUrl: StandardPaths.writableLocation(StandardPaths.AppDataLocation) + "/session.m3u8"
@@ -29,7 +29,7 @@ ApplicationWindow {
     readonly property bool playlistOverlayOpen: playlistOverlay && appSettings.playlistPanelOpen
     property int repeatMode: 0
     readonly property bool dialogOpen: aboutDialog.opened || playbackErrorDialog.opened || updateDialog.opened || settingsDialog.opened || resumeDialog.opened || goToTimeDialog.opened || openUrlDialog.opened
-    readonly property bool shortcutsEnabled: !textInputFocused && !dialogOpen
+    readonly property bool shortcutsEnabled: !textInputFocused && !dialogOpen && !playlistPanel.popupOpen
     property bool shouldAutoPlay: false
     readonly property bool textInputFocused: activeFocusItem instanceof TextInput || activeFocusItem instanceof TextEdit
 
@@ -155,7 +155,10 @@ ApplicationWindow {
         }
     }
     function nextItem() {
-        if (appSettings.shuffle)
+        var queued = playList.takeQueued();
+        if (queued >= 0)
+            selectPlaylistItem(queued);
+        else if (appSettings.shuffle)
             selectPlaylistItem(playList.rowForId(shuffleOrder.next(false)));
         else
             selectPlaylistItem(playlistView.nextRow(false));
@@ -179,7 +182,8 @@ ApplicationWindow {
         }
         if (tag === "replace")
             playList.clear();
-        var firstIndex = playList.count;
+        var insertAt = tag.startsWith("insert:") ? Math.min(parseInt(tag.substring(7)), playList.count) : -1;
+        var firstIndex = insertAt >= 0 ? insertAt : playList.count;
         var positions = [];
         var items = [];
         var unavailable = 0;
@@ -204,7 +208,7 @@ ApplicationWindow {
             }
         }
         if (items.length > 0)
-            playList.append(items);
+            playList.insert(firstIndex, items);
         var added = items.length;
         var skipped = result.skippedUnsupported + (result.entries.length - added);
         if (unavailable > 0 || skipped > 0) {
@@ -233,6 +237,54 @@ ApplicationWindow {
                 return backward;
         }
         return -1;
+    }
+    function handleDroppedUrls(urls, insertRow) {
+        var firstFileSet = false;
+        var subtitleUrls = [];
+        var at = insertRow;
+        for (var i = 0; i < urls.length; i++) {
+            if (isSubtitleUrl(urls[i])) {
+                subtitleUrls.push(urls[i]);
+                continue;
+            }
+            if (isPlaylistUrl(urls[i])) {
+                PlaylistFiles.load(urls[i], supportedMediaExtensions(), at >= 0 ? "insert:" + at : "append");
+                continue;
+            }
+            var mediaInfo = getMediaInfo(urls[i]);
+            if (!mediaInfo)
+                continue;
+            if (at >= 0) {
+                playList.insert(at, [{
+                        "path": mediaInfo.path,
+                        "title": mediaInfo.name
+                    }]);
+                if (mediaComponent.path === "" && !firstFileSet) {
+                    firstFileSet = true;
+                    selectPlaylistItem(at);
+                }
+                at++;
+                continue;
+            }
+            addToPlaylist(mediaInfo);
+            if (!firstFileSet) {
+                mediaComponent.path = mediaInfo.path;
+                mainWindow.title = appTitle + " - " + mediaInfo.name;
+                playList.currentRow = playList.count - 1;
+                firstFileSet = true;
+            }
+        }
+        if (firstFileSet) {
+            mainWindow.pendingSubtitleUrls = subtitleUrls;
+        } else {
+            for (var j = 0; j < subtitleUrls.length; j++)
+                loadSubtitleUrl(subtitleUrls[j]);
+        }
+    }
+    function reportRemoved(message, undoable) {
+        playlistSnackbar.undoable = undoable;
+        playlistSnackbar.message = message;
+        playlistSnackbar.show();
     }
     function reportHiddenEntries() {
         if (hiddenWhileNarrowed === 0)
@@ -528,6 +580,15 @@ ApplicationWindow {
     }
     CustomSnackbar {
         id: subtitleSnackbar
+    }
+    CustomSnackbar {
+        id: playlistSnackbar
+
+        property bool undoable: false
+
+        actionText: undoable && playList.canUndoRemove ? qsTr("Undo") : ""
+
+        onActionTriggered: playList.undoRemove()
     }
     CustomSnackbar {
         id: recentSnackbar
@@ -1357,37 +1418,8 @@ ApplicationWindow {
         anchors.fill: parent
 
         onDropped: function (drop) {
-            if (drop.urls && drop.urls.length > 0) {
-                var firstFileSet = false;
-                var subtitleUrls = [];
-                for (var i = 0; i < drop.urls.length; i++) {
-                    if (isSubtitleUrl(drop.urls[i])) {
-                        subtitleUrls.push(drop.urls[i]);
-                        continue;
-                    }
-                    if (isPlaylistUrl(drop.urls[i])) {
-                        PlaylistFiles.load(drop.urls[i], supportedMediaExtensions(), "append");
-                        continue;
-                    }
-                    var mediaInfo = getMediaInfo(drop.urls[i]);
-                    console.debug("Media info for dropped file:", JSON.stringify(mediaInfo));
-                    if (!mediaInfo)
-                        continue;
-                    addToPlaylist(mediaInfo);
-                    if (!firstFileSet) {
-                        mediaComponent.path = mediaInfo.path;
-                        mainWindow.title = appTitle + " - " + mediaInfo.name;
-                        playList.currentRow = playList.count - 1;
-                        firstFileSet = true;
-                    }
-                }
-                if (firstFileSet) {
-                    mainWindow.pendingSubtitleUrls = subtitleUrls;
-                } else {
-                    for (var j = 0; j < subtitleUrls.length; j++)
-                        loadSubtitleUrl(subtitleUrls[j]);
-                }
-            }
+            if (drop.urls && drop.urls.length > 0)
+                mainWindow.handleDroppedUrls(drop.urls, -1);
         }
     }
     FileDialog {
@@ -1783,13 +1815,21 @@ ApplicationWindow {
         onShuffleToggled: function (enabled) {
             appSettings.shuffle = enabled;
         }
-        onPlayRequested: {
-            if (mediaComponent.path === "" && playList.currentRow !== -1) {
-                var item = playList.entryAt(playList.currentRow);
-                mediaComponent.path = item.path;
-                mainWindow.title = appTitle + " - " + item.title;
-            }
-            mediaComponent.mediaPlayer.play();
+        onEntriesRemoved: function (count) {
+            mainWindow.reportRemoved(qsTr("Removed %1 items").arg(count), true);
+        }
+        onPlayEntryRequested: function (sourceRow) {
+            mainWindow.selectPlaylistItem(sourceRow);
+        }
+        onRemoveDuplicatesRequested: {
+            var count = playList.removeDuplicates();
+            if (count > 0)
+                mainWindow.reportRemoved(qsTr("Removed %1 duplicates").arg(count), true);
+            else
+                mainWindow.reportRemoved(qsTr("No duplicates found"), false);
+        }
+        onUrlsDropped: function (urls, sourceRow) {
+            mainWindow.handleDroppedUrls(urls, sourceRow);
         }
     }
     

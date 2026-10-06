@@ -329,3 +329,185 @@ TEST(PlaylistModelTest, FailuresMarkAnEntryUnavailableUntilItLoads) {
     model.setUnavailable(999, "Nothing");
     EXPECT_EQ(changed.count(), 3);
 }
+
+TEST(PlaylistModelTest, RemovalCanBeUndoneOnce) {
+    PlaylistModel model;
+    QAbstractItemModelTester tester(&model, QAbstractItemModelTester::FailureReportingMode::Fatal);
+    model.append(files(6));
+    const QList<int> ids{model.idAt(0), model.idAt(1), model.idAt(2), model.idAt(3), model.idAt(4), model.idAt(5)};
+    QSignalSpy undo(&model, &PlaylistModel::undoChanged);
+    QSignalSpy inserted(&model, &QAbstractItemModel::rowsInserted);
+    EXPECT_FALSE(model.canUndoRemove());
+
+    EXPECT_EQ(model.remove({ids[4], ids[1], ids[2]}), 3);
+    EXPECT_EQ(titles(model), QStringList({"0.mp4", "3.mp4", "5.mp4"}));
+    EXPECT_TRUE(model.canUndoRemove());
+    EXPECT_EQ(undo.count(), 1);
+
+    EXPECT_EQ(model.undoRemove(), 3);
+    EXPECT_EQ(titles(model), QStringList({"0.mp4", "1.mp4", "2.mp4", "3.mp4", "4.mp4", "5.mp4"}));
+    for (int row = 0; row < 6; ++row) {
+        EXPECT_EQ(model.idAt(row), ids[row]);
+    }
+    EXPECT_EQ(inserted.count(), 2);
+    EXPECT_FALSE(model.canUndoRemove());
+    EXPECT_EQ(model.undoRemove(), 0);
+
+    model.remove({ids[0]});
+    model.remove({ids[5]});
+    EXPECT_EQ(model.undoRemove(), 1);
+    EXPECT_EQ(titles(model), QStringList({"1.mp4", "2.mp4", "3.mp4", "4.mp4", "5.mp4"}));
+}
+
+TEST(PlaylistModelTest, UndoStepIsClearedByInsertMoveAndClear) {
+    PlaylistModel model;
+    model.append(files(4));
+    model.remove({model.idAt(1)});
+    model.append(files(1, 9));
+    EXPECT_FALSE(model.canUndoRemove());
+
+    model.remove({model.idAt(0)});
+    EXPECT_TRUE(model.canUndoRemove());
+    model.move({model.idAt(0)}, 3);
+    EXPECT_FALSE(model.canUndoRemove());
+
+    model.remove({model.idAt(0)});
+    model.clear();
+    EXPECT_FALSE(model.canUndoRemove());
+    EXPECT_EQ(model.undoRemove(), 0);
+    EXPECT_EQ(model.count(), 0);
+}
+
+TEST(PlaylistModelTest, UndoDoesNotMakeTheRestoredEntryCurrent) {
+    PlaylistModel model;
+    model.append(files(3));
+    model.setCurrentRow(1);
+    const int id = model.currentId();
+    QSignalSpy current(&model, &PlaylistModel::currentChanged);
+    model.remove({id});
+    EXPECT_EQ(model.currentId(), -1);
+    EXPECT_EQ(current.count(), 1);
+    model.undoRemove();
+    EXPECT_EQ(model.currentId(), -1);
+    EXPECT_EQ(model.idAt(1), id);
+    EXPECT_EQ(current.count(), 1);
+}
+
+TEST(PlaylistModelTest, MoveKeepsRelativeOrderAndIds) {
+    PlaylistModel model;
+    QAbstractItemModelTester tester(&model, QAbstractItemModelTester::FailureReportingMode::Fatal);
+    model.append(files(6));
+    const QList<int> ids{model.idAt(0), model.idAt(1), model.idAt(2), model.idAt(3), model.idAt(4), model.idAt(5)};
+    model.setCurrentRow(3);
+    QSignalSpy currentRow(&model, &PlaylistModel::currentRowChanged);
+    QSignalSpy current(&model, &PlaylistModel::currentChanged);
+    QSignalSpy reset(&model, &QAbstractItemModel::modelReset);
+
+    EXPECT_TRUE(model.move({ids[4], ids[1]}, 0));
+    EXPECT_EQ(titles(model), QStringList({"1.mp4", "4.mp4", "0.mp4", "2.mp4", "3.mp4", "5.mp4"}));
+    EXPECT_EQ(model.currentId(), ids[3]);
+    EXPECT_EQ(model.currentRow(), 4);
+    EXPECT_EQ(currentRow.count(), 1);
+
+    EXPECT_TRUE(model.move({ids[1], ids[3], ids[0]}, 6));
+    EXPECT_EQ(titles(model), QStringList({"4.mp4", "2.mp4", "5.mp4", "1.mp4", "0.mp4", "3.mp4"}));
+    EXPECT_EQ(model.currentRow(), 5);
+
+    EXPECT_TRUE(model.move({ids[5], ids[3]}, 1));
+    EXPECT_EQ(titles(model), QStringList({"4.mp4", "5.mp4", "3.mp4", "2.mp4", "1.mp4", "0.mp4"}));
+    EXPECT_EQ(model.currentRow(), 2);
+
+    EXPECT_TRUE(model.move({ids[4], ids[2]}, 3));
+    EXPECT_EQ(titles(model), QStringList({"5.mp4", "3.mp4", "4.mp4", "2.mp4", "1.mp4", "0.mp4"}));
+
+    EXPECT_FALSE(model.move({ids[4], ids[2]}, 3));
+    EXPECT_FALSE(model.move({ids[5]}, 0));
+    EXPECT_FALSE(model.move({ids[5]}, 1));
+    EXPECT_FALSE(model.move({999}, 2));
+    EXPECT_FALSE(model.move({}, 2));
+    EXPECT_EQ(titles(model), QStringList({"5.mp4", "3.mp4", "4.mp4", "2.mp4", "1.mp4", "0.mp4"}));
+    EXPECT_EQ(current.count(), 0);
+    EXPECT_EQ(reset.count(), 0);
+    QSet<int> seen;
+    for (int row = 0; row < 6; ++row) {
+        seen.insert(model.idAt(row));
+    }
+    EXPECT_EQ(seen, QSet<int>(ids.cbegin(), ids.cend()));
+}
+
+TEST(PlaylistModelTest, RemoveDuplicatesKeepsTheFirstOfEach) {
+    PlaylistModel model;
+    QAbstractItemModelTester tester(&model, QAbstractItemModelTester::FailureReportingMode::Fatal);
+    model.append({item("file:///videos/a.mp4", "A"), item("https://Example.org/live/one.m3u8", "One"), item("file:///videos/sub/../a.mp4", "A again"),
+                  item("file:///videos/b.mp4", "B"), item("HTTPS://example.org/live/one.m3u8", "One again"), item("https://example.org/live/one.m3u8?x=1", "Other"),
+                  item("file:///videos/a.mp4", "A third")});
+    EXPECT_EQ(model.removeDuplicates(), 3);
+    EXPECT_EQ(titles(model), QStringList({"A", "One", "B", "Other"}));
+    EXPECT_TRUE(model.canUndoRemove());
+    EXPECT_EQ(model.removeDuplicates(), 0);
+    EXPECT_TRUE(model.canUndoRemove());
+
+    EXPECT_EQ(model.undoRemove(), 3);
+    EXPECT_EQ(titles(model), QStringList({"A", "One", "A again", "B", "One again", "Other", "A third"}));
+}
+
+TEST(PlaylistModelTest, PlayNextQueuesEntriesInOrder) {
+    PlaylistModel model;
+    QAbstractItemModelTester tester(&model, QAbstractItemModelTester::FailureReportingMode::Fatal);
+    model.append(files(5));
+    model.append({QVariantMap{{"path", "file:///videos/gone.mp4"}, {"available", false}, {"reason", "File not found"}}});
+    QSignalSpy queue(&model, &PlaylistModel::queueChanged);
+    const auto position = [&model](int row) { return model.data(model.index(row), PlaylistModel::QueuePositionRole).toInt(); };
+
+    model.playNext(model.idAt(3));
+    model.playNext(model.idAt(5));
+    model.playNext(model.idAt(1));
+    model.playNext(model.idAt(3));
+    model.playNext(999);
+    EXPECT_EQ(model.queueLength(), 3);
+    EXPECT_EQ(queue.count(), 3);
+    EXPECT_EQ(position(3), 1);
+    EXPECT_EQ(position(5), 2);
+    EXPECT_EQ(position(1), 3);
+    EXPECT_EQ(position(0), 0);
+
+    EXPECT_EQ(model.takeQueued(), 3);
+    EXPECT_EQ(position(3), 0);
+    EXPECT_EQ(position(5), 1);
+    EXPECT_EQ(position(1), 2);
+    EXPECT_EQ(model.takeQueued(), 1);
+    EXPECT_EQ(model.queueLength(), 0);
+    EXPECT_EQ(position(5), 0);
+    EXPECT_EQ(model.takeQueued(), -1);
+}
+
+TEST(PlaylistModelTest, QueueDropsRemovedEntriesAndClears) {
+    PlaylistModel model;
+    model.append(files(4));
+    const auto position = [&model](int row) { return model.data(model.index(row), PlaylistModel::QueuePositionRole).toInt(); };
+    model.playNext(model.idAt(0));
+    model.playNext(model.idAt(2));
+    model.playNext(model.idAt(3));
+
+    const int removed = model.idAt(2);
+    model.remove({removed});
+    EXPECT_EQ(model.queueLength(), 2);
+    EXPECT_EQ(position(0), 1);
+    EXPECT_EQ(position(2), 2);
+
+    model.undoRemove();
+    EXPECT_EQ(model.queueLength(), 2);
+    EXPECT_EQ(position(2), 0);
+
+    model.move({model.idAt(3)}, 0);
+    EXPECT_EQ(position(0), 2);
+    EXPECT_EQ(position(1), 1);
+
+    model.setCurrentRow(1);
+    model.remove({model.idAt(2)});
+    model.clear();
+    EXPECT_EQ(model.queueLength(), 0);
+    EXPECT_FALSE(model.canUndoRemove());
+    EXPECT_EQ(model.currentId(), -1);
+    EXPECT_EQ(model.takeQueued(), -1);
+}

@@ -29,11 +29,11 @@ One instance, created in `Main.qml`. A list model in playlist order.
 | `append(entries)` | Adds entries at the end in one batch. Returns the first new row, or `-1`. |
 | `insert(row, entries)` | Adds entries before `row`. |
 | `remove(ids)` | Removes those entries as one undo step. Returns how many were removed. |
-| `undoRemove()` | Puts the last removed entries back at their former rows. |
-| `move(ids, destinationRow)` | Moves those entries, as a block and in their current relative order, to before `destinationRow`. |
+| `undoRemove()` | Puts the last removed entries back at their former rows, with their ids. Returns how many. A restored entry does not become current again, and does not rejoin the play-next queue. |
+| `move(ids, destinationRow)` | Moves those entries, as a block and in their current relative order, to before `destinationRow`. Returns whether anything moved. |
 | `clear()` | Removes everything. Not undoable (the existing confirmation dialog stays). |
 | `removeDuplicates()` | Removes later entries with a location already seen. Returns the count. Undoable. |
-| `playNext(id)` | Adds the entry to the end of the play-next queue. |
+| `playNext(id)` | Adds the entry to the end of the play-next queue. An entry already queued keeps its place. |
 | `takeQueued()` | Removes and returns the row of the first queued entry that is not unavailable, dropping unavailable ones on the way, or `-1`. The view's search and filter play no part. |
 | `setLoaded(id, durationMs, isLive)` | Records what the player learned and marks the entry playable. |
 | `setUnavailable(id, reason)` | Marks the entry unavailable. |

@@ -564,3 +564,118 @@ TEST_F(PlaylistViewTest, RebuildTimeIsLogged) {
         EXPECT_EQ(narrowed.matchCount(), count);
     }
 }
+
+TEST_F(PlaylistViewTest, SelectionFollowsTheUsualClickRules) {
+    QAbstractItemModelTester tester(&view, QAbstractItemModelTester::FailureReportingMode::Fatal);
+    model.append(files(6));
+    QSignalSpy changed(&view, &PlaylistView::selectionChanged);
+    const auto selected = [this](int row) { return view.data(view.index(row), PlaylistView::SelectedRole).toBool(); };
+
+    view.select(2, Qt::NoModifier);
+    EXPECT_EQ(view.selectedIds(), QList<int>({model.idAt(2)}));
+    EXPECT_TRUE(selected(2));
+    EXPECT_EQ(view.selectionCount(), 1);
+    EXPECT_EQ(changed.count(), 1);
+
+    view.select(4, Qt::ControlModifier);
+    view.select(0, Qt::ControlModifier);
+    EXPECT_EQ(view.selectedIds(), QList<int>({model.idAt(0), model.idAt(2), model.idAt(4)}));
+    view.select(2, Qt::ControlModifier);
+    EXPECT_EQ(view.selectedIds(), QList<int>({model.idAt(0), model.idAt(4)}));
+    EXPECT_FALSE(selected(2));
+
+    view.select(1, Qt::NoModifier);
+    view.select(4, Qt::ShiftModifier);
+    EXPECT_EQ(view.selectedIds(), QList<int>({model.idAt(1), model.idAt(2), model.idAt(3), model.idAt(4)}));
+    view.select(0, Qt::ShiftModifier);
+    EXPECT_EQ(view.selectedIds(), QList<int>({model.idAt(0), model.idAt(1)}));
+
+    view.select(5, Qt::ControlModifier);
+    view.select(3, Qt::ShiftModifier | Qt::ControlModifier);
+    EXPECT_EQ(view.selectedIds(), QList<int>({model.idAt(0), model.idAt(1), model.idAt(3), model.idAt(4), model.idAt(5)}));
+
+    view.select(3, Qt::NoModifier);
+    EXPECT_EQ(view.selectionCount(), 1);
+    view.clearSelection();
+    EXPECT_EQ(view.selectionCount(), 0);
+    EXPECT_TRUE(view.selectedIds().isEmpty());
+
+    view.select(2, Qt::ShiftModifier);
+    EXPECT_EQ(view.selectedIds(), QList<int>({model.idAt(2)}));
+    view.select(99, Qt::NoModifier);
+    EXPECT_EQ(view.selectedIds(), QList<int>({model.idAt(2)}));
+}
+
+TEST_F(PlaylistViewTest, SelectionCoversOnlyWhatIsShown) {
+    QAbstractItemModelTester tester(&view, QAbstractItemModelTester::FailureReportingMode::Fatal);
+    model.append(mixed());
+    view.setGrouped(true);
+    view.select(0, Qt::NoModifier);
+    EXPECT_EQ(view.selectionCount(), 0);
+    EXPECT_FALSE(view.data(view.index(0), PlaylistView::SelectedRole).toBool());
+
+    view.selectAll();
+    EXPECT_EQ(view.selectionCount(), 6);
+    EXPECT_EQ(view.selectedIds(), view.visibleIds());
+    EXPECT_FALSE(view.data(view.index(3), PlaylistView::SelectedRole).toBool());
+
+    view.select(1, Qt::NoModifier);
+    view.select(5, Qt::ShiftModifier);
+    EXPECT_EQ(view.selectedIds(), QList<int>({model.idAt(0), model.idAt(3), model.idAt(1), model.idAt(4)}));
+
+    view.setGrouped(false);
+    view.setSearchText("news");
+    EXPECT_EQ(view.selectionCount(), 2);
+    EXPECT_EQ(view.selectedIds(), QList<int>({model.idAt(1), model.idAt(4)}));
+    view.selectAll();
+    EXPECT_EQ(view.selectionCount(), 2);
+    view.setSearchText("");
+    EXPECT_EQ(view.selectedIds(), QList<int>({model.idAt(1), model.idAt(4)}));
+
+    view.setSortOrder(PlaylistView::Title);
+    view.select(0, Qt::NoModifier);
+    view.select(2, Qt::ShiftModifier);
+    EXPECT_EQ(view.selectedIds(), QList<int>({model.idAt(2), model.idAt(1), model.idAt(3)}));
+}
+
+TEST_F(PlaylistViewTest, RemovedEntriesLeaveTheSelection) {
+    model.append(files(5));
+    view.select(1, Qt::NoModifier);
+    view.select(3, Qt::ControlModifier);
+    QSignalSpy changed(&view, &PlaylistView::selectionChanged);
+    const int kept = model.idAt(3);
+
+    model.remove({model.idAt(1)});
+    EXPECT_EQ(view.selectedIds(), QList<int>({kept}));
+    EXPECT_EQ(view.selectionCount(), 1);
+    EXPECT_GE(changed.count(), 1);
+
+    model.undoRemove();
+    EXPECT_EQ(view.selectedIds(), QList<int>({kept}));
+    model.clear();
+    EXPECT_EQ(view.selectionCount(), 0);
+}
+
+TEST_F(PlaylistViewTest, FollowsMovesInTheSource) {
+    QAbstractItemModelTester tester(&view, QAbstractItemModelTester::FailureReportingMode::Fatal);
+    model.append(mixed());
+    QSignalSpy moved(&view, &QAbstractItemModel::rowsMoved);
+    QSignalSpy reset(&view, &QAbstractItemModel::modelReset);
+    view.select(4, Qt::NoModifier);
+    const int selected = model.idAt(4);
+
+    model.move({model.idAt(4), model.idAt(5)}, 1);
+    EXPECT_EQ(shown(), QStringList({"delta", "Echo", "foxtrot", "Bravo News", "Alpha", "charlie"}));
+    EXPECT_EQ(shown(), sourceTitles());
+    EXPECT_GE(moved.count(), 1);
+    EXPECT_EQ(reset.count(), 0);
+    EXPECT_EQ(view.selectedIds(), QList<int>({selected}));
+    EXPECT_EQ(view.viewRowFor(1), 1);
+
+    view.setSortOrder(PlaylistView::Title);
+    model.move({model.idAt(0)}, 6);
+    EXPECT_EQ(shown(), QStringList({"Alpha", "Bravo News", "charlie", "delta", "Echo", "foxtrot"}));
+    EXPECT_EQ(sourceTitles(), QStringList({"Echo", "foxtrot", "Bravo News", "Alpha", "charlie", "delta"}));
+    view.setSearchText("o");
+    EXPECT_EQ(shown(), QStringList({"Bravo News", "Echo", "foxtrot"}));
+}

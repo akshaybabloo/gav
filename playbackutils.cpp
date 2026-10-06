@@ -1,7 +1,20 @@
 #include "playbackutils.h"
 
+#include <QDesktopServices>
+#include <QDir>
+#include <QFileInfo>
+#include <QProcess>
 #include <QRegularExpression>
+#include <QUrl>
 #include <QtNumeric>
+
+#ifdef GAV_HAS_DBUS
+#include <QCoreApplication>
+#include <QDBusConnection>
+#include <QDBusMessage>
+#include <QDBusPendingCall>
+#include <QDBusPendingCallWatcher>
+#endif
 
 #include <algorithm>
 
@@ -136,4 +149,43 @@ qint64 PlaybackUtils::chapterTarget(const QVariantList &chapters, qint64 positio
 
 bool PlaybackUtils::isResumeEligible(qint64 positionMs, qint64 durationMs) const {
     return resumeEligible(positionMs, durationMs);
+}
+
+QString PlaybackUtils::localPathFor(const QString &pathOrUrl) {
+    static const QRegularExpression scheme(QStringLiteral(R"(^[A-Za-z][A-Za-z0-9+.\-]+:)"));
+    if (!scheme.match(pathOrUrl).hasMatch()) {
+        return pathOrUrl.isEmpty() ? QString() : QDir::cleanPath(pathOrUrl);
+    }
+    const QUrl url(pathOrUrl);
+    return url.isLocalFile() ? QDir::cleanPath(url.toLocalFile()) : QString();
+}
+
+void PlaybackUtils::revealInFileManager(const QString &pathOrUrl) const {
+    const QString path = localPathFor(pathOrUrl);
+    if (path.isEmpty()) {
+        return;
+    }
+    const QUrl folder = QUrl::fromLocalFile(QFileInfo(path).absolutePath());
+#if defined(Q_OS_WIN)
+    if (QProcess::startDetached(QStringLiteral("explorer.exe"), {QStringLiteral("/select,") + QDir::toNativeSeparators(path)})) {
+        return;
+    }
+#elif defined(Q_OS_MACOS)
+    if (QProcess::startDetached(QStringLiteral("open"), {QStringLiteral("-R"), path})) {
+        return;
+    }
+#elif defined(GAV_HAS_DBUS)
+    QDBusMessage message = QDBusMessage::createMethodCall(QStringLiteral("org.freedesktop.FileManager1"), QStringLiteral("/org/freedesktop/FileManager1"),
+                                                          QStringLiteral("org.freedesktop.FileManager1"), QStringLiteral("ShowItems"));
+    message << QStringList{QUrl::fromLocalFile(path).toString(QUrl::FullyEncoded)} << QString();
+    auto *watcher = new QDBusPendingCallWatcher(QDBusConnection::sessionBus().asyncCall(message, 3000), QCoreApplication::instance());
+    QObject::connect(watcher, &QDBusPendingCallWatcher::finished, watcher, [folder](QDBusPendingCallWatcher *call) {
+        if (call->isError()) {
+            QDesktopServices::openUrl(folder);
+        }
+        call->deleteLater();
+    });
+    return;
+#endif
+    QDesktopServices::openUrl(folder);
 }

@@ -13,15 +13,19 @@ Item {
     property bool overlay: false
     required property PlaylistModel playList
     required property PlaylistView playlistView
+    readonly property bool popupOpen: clearConfirmDialog.visible || moreMenu.visible || filterMenu.visible || sortMenu.visible || entryList.menuOpen
     property bool showLogos: false
     property bool shuffleEnabled: false
 
     signal closeRequested
+    signal entriesRemoved(int count)
     signal itemSelected(string path, string name)
-    signal playRequested
+    signal playEntryRequested(int sourceRow)
+    signal removeDuplicatesRequested
     signal saveRequested
     signal showLogosToggled(bool enabled)
     signal shuffleToggled(bool enabled)
+    signal urlsDropped(var urls, int sourceRow)
     signal widthRequested(int requestedWidth)
 
     component PanelButton: Button {
@@ -44,6 +48,9 @@ Item {
         }
     }
 
+    function focusList() {
+        entryList.focusList();
+    }
     function focusSearch() {
         searchField.forceActiveFocus();
         searchField.selectAll();
@@ -208,6 +215,12 @@ Item {
                                 onTriggered: clearConfirmDialog.open()
                             }
                             MenuItem {
+                                enabled: root.playList.count > 1
+                                text: qsTr("Remove duplicates")
+
+                                onTriggered: root.removeDuplicatesRequested()
+                            }
+                            MenuItem {
                                 checkable: true
                                 checked: root.showLogos
                                 text: qsTr("Show channel logos")
@@ -256,6 +269,7 @@ Item {
 
                     onTextChanged: root.playlistView.searchText = text
 
+                    Keys.onDownPressed: root.focusList()
                     Keys.onEscapePressed: {
                         if (text.length > 0) {
                             text = "";
@@ -417,16 +431,27 @@ Item {
             Layout.fillWidth: true
 
             PlayListComponent {
+                id: entryList
+
                 anchors.fill: parent
                 playList: root.playList
                 playlistView: root.playlistView
                 showLogos: root.showLogos
                 visible: root.playlistView.matchCount > 0
 
+                onEntriesRemoved: function (count) {
+                    root.entriesRemoved(count);
+                }
                 onItemSelected: function (path, name) {
                     root.itemSelected(path, name);
                 }
-                onPlayRequested: root.playRequested()
+                onPlayEntryRequested: function (sourceRow) {
+                    root.playEntryRequested(sourceRow);
+                }
+                onSearchRequested: root.focusSearch()
+                onUrlsDropped: function (urls, sourceRow) {
+                    root.urlsDropped(urls, sourceRow);
+                }
             }
             ColumnLayout {
                 anchors.centerIn: parent

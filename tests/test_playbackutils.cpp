@@ -145,3 +145,12 @@ TEST(PlaybackUtilsResume, UnknownDurationIsNotEligible) {
     EXPECT_FALSE(PlaybackUtils::resumeEligible(50000, 0));
     EXPECT_FALSE(PlaybackUtils::resumeEligible(0, 100000));
 }
+
+TEST(PlaybackUtilsReveal, AcceptsLocalPathsAndFileUrlsOnly) {
+    EXPECT_EQ(PlaybackUtils::localPathFor("/videos/sub/../a.mp4"), "/videos/a.mp4");
+    EXPECT_EQ(PlaybackUtils::localPathFor("file:///videos/a%20b.mp4"), "/videos/a b.mp4");
+    EXPECT_EQ(PlaybackUtils::localPathFor("C:/Videos/a.mp4"), "C:/Videos/a.mp4");
+    EXPECT_TRUE(PlaybackUtils::localPathFor("https://example.org/live.m3u8").isEmpty());
+    EXPECT_TRUE(PlaybackUtils::localPathFor("ftp://example.org/a.mp4").isEmpty());
+    EXPECT_TRUE(PlaybackUtils::localPathFor("").isEmpty());
+}
