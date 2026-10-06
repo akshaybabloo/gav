@@ -11,6 +11,7 @@ Item {
     required property PlaylistModel playList
     required property PlaylistView playlistView
     property string searchFilter: ""
+    property bool showLogos: false
 
     signal itemSelected(string path, string name)
     signal playRequested
@@ -68,6 +69,7 @@ Item {
             readonly property bool matches: root.matchesFilter(title)
 
             height: matches ? implicitHeight : 0
+            showLogo: root.showLogos
             visible: matches
             width: ListView.view.width
 

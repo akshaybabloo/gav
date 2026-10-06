@@ -62,8 +62,8 @@ Run with `just run`. Each row is one check.
 | Q2.3 | Play the on-demand stream, then the live one | The first row gains its duration; the second shows "Live". Neither needed a click on the row (FR-010) |
 | Q2.4 | Save the playlist, reopen it | Durations learned in Q2.3 are still shown |
 | Q2.5 | Look at a row with a long path, then widen the panel | The path is shortened in the middle with its file name visible, and more of it shows as the panel widens. No tooltip appears on hover (FR-011) |
-| Q2.6 | With "Show channel logos" off (default), watch network activity while scrolling `channels-10k.m3u8` | No image requests are made (FR-012, FR-029) |
-| Q2.7 | Turn "Show channel logos" on | Logos appear for visible rows that have one. Rows whose logo fails show the kind icon, with no error (FR-012a) |
+| Q2.6 | Turn "Show channel logos" off (it is on by default), then watch network activity while scrolling `channels-10k.m3u8` | No image requests are made (FR-012, FR-029) |
+| Q2.7 | Turn "Show channel logos" back on | Logos appear for visible rows that have one. Rows whose logo fails show the kind icon, with no error (FR-012a) |
 | Q2.8 | Settings → History → Clear history | `<CacheLocation>/logos/` is empty afterwards (FR-012b) |
 | Q2.9 | Switch between light and dark theme with the panel open and measure row text, secondary text and icons with a contrast checker; tab through the panel | At least 4.5:1 for text and 3:1 for large text and icons in both themes, and every control shows a focus indicator (FR-013) |
 

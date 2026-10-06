@@ -15,6 +15,7 @@ Dialog {
     required property bool rememberPositions
     required property bool rememberRecentFiles
     required property bool restoreLastPlaylist
+    required property bool showChannelLogos
 
     signal themeToggled(bool isDark)
     signal defaultSpeedChanged(real speed)
@@ -24,6 +25,7 @@ Dialog {
     signal rememberPositionsToggled(bool enabled)
     signal rememberRecentFilesToggled(bool enabled)
     signal restoreLastPlaylistToggled(bool enabled)
+    signal showChannelLogosToggled(bool enabled)
     signal clearHistoryRequested
 
     component SectionTitle: Text {
@@ -284,6 +286,37 @@ Dialog {
                     Layout.rightMargin: 12
                 }
                 SectionTitle {
+                    text: qsTr("Playlist")
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.rightMargin: 12
+                    spacing: 10
+
+                    SettingLabel {
+                        text: qsTr("Show channel logos")
+                    }
+                    Switch {
+                        Accessible.name: qsTr("Show channel logos")
+                        checked: root.showChannelLogos
+
+                        onToggled: root.showChannelLogosToggled(checked)
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    Layout.rightMargin: 12
+                    Layout.topMargin: -8
+                    color: Material.foreground
+                    font.pixelSize: 12
+                    opacity: 0.5
+                    text: qsTr("Logos are downloaded from the web addresses given in the playlist, only for the rows on screen.")
+                    wrapMode: Text.WordWrap
+                }
+                Divider {
+                    Layout.rightMargin: 12
+                }
+                SectionTitle {
                     text: qsTr("History")
                 }
                 RowLayout {
@@ -347,7 +380,7 @@ Dialog {
                     spacing: 10
 
                     SettingLabel {
-                        text: qsTr("Recent files, saved positions and the saved playlist")
+                        text: qsTr("Recent files, saved positions, the saved playlist and downloaded channel logos")
                         wrapMode: Text.WordWrap
                     }
                     Button {

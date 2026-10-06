@@ -13,12 +13,14 @@ Item {
     property bool overlay: false
     required property PlaylistModel playList
     required property PlaylistView playlistView
+    property bool showLogos: false
     property bool shuffleEnabled: false
 
     signal closeRequested
     signal itemSelected(string path, string name)
     signal playRequested
     signal saveRequested
+    signal showLogosToggled(bool enabled)
     signal shuffleToggled(bool enabled)
     signal widthRequested(int requestedWidth)
 
@@ -91,7 +93,7 @@ Item {
                         font.weight: Font.Light
                         hoverEnabled: true
                         scale: 1.5
-                        text: ""
+                        text: "\ue043"
 
                         contentItem: Text {
                             color: shuffleButton.checked ? Material.accent : Material.foreground
@@ -125,7 +127,7 @@ Item {
                         font.weight: Font.Light
                         hoverEnabled: true
                         scale: 1.5
-                        text: ""
+                        text: "\ue161"
 
                         onClicked: root.saveRequested()
 
@@ -153,7 +155,7 @@ Item {
                         font.weight: Font.Light
                         hoverEnabled: true
                         scale: 1.5
-                        text: ""
+                        text: "\ue5d4"
 
                         onClicked: moreMenu.popup(moreButton, 0, moreButton.height)
 
@@ -172,6 +174,13 @@ Item {
 
                                 onTriggered: clearConfirmDialog.open()
                             }
+                            MenuItem {
+                                checkable: true
+                                checked: root.showLogos
+                                text: qsTr("Show channel logos")
+
+                                onTriggered: root.showLogosToggled(checked)
+                            }
                         }
                     }
                     Button {
@@ -187,7 +196,7 @@ Item {
                         font.weight: Font.Light
                         hoverEnabled: true
                         scale: 1.5
-                        text: ""
+                        text: "\ue5cd"
                         visible: root.overlay && root.narrow
 
                         onClicked: root.closeRequested()
@@ -232,7 +241,7 @@ Item {
                         leftInset: 0
                         padding: 0
                         rightInset: 0
-                        text: ""
+                        text: "\ue5cd"
                         topInset: 0
                         visible: searchField.text.length > 0
                         width: 28
@@ -254,6 +263,7 @@ Item {
                 playList: root.playList
                 playlistView: root.playlistView
                 searchFilter: searchField.text
+                showLogos: root.showLogos
                 visible: root.playList.count > 0
 
                 onItemSelected: function (path, name) {
@@ -273,7 +283,7 @@ Item {
                     font.family: materialSymbolsOutlined.name
                     font.pixelSize: 64
                     font.weight: Font.ExtraLight
-                    text: ""
+                    text: "\uf523"
 
                     SequentialAnimation on opacity {
                         loops: Animation.Infinite

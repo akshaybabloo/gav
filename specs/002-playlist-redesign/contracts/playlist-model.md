@@ -113,10 +113,15 @@ no longer candidates are dropped.
 ## `LogoProvider`
 
 Image provider id `logo`. Request form: `image://logo/<percent-encoded http(s) address>`.
+`LogoProvider` is also a QML singleton, which is how QML reaches the two methods below.
 
 - Returns the cached image when present, otherwise downloads it within the limits in
   [research R6](../research.md) and caches the scaled result.
-- Any failure (scheme, timeout, size, decode) yields an empty image. No error is shown.
+- Any failure (scheme, timeout, size, decode) yields a 1 × 1 transparent image, which the row
+  treats as "no logo" and replaces with the kind icon. No error is shown or logged above debug
+  level.
+- Rows that ask for the same address share one download. A row that scrolls away withdraws its
+  request, and a download nobody is waiting for is dropped.
 - `LogoProvider.clearCache()` empties `<CacheLocation>/logos/` and is called by the existing
   "Clear history" action.
 - `LogoProvider.cancelPending()` aborts queued and in-flight downloads. QML calls it when

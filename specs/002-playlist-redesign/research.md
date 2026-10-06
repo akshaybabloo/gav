@@ -147,7 +147,8 @@ loses the ones not listed.
 
 **Decision**
 
-- A `Settings` switch, "Show channel logos", off by default. With it off, delegates never set an
+- A `Settings` switch, "Show channel logos", on by default (changed from off on 2026-10-06; see
+  the plan's Complexity Tracking). With it off, delegates never set an
   image source.
 - With it on, delegates request `image://logo/<percent-encoded address>` only while they are
   instantiated, which with `reuseItems` and a small `cacheBuffer` means visible rows plus a few
@@ -156,7 +157,9 @@ loses the ones not listed.
   - `http`/`https` only, redirects limited to those schemes
   - 10 s transfer timeout, 512 KB limit per image, at most 4 requests in flight
   - decoding on a worker thread through `QImageReader` restricted to PNG, JPEG and WebP, with a
-    1024 × 1024 pixel limit and an allocation limit, then scaled to the row's icon size
+    1024 × 1024 pixel limit and an allocation limit, then scaled to the row's icon size (stored
+    at up to 96 × 96 so it stays sharp on high-density screens). Qt's allocation limit is
+    process-wide, so it is left at its default and only set if none is in force
   - failures return an empty image and the delegate shows the kind icon
 - Cache: `<CacheLocation>/logos/<sha256 of address>.png`, holding the scaled image only, capped at
   20 MB with oldest-first eviction. The address is not stored. "Clear" in Settings → History also

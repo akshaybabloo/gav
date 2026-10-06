@@ -33,7 +33,8 @@ list scrolls only if the panel is open and the user is not interacting with it.
 ## Panel content, top to bottom
 
 1. **Header**: title "Playlist" with the entry count, or "N of M" while a search or filter is
-   active. Buttons: shuffle, save, collage, more (remove duplicates, clear, show channel logos).
+   active. Buttons: shuffle, save, collage, more (remove duplicates, clear, show channel logos). "Show channel
+   logos" is the same setting as the switch under Settings → Playback → Playlist.
 2. **Search row**: search field with a clear button; filter (All, Local files, Streams);
    sort (Playlist order, Title, Duration); group toggle, shown only when entries have groups.
 3. **List**: entry rows and, when grouping is on, group header rows.

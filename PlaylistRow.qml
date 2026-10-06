@@ -33,7 +33,9 @@ ItemDelegate {
         text = decodeURIComponent(text.replace(/^file:\/\//, ""));
         return /^\/[A-Za-z]:/.test(text) ? text.substring(1) : text;
     }
+    required property url logo
     required property string reason
+    property bool showLogo: false
     required property int sourceRow
     required property int streamState
     required property string title
@@ -56,12 +58,35 @@ ItemDelegate {
     contentItem: RowLayout {
         spacing: 12
 
-        Text {
-            color: Material.foreground
-            font.family: materialSymbolsOutlined.name
-            font.pixelSize: 24
-            opacity: root.available ? 1 : 0.7
-            text: root.kind === PlaylistModel.LocalAudio ? "" : (root.kind === PlaylistModel.Stream ? "" : "")
+        Item {
+            Layout.preferredHeight: root.showLogo ? 36 : 24
+            Layout.preferredWidth: root.showLogo ? 36 : 24
+
+            Loader {
+                id: logoLoader
+
+                readonly property bool ready: item !== null && item.status === Image.Ready && item.implicitWidth > 1
+
+                active: root.showLogo && root.logo.toString() !== ""
+                anchors.fill: parent
+                visible: ready
+
+                sourceComponent: Image {
+                    asynchronous: true
+                    fillMode: Image.PreserveAspectFit
+                    opacity: root.available ? 1 : 0.7
+                    source: "image://logo/" + encodeURIComponent(root.logo)
+                }
+            }
+            Text {
+                anchors.centerIn: parent
+                color: Material.foreground
+                font.family: materialSymbolsOutlined.name
+                font.pixelSize: 24
+                opacity: root.available ? 1 : 0.7
+                text: root.kind === PlaylistModel.LocalAudio ? "\ue405" : (root.kind === PlaylistModel.Stream ? "\ue894" : "\ueb87")
+                visible: !logoLoader.ready
+            }
         }
         ColumnLayout {
             Layout.fillWidth: true
@@ -97,7 +122,7 @@ ItemDelegate {
             color: Material.foreground
             font.family: materialSymbolsOutlined.name
             font.pixelSize: 20
-            text: ""
+            text: "\ue037"
             visible: root.isCurrent
         }
         Button {
@@ -116,7 +141,7 @@ ItemDelegate {
             padding: 0
             rightInset: 0
             topInset: 0
-            text: ""
+            text: "\ue5cd"
             visible: opacity > 0
 
             Behavior on opacity {
