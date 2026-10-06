@@ -49,7 +49,7 @@ Run with `just run`. Each row is one check.
 | Q1.4 | Click the visible part of the video | The panel closes. Playback does not pause (FR-002a) |
 | Q1.5 | Open the panel, press `Esc`; press `Esc` again in full screen | First `Esc` closes the panel, the second leaves full screen |
 | Q1.6 | Drag the panel's left edge, close GAV with the panel open, start it again and play a video | The panel reopens at the same width (FR-003) |
-| Q1.7 | Shrink the window to its minimum width with the panel open | The panel takes the full width and shows a close button (FR-004) |
+| Q1.7 | With the panel open, make the window narrower than 560 px (tile it or split the screen; dragging stops at the 640 px minimum, where the panel still leaves part of the picture visible) | The panel takes the full width and shows a close button (FR-004) |
 | Q1.8 | Play an audio file | The playlist fills the content area, as before the redesign |
 | Q1.9 | Open the mini player | It behaves as before and has no playlist |
 

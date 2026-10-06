@@ -108,31 +108,32 @@ confirm the video keeps playing and stays visible while another item is started 
 
 ### Implementation for User Story 1
 
-- [ ] T012 [P] [US1] Add to `AppConstants.qml`: `playlistPanelDefaultWidth: 360`, `playlistPanelMinWidth: 280`, `playlistPanelMaxFraction: 0.6`, `playlistNarrowWindowWidth: 560`; and `{ "keys": "Ctrl+L", "action": qsTr("Show / hide playlist") }` in `shortcutReference`.
-- [ ] T013 [P] [US1] Build `PlaylistPanel.qml` to the [panel contract](./contracts/playlist-panel.md#panel-content-top-to-bottom):
-  - opaque themed background (`Material.dialogColor`), header with "Playlist" and the entry count, buttons for shuffle, save and a "more" menu (clear, collage)
-  - a `default property alias` slot that hosts the list
+- [X] T012 [P] [US1] Add to `AppConstants.qml`: `playlistPanelDefaultWidth: 360`, `playlistPanelMinWidth: 280`, `playlistPanelMaxFraction: 0.6`, `playlistNarrowWindowWidth: 560`; and `{ "keys": "Ctrl+L", "action": qsTr("Show / hide playlist") }` in `shortcutReference`.
+- [X] T013 [P] [US1] Build `PlaylistPanel.qml` to the [panel contract](./contracts/playlist-panel.md#panel-content-top-to-bottom):
+  - opaque themed background (`Material.background`, header in `Material.dialogColor`), header with "Playlist" and the entry count, buttons for shuffle, save and collage, and a "more" menu (clear). Collage stays a button because `CollageButton` shows its own progress
+  - the panel owns the `PlayListComponent` and forwards `itemSelected` and `playRequested`, so `Main.qml` talks to one item
   - `property bool overlay` (panel over video) and `property bool narrow`; a close button in the header when `narrow`
   - a 6 px drag strip on the left edge that emits `widthRequested(int)` while `overlay`, with a horizontal-resize cursor
   - empty state when `playList.count === 0`: "No media files" plus one line each for files, playlists and addresses (FR-005), reusing the current drop-hint artwork
   - accessible names on every control
-- [ ] T014 [US1] Reduce `PlayListComponent.qml` to the list: move its header (search field, shuffle, clear, collage) into `PlaylistPanel.qml`, keep the `ListView`, and add:
+- [X] T014 [US1] Reduce `PlayListComponent.qml` to the list: move its header (search field, shuffle, clear, collage) into `PlaylistPanel.qml`, keep the `ListView`, and add:
   - a visible "playing" marker on the row where `isCurrent` is true (FR-008)
   - `positionViewAtIndex(playlistView.currentViewRow, ListView.Contain)` when the component becomes visible and when `currentViewRow` changes while the user is not pressing or flicking the list
-- [ ] T015 [US1] Place the panel in `Main.qml`:
+- [X] T015 [US1] Place the panel in `Main.qml`:
   - `appSettings.playlistPanelOpen` (default `false`) and `appSettings.playlistPanelWidth` (default `360`) replace `playlistManualVisible`
   - no video showing (`!mediaComponent.isVideoAndPlaying`): the panel fills the content area as today, `overlay: false`
   - video showing and `playlistPanelOpen`: anchor the panel to the right edge of the content area above `MediaComponent`, width clamped to `[playlistPanelMinWidth, playlistPanelMaxFraction × window width]`
-  - window narrower than `playlistNarrowWindowWidth`: panel takes the full width, `narrow: true`
+  - window narrower than `playlistNarrowWindowWidth`: panel takes the full width, `narrow: true`. The window's minimum width is 640 px, so this only applies where the window manager sizes it below that (tiling, screen split)
+  - over video the panel always starts below the title bar, which stays visible in full screen while the panel is open
   - a transparent `MouseArea` over the rest of the video while the panel is open in overlay mode; a click closes the panel and is accepted so it does not reach the video (FR-002a)
   - persist the width from `widthRequested`
   - starting an entry from the panel leaves it open
-- [ ] T016 [US1] Wire the toggles in `Main.qml` and `MediaControlsComponent.qml`:
+- [X] T016 [US1] Wire the toggles in `Main.qml` and `MediaControlsComponent.qml`:
   - the control bar's playlist button toggles `playlistPanelOpen` and shows a checked state while open
   - `Shortcut` `Ctrl+L` (`Qt.ApplicationShortcut`, gated by `shortcutsEnabled`) toggles it
   - the existing `Esc` shortcut closes the panel first when it is open in overlay mode, and otherwise leaves full screen
-  - suspend the control bar's auto-hide timer while the panel is open in full screen
-- [ ] T017 [US1] Validate quickstart [Q1.1–Q1.9](./quickstart.md#story-1-browse-and-switch-while-watching) in light and dark theme, windowed and full screen. Fix what fails.
+  - suspend the control bar's auto-hide timer while the panel is open in full screen, and restart it when the panel closes
+- [X] T017 [US1] Validate quickstart [Q1.1–Q1.9](./quickstart.md#story-1-browse-and-switch-while-watching) in light and dark theme, windowed and full screen. Fix what fails. Checked headless on 2026-10-06 with simulated clicks, drags and keys: all nine pass. Fixed on the way: the title bar covered the panel header in full screen, and the controls stayed up after closing the panel from the keyboard in full screen. Not checked on a real display: the resize cursor, and how the panel looks over actual video (the headless renderer shows no picture).
 
 **Checkpoint**: Story 1 works on its own. Ships as its own PR.
 
@@ -231,7 +232,7 @@ few seconds by search and by group (quickstart Q3.1–Q3.9).
 - [ ] T034 [P] [US3] Build `PlaylistGroupHeader.qml`: disclosure arrow, group name ("Ungrouped" for the catch-all), count, click and `Enter` call `playlistView.toggleGroup`, accessible name with the expanded state.
 - [ ] T035 [US3] Add the search row to `PlaylistPanel.qml` per the [panel contract](./contracts/playlist-panel.md#panel-content-top-to-bottom): search field with clear button bound to `playlistView.searchText`; filter menu (All, Local files, Streams); sort menu (Playlist order, Title, Duration); group toggle visible only when `playlistView.hasGroups`; header shows "N of M" while a search or filter is active; "Nothing matches" state with a "Clear search and filter" button when `matchCount === 0` and the playlist is not empty.
 - [ ] T036 [US3] Update `PlayListComponent.qml`: remove `matchesFilter` and the height-0 delegate trick; choose `PlaylistRow` or `PlaylistGroupHeader` by `isHeader` with a `DelegateChooser`; set `reuseItems: true`, a `cacheBuffer` of a few rows and fixed row heights ([research R3](./research.md)); scroll to the top when the search text changes.
-- [ ] T037 [US3] Update `Main.qml`: `Shortcut` `Ctrl+F` opens the panel if needed and focuses the search field; `Esc` clears a non-empty search before closing the panel; after adding entries that the current search or filter hides, show "Added %1 items (hidden by the current search)"; confirm `shuffleOrder.setCandidates` follows `visibleEntriesChanged`. Add `Ctrl+F` to `AppConstants.shortcutReference`.
+- [ ] T037 [US3] Update `Main.qml`: `Shortcut` `Ctrl+F` opens the panel if needed and focuses the search field; `Esc` clears a non-empty search before closing the panel (the search field already does this while it has focus, added with US1; this task covers `Esc` when focus is elsewhere); after adding entries that the current search or filter hides, show "Added %1 items (hidden by the current search)"; confirm `shuffleOrder.setCandidates` follows `visibleEntriesChanged`. Add `Ctrl+F` to `AppConstants.shortcutReference`.
 - [ ] T038 [US3] Measure and validate: run `PlaylistViewTest.RebuildTimeIsLogged` in a release build (`GAV_BUILD_TYPE=Release GAV_BUILD_DIR=build-cli-release just test -R RebuildTime`), record the numbers in [research R3](./research.md), move the rebuild to a worker only if any is above 50 ms at 10,000 entries, then run quickstart [Q3.1–Q3.9](./quickstart.md#story-3-find-things-in-very-large-playlists) with `tests/data/generate-playlist.sh 10000`.
 
 **Checkpoint**: Stories 1–3 work. Ships as its own PR.

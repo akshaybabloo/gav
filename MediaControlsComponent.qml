@@ -24,6 +24,7 @@ Item {
     property bool nerdStatsActive: false
     required property var player
     required property int playlistCount
+    property bool playlistOpen: false
     required property int playlistCurrentIndex
     property int repeatMode: 0  // 0=none, 1=once, 2=loop, 3=range
     property int rewindMultiplier: 1
@@ -396,6 +397,7 @@ Item {
                         Accessible.role: Accessible.Button
                         Layout.preferredHeight: 30
                         Layout.preferredWidth: 25
+                        Material.foreground: root.playlistOpen ? Material.accent : undefined
                         Material.roundedScale: Material.NotRounded
                         enabled: true
                         font.family: materialSymbolsOutlined.name
