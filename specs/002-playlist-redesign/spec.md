@@ -36,9 +36,8 @@ a time.
   A: Yes. The constitution is amended first so that opt-in logos, with size and format limits and
   decoding on a background thread, are explicitly allowed.
 - Decision after trying the feature: channel logos are on by default. The setting, the limits and
-  "turning it off stops requests" stay as they are. This departs from Constitution v1.2.0
-  Principle I ("That setting MUST be off by default") and is recorded in the plan's Complexity
-  Tracking until the constitution is amended.
+  "turning it off stops requests" stay as they are. Constitution v1.2.0 required the setting to be
+  off by default; it was amended to v1.3.0 the same day to allow on by default.
 - Q: How should a stream be labelled and filtered before GAV has opened it and learned whether it
   is live or on-demand? → A: Three kinds (local video, local audio, stream). A stream row says
   "Stream" until it has been opened, then shows "Live" or its duration. Filters are All, Local
@@ -363,10 +362,9 @@ change.
   provides. GAV does not look anything up, and programme guides are out of scope.
 - Durations are shown when they are already known or become known through normal use. GAV does
   not open every entry in advance to measure it.
-- Channel logos depend on a constitution amendment that explicitly allows logo downloads behind a
-  setting and in-app decoding of small still images within the limits in FR-012a. That amendment
-  (v1.2.0) requires the setting to be off by default; shipping it on by default needs a further
-  amendment.
+- Channel logos depend on constitution amendments that explicitly allow logo downloads behind a
+  setting and in-app decoding of small still images within the limits in FR-012a (v1.2.0), and
+  that allow the setting to be on by default (v1.3.0).
 - Favourites are out of scope for this redesign and can be specified as their own feature later.
 - Channel logos are the only images shown. Thumbnails generated from local videos are out of scope. Local entries are told apart by kind
   and duration.

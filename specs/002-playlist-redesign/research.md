@@ -147,8 +147,8 @@ loses the ones not listed.
 
 **Decision**
 
-- A `Settings` switch, "Show channel logos", on by default (changed from off on 2026-10-06; see
-  the plan's Complexity Tracking). With it off, delegates never set an
+- A `Settings` switch, "Show channel logos", on by default (changed from off on 2026-10-06, with
+  constitution v1.3.0). With it off, delegates never set an
   image source.
 - With it on, delegates request `image://logo/<percent-encoded address>` only while they are
   instantiated, which with `reuseItems` and a small `cacheBuffer` means visible rows plus a few

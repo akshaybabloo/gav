@@ -7,14 +7,16 @@
 GAV is a simple audio and video player. Every feature MUST directly serve playing, navigating,
 or inspecting local or user-supplied media.
 
-- Features MUST work offline. Network access is only allowed for user-initiated actions and the
-  opt-out update check. Opening a stream or remote playlist covers the requests needed to play it:
-  its playlists, a download-speed check, and a subtitle track the user picks. Every such request
-  MUST have a timeout and a size limit, and MUST stop when the user closes the media.
+- Features MUST work offline. Network access is only allowed for user-initiated actions, the
+  opt-out update check, and the playlist images described in the next rule. Opening a stream or
+  remote playlist covers the requests needed to play it: its playlists, a download-speed check,
+  and a subtitle track the user picks. Every such request MUST have a timeout and a size limit,
+  and MUST stop when the user closes the media.
 - Decorative images that a playlist points to, such as channel logos, MAY be downloaded only while
-  a setting the user has turned on allows it. That setting MUST be off by default. These requests
-  MUST be limited to entries the user is looking at, MUST have a timeout and a size limit, and MUST
-  stop when the setting is turned off. Any cache of such images MUST be clearable by the user.
+  a setting allows it. That setting MAY be on by default. The user MUST be able to turn it off in
+  Settings, and with it off no such request is made. These requests MUST be limited to entries the
+  user is looking at, MUST have a timeout and a size limit, and MUST stop when the setting is
+  turned off. Any cache of such images MUST be clearable by the user.
 - GAV MUST NOT require accounts, telemetry, or cloud services.
 - User data (settings, history, playlists) MUST stay on the user's machine.
 - Anything that records what the user played (resume positions, recent files, the last playlist)
@@ -131,4 +133,4 @@ plan's Complexity Tracking table.
 - Compliance: reviewers check PRs against these principles. `CLAUDE.md` holds runtime development
   guidance and MUST NOT contradict this document.
 
-**Version**: 1.2.0 | **Ratified**: 2026-10-02 | **Last Amended**: 2026-10-06
+**Version**: 1.3.0 | **Ratified**: 2026-10-02 | **Last Amended**: 2026-10-06
