@@ -249,7 +249,7 @@ by use and remembers what it learned through the playlist file.
 **Decision**: The key map is in [contracts/playlist-panel.md](./contracts/playlist-panel.md).
 Playlist keys act only while the playlist has focus, so they do not collide with the global
 single-letter shortcuts. Rows expose an accessible name made of title, kind and state. The kind is
-shown by icon and by text in the second line, never by colour alone. Text and icons meet a
+shown by icon and by text in the row's last line, never by colour alone. Text and icons meet a
 contrast ratio of 4.5:1 (3:1 for large text and icons) in both themes, checked with a contrast
 tool during validation, and every control has a visible focus indicator.
 
