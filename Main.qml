@@ -18,6 +18,7 @@ ApplicationWindow {
     property var pendingStartupUrls: []
     property var pendingSubtitleUrls: []
     property int addedWhileNarrowed: 0
+    property var droppedPlaylists: []
     property int hiddenWhileNarrowed: 0
     property int loadedEntryId: -1
     property string loadedEntrySource: ""
@@ -182,8 +183,8 @@ ApplicationWindow {
         }
         if (tag === "replace")
             playList.clear();
-        var insertAt = tag.startsWith("insert:") ? Math.min(parseInt(tag.substring(7)), playList.count) : -1;
-        var firstIndex = insertAt >= 0 ? insertAt : playList.count;
+        var before = tag.startsWith("before:") ? playList.rowForId(parseInt(tag.substring(7))) : -1;
+        var firstIndex = before >= 0 ? before : playList.count;
         var positions = [];
         var items = [];
         var unavailable = 0;
@@ -238,17 +239,27 @@ ApplicationWindow {
         }
         return -1;
     }
+    function loadNextDroppedPlaylist() {
+        if (droppedPlaylists.length > 0)
+            PlaylistFiles.load(droppedPlaylists[0].url, supportedMediaExtensions(), "before:" + droppedPlaylists[0].before);
+    }
     function handleDroppedUrls(urls, insertRow) {
         var firstFileSet = false;
         var subtitleUrls = [];
         var at = insertRow;
+        var follower = at >= 0 ? playList.idAt(at) : -1;
+        var waiting = [];
+        var queued = droppedPlaylists.slice();
         for (var i = 0; i < urls.length; i++) {
             if (isSubtitleUrl(urls[i])) {
                 subtitleUrls.push(urls[i]);
                 continue;
             }
             if (isPlaylistUrl(urls[i])) {
-                PlaylistFiles.load(urls[i], supportedMediaExtensions(), at >= 0 ? "insert:" + at : "append");
+                if (at >= 0)
+                    waiting.push(urls[i]);
+                else
+                    PlaylistFiles.load(urls[i], supportedMediaExtensions(), "append");
                 continue;
             }
             var mediaInfo = getMediaInfo(urls[i]);
@@ -259,6 +270,12 @@ ApplicationWindow {
                         "path": mediaInfo.path,
                         "title": mediaInfo.name
                     }]);
+                for (var w = 0; w < waiting.length; w++)
+                    queued.push({
+                        "url": waiting[w],
+                        "before": playList.idAt(at)
+                    });
+                waiting = [];
                 if (mediaComponent.path === "" && !firstFileSet) {
                     firstFileSet = true;
                     selectPlaylistItem(at);
@@ -273,6 +290,17 @@ ApplicationWindow {
                 playList.currentRow = playList.count - 1;
                 firstFileSet = true;
             }
+        }
+        for (var p = 0; p < waiting.length; p++)
+            queued.push({
+                "url": waiting[p],
+                "before": follower
+            });
+        if (queued.length > droppedPlaylists.length) {
+            var idle = droppedPlaylists.length === 0;
+            droppedPlaylists = queued;
+            if (idle)
+                loadNextDroppedPlaylist();
         }
         if (firstFileSet) {
             mainWindow.pendingSubtitleUrls = subtitleUrls;
@@ -818,6 +846,10 @@ ApplicationWindow {
                 return;
             }
             var loaded = mainWindow.applyLoadedPlaylist(tag, result);
+            if (tag.startsWith("before:")) {
+                mainWindow.droppedPlaylists = mainWindow.droppedPlaylists.slice(1);
+                mainWindow.loadNextDroppedPlaylist();
+            }
             if (loaded.first < 0)
                 return;
             var loadedCurrent = result.currentIndex >= 0 && result.currentIndex < loaded.positions.length ? loaded.positions[result.currentIndex] : -1;
