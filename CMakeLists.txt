@@ -177,6 +177,7 @@ qt_add_qml_module(appgav
         TrackMenu.qml
         QualityMenu.qml
         PlaylistPanel.qml
+        PlaylistRow.qml
         ResumeDialog.qml
         RecentFilesMenu.qml
         GoToTimeDialog.qml

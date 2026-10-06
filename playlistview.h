@@ -40,12 +40,14 @@ public:
     Q_INVOKABLE int nextRow(bool repeat) const;
     Q_INVOKABLE int previousRow() const;
     Q_INVOKABLE QList<int> visibleIds() const;
+    Q_INVOKABLE QList<int> playableIds() const;
 
 signals:
     void sourceChanged();
     void currentViewRowChanged();
     void navigationChanged();
     void visibleEntriesChanged();
+    void playableEntriesChanged();
 
 private:
     void rebuild();

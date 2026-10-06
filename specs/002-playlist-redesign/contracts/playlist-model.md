@@ -85,12 +85,14 @@ rows every `PlaylistModel` role plus `selected` and `sourceRow`.
 | `selectedIds()` | Ids of visible selected entries, in view order. |
 | `nextRow(repeat)` | Source row to play next in view order, skipping unavailable entries, or `-1`. Wraps when `repeat` is true. With no current entry it starts from the model's anchor, or from the top. |
 | `previousRow()` | The same, backwards. |
-| `visibleIds()` | Visible entry ids in view order, for shuffle. |
+| `visibleIds()` | Visible entry ids in view order. |
+| `playableIds()` | The same without unavailable entries, for shuffle. |
 | `viewRowFor(sourceRow)` / `sourceRowFor(viewRow)` | Mapping. `-1` when there is none. |
 | `clearSearchAndFilter()` | Resets `searchText` and `filter`. |
 
 **Signals**: the standard list-model signals, plus `visibleEntriesChanged()` (the set or order of
-visible entries changed) and `selectionChanged()`.
+visible entries changed), `playableEntriesChanged()` (an entry became available or unavailable)
+and `selectionChanged()`.
 
 **Guarantees**
 
@@ -104,7 +106,8 @@ visible entries changed) and `selectionChanged()`.
 
 `reset`, `next`, `previous` and `setCurrent` take and return entry ids instead of row indices.
 `itemInserted`, `itemRemoved` and `itemMoved` are replaced by `setCandidates(ids)`, called with
-`PlaylistView.visibleIds()` whenever `visibleEntriesChanged` fires. History entries whose ids are
+`PlaylistView.playableIds()` whenever `visibleEntriesChanged` or `playableEntriesChanged` fires, so
+shuffle never picks an unavailable entry (FR-009). History entries whose ids are
 no longer candidates are dropped.
 
 ## `LogoProvider`

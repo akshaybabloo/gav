@@ -56,11 +56,11 @@ Item {
 
                 anchors.fill: parent
                 anchors.margins: 10
-                spacing: 8
+                spacing: 12
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 10
+                    spacing: 15
 
                     Text {
                         color: Material.foreground
@@ -221,14 +221,21 @@ Item {
                     Button {
                         Accessible.name: qsTr("Clear search")
                         anchors.right: parent.right
-                        anchors.rightMargin: 4
+                        anchors.rightMargin: 8
                         anchors.verticalCenter: parent.verticalCenter
+                        bottomInset: 0
                         flat: true
                         font.family: materialSymbolsOutlined.name
-                        height: 20
+                        font.pixelSize: 18
+                        height: 28
+                        hoverEnabled: true
+                        leftInset: 0
+                        padding: 0
+                        rightInset: 0
                         text: ""
+                        topInset: 0
                         visible: searchField.text.length > 0
-                        width: 20
+                        width: 28
 
                         onClicked: {
                             searchField.text = "";

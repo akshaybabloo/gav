@@ -57,11 +57,11 @@ Run with `just run`. Each row is one check.
 
 | # | Steps | Expected |
 |---|-------|----------|
-| Q2.1 | Open `mixed.m3u8` | Local video, local audio and streams have different icons and say their kind in words on line 2 (FR-007, SC-005) |
+| Q2.1 | Open `mixed.m3u8` | Local video, local audio and streams have different icons, show their path or address on line 2 and say their kind in words on line 3 (FR-006, FR-007, SC-005) |
 | Q2.2 | Look at the missing local file | Marked "Unavailable – File not found". `N` (next) skips it (FR-009) |
 | Q2.3 | Play the on-demand stream, then the live one | The first row gains its duration; the second shows "Live". Neither needed a click on the row (FR-010) |
 | Q2.4 | Save the playlist, reopen it | Durations learned in Q2.3 are still shown |
-| Q2.5 | Point at a row with a long title | Tooltip shows the full title and location (FR-011) |
+| Q2.5 | Look at a row with a long path, then widen the panel | The path is shortened in the middle with its file name visible, and more of it shows as the panel widens. No tooltip appears on hover (FR-011) |
 | Q2.6 | With "Show channel logos" off (default), watch network activity while scrolling `channels-10k.m3u8` | No image requests are made (FR-012, FR-029) |
 | Q2.7 | Turn "Show channel logos" on | Logos appear for visible rows that have one. Rows whose logo fails show the kind icon, with no error (FR-012a) |
 | Q2.8 | Settings → History → Clear history | `<CacheLocation>/logos/` is empty afterwards (FR-012b) |

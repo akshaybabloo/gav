@@ -52,7 +52,10 @@ Line handling:
 
 Other rules:
 
-- Local entries that don't exist are skipped and counted as missing.
+- Local entries that don't exist are kept and marked unavailable with the reason "File not found".
+  They were skipped until the playlist redesign; see
+  [the extended contract](../../002-playlist-redesign/contracts/playlist-format.md), which also adds
+  `group-title`, `tvg-logo` and `#EXTGRP`.
 - Local entries whose extension isn't a supported audio/video type are skipped and counted as
   unsupported.
 - `.m3u` files that aren't valid UTF-8 are decoded as the system's local 8-bit encoding.
@@ -60,8 +63,8 @@ Other rules:
 ## Result reported to the UI
 
 ```text
-{ entries: [...], currentIndex: int|null, skippedMissing: int, skippedUnsupported: int }
+{ entries: [...], currentIndex: int|null, unavailable: int, skippedUnsupported: int }
 ```
 
-When either skipped count is above zero, the UI shows "Loaded N items, skipped M (missing or
-unsupported)".
+When either count is above zero, the UI shows "Loaded N items, M unavailable", "Loaded N items,
+skipped M unsupported", or both joined.

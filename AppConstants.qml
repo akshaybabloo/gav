@@ -14,6 +14,7 @@ QtObject {
     // Playlist panel (in pixels, except the fraction of the window width)
     readonly property int playlistPanelDefaultWidth: 360
     readonly property int playlistPanelMinWidth: 280
+    readonly property int playlistRowHeight: 68
     readonly property real playlistPanelMaxFraction: 0.6
     readonly property int playlistNarrowWindowWidth: 560
     readonly property int tooltipDelay: 1000

@@ -247,6 +247,50 @@ void PlaylistModel::clear() {
     }
 }
 
+void PlaylistModel::setLoaded(int id, qint64 durationMs, bool isLive) {
+    const int row = rowForId(id);
+    if (row < 0) {
+        return;
+    }
+    Entry &entry = m_entries[row];
+    QList<int> roles;
+    if (entry.availability != Playable) {
+        entry.availability = Playable;
+        roles.append(AvailableRole);
+    }
+    if (!entry.reason.isEmpty()) {
+        entry.reason.clear();
+        roles.append(ReasonRole);
+    }
+    const StreamState state = entry.kind != Stream ? StreamUnknown : (isLive ? StreamLive : StreamOnDemand);
+    if (entry.streamState != state) {
+        entry.streamState = state;
+        roles.append(StreamStateRole);
+    }
+    const qint64 duration = isLive ? -1 : (durationMs > 0 ? durationMs : entry.durationMs);
+    if (entry.durationMs != duration) {
+        entry.durationMs = duration;
+        roles.append(DurationMsRole);
+    }
+    if (!roles.isEmpty()) {
+        emit dataChanged(index(row), index(row), roles);
+    }
+}
+
+void PlaylistModel::setUnavailable(int id, const QString &reason) {
+    const int row = rowForId(id);
+    if (row < 0) {
+        return;
+    }
+    Entry &entry = m_entries[row];
+    if (entry.availability == Unavailable && entry.reason == reason) {
+        return;
+    }
+    entry.availability = Unavailable;
+    entry.reason = reason;
+    emit dataChanged(index(row), index(row), {AvailableRole, ReasonRole});
+}
+
 int PlaylistModel::rowForId(int id) const {
     if (id < 0) {
         return -1;

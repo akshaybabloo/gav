@@ -41,7 +41,7 @@ TEST_F(PlaylistIOTest, RoundTripsHundredEntries) {
         EXPECT_EQ(result.document.entries[i].title, document.entries[i].title);
         EXPECT_EQ(result.document.entries[i].durationSec, i);
     }
-    EXPECT_EQ(result.skippedMissing, 0);
+    EXPECT_EQ(result.unavailable, 0);
     EXPECT_EQ(result.document.currentIndex, -1);
 }
 
@@ -96,14 +96,21 @@ TEST_F(PlaylistIOTest, CountsUnsupportedSchemesAndExtensions) {
     const PlaylistReadResult result = parse("ftp://example.org/a.mp4\nrtsp://example.org/live\nnotes.txt\n");
     EXPECT_TRUE(result.document.entries.isEmpty());
     EXPECT_EQ(result.skippedUnsupported, 3);
-    EXPECT_EQ(result.skippedMissing, 0);
+    EXPECT_EQ(result.unavailable, 0);
 }
 
-TEST_F(PlaylistIOTest, CountsMissingFiles) {
+TEST_F(PlaylistIOTest, KeepsMissingFilesAsUnavailable) {
     touch("a.mp4");
-    const PlaylistReadResult result = parse("a.mp4\nmissing.mp4\n");
-    EXPECT_EQ(result.document.entries.size(), 1);
-    EXPECT_EQ(result.skippedMissing, 1);
+    const PlaylistReadResult result = parse("a.mp4\n#EXTINF:10,Gone\nmissing.mp4\n");
+    ASSERT_EQ(result.document.entries.size(), 2);
+    EXPECT_TRUE(result.document.entries[0].available);
+    EXPECT_TRUE(result.document.entries[0].reason.isEmpty());
+    EXPECT_FALSE(result.document.entries[1].available);
+    EXPECT_EQ(result.document.entries[1].reason, "File not found");
+    EXPECT_EQ(result.document.entries[1].title, "Gone");
+    EXPECT_EQ(result.document.entries[1].location, QUrl::fromLocalFile(QDir(tempDir.path()).filePath("missing.mp4")));
+    EXPECT_EQ(result.unavailable, 1);
+    EXPECT_EQ(result.skippedUnsupported, 0);
 }
 
 TEST_F(PlaylistIOTest, ExtinfAppliesOnlyToNextEntry) {
@@ -127,35 +134,45 @@ TEST_F(PlaylistIOTest, CurrentIndexRoundTrips) {
 TEST_F(PlaylistIOTest, CurrentIndexShiftsPastSkippedEntries) {
     touch("b.mp4");
     touch("c.mp4");
-    const PlaylistReadResult result = parse("#EXTM3U\n#GAV-CURRENT:2\nmissing.mp4\nb.mp4\nc.mp4\n");
+    const PlaylistReadResult result = parse("#EXTM3U\n#GAV-CURRENT:2\nnotes.txt\nb.mp4\nc.mp4\n");
     ASSERT_EQ(result.document.entries.size(), 2);
     EXPECT_EQ(result.document.currentIndex, 1);
 }
 
-TEST_F(PlaylistIOTest, CurrentIndexMovesToNextSurvivorWhenItsEntryIsMissing) {
+TEST_F(PlaylistIOTest, CurrentIndexMovesToNextSurvivorWhenItsEntryIsSkipped) {
     touch("a.mp4");
     touch("c.mp4");
-    const PlaylistReadResult result = parse("#GAV-CURRENT:1\na.mp4\nmissing.mp4\nc.mp4\n");
+    const PlaylistReadResult result = parse("#GAV-CURRENT:1\na.mp4\nnotes.txt\nc.mp4\n");
+    ASSERT_EQ(result.document.entries.size(), 2);
     EXPECT_EQ(result.document.currentIndex, 1);
 }
 
-TEST_F(PlaylistIOTest, CurrentIndexClampsWhenTrailingEntriesAreMissing) {
+TEST_F(PlaylistIOTest, CurrentIndexClampsWhenTrailingEntriesAreSkipped) {
     touch("a.mp4");
-    const PlaylistReadResult result = parse("#GAV-CURRENT:2\na.mp4\nmissing1.mp4\nmissing2.mp4\n");
+    const PlaylistReadResult result = parse("#GAV-CURRENT:2\na.mp4\none.txt\ntwo.txt\n");
     EXPECT_EQ(result.document.currentIndex, 0);
 }
 
 TEST_F(PlaylistIOTest, CurrentIndexClearedWhenNothingSurvives) {
-    const PlaylistReadResult result = parse("#GAV-CURRENT:0\nmissing.mp4\n");
+    const PlaylistReadResult result = parse("#GAV-CURRENT:0\nnotes.txt\n");
     EXPECT_TRUE(result.document.entries.isEmpty());
     EXPECT_EQ(result.document.currentIndex, -1);
+}
+
+TEST_F(PlaylistIOTest, CurrentIndexStaysOnAMissingEntry) {
+    touch("a.mp4");
+    touch("c.mp4");
+    const PlaylistReadResult result = parse("#GAV-CURRENT:1\na.mp4\nmissing.mp4\nc.mp4\n");
+    ASSERT_EQ(result.document.entries.size(), 3);
+    EXPECT_EQ(result.document.currentIndex, 1);
 }
 
 TEST_F(PlaylistIOTest, ReadsFixtureWithRelativeAndMissingEntries) {
     const PlaylistReadResult result = PlaylistIO::read(QStringLiteral(GAV_TEST_DATA_DIR "/playlist-relative.m3u8"), extensions);
     ASSERT_TRUE(result.ok);
-    EXPECT_EQ(result.document.entries.size(), 2);
-    EXPECT_EQ(result.skippedMissing, 1);
+    ASSERT_EQ(result.document.entries.size(), 3);
+    EXPECT_FALSE(result.document.entries[2].available);
+    EXPECT_EQ(result.unavailable, 1);
 }
 
 TEST_F(PlaylistIOTest, ReadReportsUnreadableFile) {
@@ -225,7 +242,7 @@ TEST_F(PlaylistIOTest, RemotePlaylistResolvesRelativeEntriesAndSkipsLocalOnes) {
     EXPECT_EQ(result.document.entries[1].location, QUrl("https://other.example/two.mp4"));
     EXPECT_EQ(result.document.entries[2].location, QUrl("https://cdn.example.org/shared/three.mp4"));
     EXPECT_EQ(result.skippedUnsupported, 4);
-    EXPECT_EQ(result.skippedMissing, 0);
+    EXPECT_EQ(result.unavailable, 0);
 }
 
 TEST_F(PlaylistIOTest, RemoteHlsPlaylistBecomesOneStreamEntry) {
@@ -252,4 +269,155 @@ TEST_F(PlaylistIOTest, RemoteBodyWithoutPlaylistMarkersHasNoEntries) {
     const PlaylistReadResult headerless = PlaylistIO::parseRemote("#EXTINF:-1,Channel\nlive/one.m3u8\n", source, source);
     ASSERT_EQ(headerless.document.entries.size(), 1);
     EXPECT_EQ(headerless.document.entries[0].title, "Channel");
+}
+
+TEST_F(PlaylistIOTest, ReadsGroupAndLogoAttributes) {
+    const PlaylistReadResult result = parse("#EXTM3U\n"
+                                            "#EXTINF:-1 tvg-id=\"News.uk\" tvg-logo=\"https://example.org/news.png\" group-title=\"News, World\",News Channel\n"
+                                            "https://example.org/news.m3u8\n"
+                                            "#EXTINF:-1 TVG-LOGO=http://example.org/sport.png Group-Title=Sport tvg-name=\"Sport 1\",Sport\n"
+                                            "https://example.org/sport.m3u8\n"
+                                            "#EXTINF:120,Plain\n"
+                                            "https://example.org/plain.mp4\n");
+    ASSERT_EQ(result.document.entries.size(), 3);
+    EXPECT_EQ(result.document.entries[0].title, "News Channel");
+    EXPECT_EQ(result.document.entries[0].group, "News, World");
+    EXPECT_EQ(result.document.entries[0].logo, QUrl("https://example.org/news.png"));
+    EXPECT_EQ(result.document.entries[1].title, "Sport");
+    EXPECT_EQ(result.document.entries[1].group, "Sport");
+    EXPECT_EQ(result.document.entries[1].logo, QUrl("http://example.org/sport.png"));
+    EXPECT_TRUE(result.document.entries[2].group.isEmpty());
+    EXPECT_TRUE(result.document.entries[2].logo.isEmpty());
+    EXPECT_TRUE(result.document.entries[2].attributes.isEmpty());
+    EXPECT_EQ(result.document.entries[2].durationSec, 120);
+}
+
+TEST_F(PlaylistIOTest, KeepsAttributeTextVerbatim) {
+    const QByteArray attributes = "tvg-id=\"One.ua\" http-user-agent=\"Mozilla/5.0 (KHTML, like Gecko)\" catchup=append group-title=\"General\"";
+    const PlaylistReadResult result = parse("#EXTINF:-1 " + attributes + ",1+1, International\nhttp://example.org/one.m3u8\n");
+    ASSERT_EQ(result.document.entries.size(), 1);
+    EXPECT_EQ(result.document.entries[0].attributes, QString::fromUtf8(attributes));
+    EXPECT_EQ(result.document.entries[0].title, "1+1, International");
+    EXPECT_EQ(result.document.entries[0].group, "General");
+}
+
+TEST_F(PlaylistIOTest, ExtgrpSetsGroupOnlyWithoutGroupTitle) {
+    const PlaylistReadResult result = parse("#EXTGRP:Samples\n"
+                                            "#EXTINF:-1,From EXTGRP\n"
+                                            "https://example.org/a.m3u8\n"
+                                            "#EXTINF:-1 group-title=\"Films\",From attribute\n"
+                                            "#EXTGRP:Ignored\n"
+                                            "https://example.org/b.m3u8\n"
+                                            "#EXTINF:-1,No group\n"
+                                            "https://example.org/c.m3u8\n");
+    ASSERT_EQ(result.document.entries.size(), 3);
+    EXPECT_EQ(result.document.entries[0].group, "Samples");
+    EXPECT_EQ(result.document.entries[1].group, "Films");
+    EXPECT_TRUE(result.document.entries[2].group.isEmpty());
+}
+
+TEST_F(PlaylistIOTest, IgnoresLogoThatIsNotAWebAddress) {
+    const PlaylistReadResult result = parse("#EXTINF:-1 tvg-logo=\"file:///etc/passwd\",Local logo\n"
+                                            "https://example.org/a.m3u8\n"
+                                            "#EXTINF:-1 tvg-logo=\"logos/b.png\",Relative logo\n"
+                                            "https://example.org/b.m3u8\n");
+    ASSERT_EQ(result.document.entries.size(), 2);
+    EXPECT_TRUE(result.document.entries[0].logo.isEmpty());
+    EXPECT_EQ(result.document.entries[0].attributes, "tvg-logo=\"file:///etc/passwd\"");
+    EXPECT_TRUE(result.document.entries[1].logo.isEmpty());
+    EXPECT_EQ(result.document.entries[1].attributes, "tvg-logo=\"logos/b.png\"");
+}
+
+TEST_F(PlaylistIOTest, SerialiseWritesAttributesAndGroup) {
+    PlaylistDocument document;
+    PlaylistEntry kept{QUrl("https://example.org/a.m3u8"), "Kept", -1};
+    kept.attributes = "tvg-id=\"A.uk\" group-title=\"News\" tvg-name=\"A\"";
+    kept.group = "News";
+    PlaylistEntry added{QUrl("https://example.org/b.m3u8"), "Added", 600};
+    added.attributes = "tvg-id=\"B.uk\"";
+    added.group = "Films";
+    PlaylistEntry replaced{QUrl("https://example.org/c.m3u8"), "Replaced", -1};
+    replaced.attributes = "GROUP-TITLE=Old tvg-id=\"C.uk\"";
+    replaced.group = "The \"Best\" Films";
+    PlaylistEntry bare{QUrl("https://example.org/d.m3u8"), "Bare", -1};
+    bare.group = "Samples";
+    document.entries = {kept, added, replaced, bare};
+
+    const QByteArray data = PlaylistIO::serialise(document);
+    EXPECT_TRUE(data.contains("#EXTINF:-1 tvg-id=\"A.uk\" group-title=\"News\" tvg-name=\"A\",Kept\n"));
+    EXPECT_TRUE(data.contains("#EXTINF:600 tvg-id=\"B.uk\" group-title=\"Films\",Added\n"));
+    EXPECT_TRUE(data.contains("#EXTINF:-1 group-title=\"The 'Best' Films\" tvg-id=\"C.uk\",Replaced\n"));
+    EXPECT_TRUE(data.contains("#EXTINF:-1 group-title=\"Samples\",Bare\n"));
+
+    const PlaylistReadResult result = parse(data);
+    ASSERT_EQ(result.document.entries.size(), 4);
+    EXPECT_EQ(result.document.entries[2].group, "The 'Best' Films");
+    EXPECT_EQ(result.document.entries[2].title, "Replaced");
+}
+
+TEST_F(PlaylistIOTest, RoundTripsMixedFixture) {
+    const PlaylistReadResult first = PlaylistIO::read(QStringLiteral(GAV_TEST_DATA_DIR "/mixed.m3u8"), extensions);
+    ASSERT_TRUE(first.ok);
+    ASSERT_EQ(first.document.entries.size(), 8);
+    EXPECT_EQ(first.unavailable, 1);
+    EXPECT_EQ(first.document.entries[2].group, "Films");
+    EXPECT_EQ(first.document.entries[3].logo, QUrl("https://example.org/news.png"));
+    EXPECT_EQ(first.document.entries[3].attributes, "tvg-id=\"News.uk\" tvg-logo=\"https://example.org/news.png\" group-title=\"News\"");
+    EXPECT_FALSE(first.document.entries[4].available);
+    EXPECT_EQ(first.document.entries[6].group, "Samples");
+
+    const QString path = QDir(tempDir.path()).filePath("mixed-copy.m3u8");
+    ASSERT_TRUE(PlaylistIO::write(path, first.document));
+    const PlaylistReadResult second = PlaylistIO::read(path, extensions);
+    ASSERT_TRUE(second.ok);
+    ASSERT_EQ(second.document.entries.size(), first.document.entries.size());
+    for (qsizetype i = 0; i < first.document.entries.size(); ++i) {
+        const PlaylistEntry &before = first.document.entries[i];
+        const PlaylistEntry &after = second.document.entries[i];
+        EXPECT_EQ(after.location, before.location) << i;
+        EXPECT_EQ(after.title, before.title) << i;
+        EXPECT_EQ(after.durationSec, before.durationSec) << i;
+        EXPECT_EQ(after.group, before.group) << i;
+        EXPECT_EQ(after.available, before.available) << i;
+        if (i == 6) {
+            EXPECT_EQ(after.attributes, "group-title=\"Samples\"");
+        } else {
+            EXPECT_EQ(after.attributes, before.attributes) << i;
+        }
+    }
+    EXPECT_EQ(PlaylistIO::serialise(second.document), PlaylistIO::serialise(first.document));
+}
+
+TEST_F(PlaylistIOTest, VariantConversionCarriesPlaylistFields) {
+    PlaylistReadResult read;
+    read.ok = true;
+    read.unavailable = 1;
+    PlaylistEntry news{QUrl("https://example.org/news.m3u8"), "News", -1};
+    news.group = "News";
+    news.logo = QUrl("https://example.org/news.png");
+    news.attributes = "tvg-id=\"News.uk\" group-title=\"News\"";
+    PlaylistEntry gone{QUrl("file:///videos/gone.mp4"), "Gone", 30};
+    gone.available = false;
+    gone.reason = "File not found";
+    read.document.entries = {news, gone};
+
+    const QVariantMap map = PlaylistFiles::toVariant(read);
+    EXPECT_EQ(map.value("unavailable").toInt(), 1);
+    EXPECT_FALSE(map.contains("skippedMissing"));
+    const QVariantList entries = map.value("entries").toList();
+    ASSERT_EQ(entries.size(), 2);
+    EXPECT_EQ(entries[0].toMap().value("group").toString(), "News");
+    EXPECT_EQ(entries[0].toMap().value("logo").toString(), "https://example.org/news.png");
+    EXPECT_TRUE(entries[0].toMap().value("available").toBool());
+    EXPECT_FALSE(entries[1].toMap().value("available").toBool());
+    EXPECT_EQ(entries[1].toMap().value("reason").toString(), "File not found");
+
+    const PlaylistDocument document = PlaylistFiles::fromVariant(entries, -1);
+    ASSERT_EQ(document.entries.size(), 2);
+    EXPECT_EQ(document.entries[0].group, "News");
+    EXPECT_EQ(document.entries[0].logo, QUrl("https://example.org/news.png"));
+    EXPECT_EQ(document.entries[0].attributes, news.attributes);
+    EXPECT_FALSE(document.entries[1].available);
+    EXPECT_EQ(document.entries[1].reason, "File not found");
+    EXPECT_EQ(document.entries[1].durationSec, 30);
 }

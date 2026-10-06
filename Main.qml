@@ -17,6 +17,8 @@ ApplicationWindow {
     property bool mediaControlsContainsMouse: false
     property var pendingStartupUrls: []
     property var pendingSubtitleUrls: []
+    property int loadedEntryId: -1
+    property string loadedEntrySource: ""
     readonly property bool hasNextItem: appSettings.shuffle ? shuffleOrder.remaining > 0 : playlistView.canGoNext
     readonly property bool hasPreviousItem: appSettings.shuffle ? shuffleOrder.canGoBack : playlistView.canGoPrevious
     property bool restoringSession: false
@@ -178,6 +180,7 @@ ApplicationWindow {
         var firstIndex = playList.count;
         var positions = [];
         var items = [];
+        var unavailable = 0;
         for (var i = 0; i < result.entries.length; i++) {
             var mediaInfo = getMediaInfo(result.entries[i].path);
             if (mediaInfo) {
@@ -185,8 +188,15 @@ ApplicationWindow {
                 items.push({
                     "path": mediaInfo.path,
                     "title": result.entries[i].title ? result.entries[i].title : mediaInfo.name,
-                    "durationSec": result.entries[i].durationSec
+                    "durationSec": result.entries[i].durationSec,
+                    "group": result.entries[i].group,
+                    "logo": result.entries[i].logo,
+                    "attributes": result.entries[i].attributes,
+                    "available": result.entries[i].available,
+                    "reason": result.entries[i].reason
                 });
+                if (!result.entries[i].available)
+                    unavailable++;
             } else {
                 positions.push(-1);
             }
@@ -194,15 +204,38 @@ ApplicationWindow {
         if (items.length > 0)
             playList.append(items);
         var added = items.length;
-        var skipped = result.skippedMissing + result.skippedUnsupported + (result.entries.length - added);
-        if (skipped > 0) {
-            captureSnackbar.message = qsTr("Loaded %1 items, skipped %2 (missing or unsupported)").arg(added).arg(skipped);
+        var skipped = result.skippedUnsupported + (result.entries.length - added);
+        if (unavailable > 0 || skipped > 0) {
+            if (skipped === 0)
+                captureSnackbar.message = qsTr("Loaded %1 items, %2 unavailable").arg(added).arg(unavailable);
+            else if (unavailable === 0)
+                captureSnackbar.message = qsTr("Loaded %1 items, skipped %2 unsupported").arg(added).arg(skipped);
+            else
+                captureSnackbar.message = qsTr("Loaded %1 items, %2 unavailable, skipped %3 unsupported").arg(added).arg(unavailable).arg(skipped);
             captureSnackbar.show();
         }
         return {
             "first": added > 0 ? firstIndex : -1,
             "positions": positions
         };
+    }
+    function availableRowNear(row) {
+        if (row < 0)
+            return -1;
+        for (var forward = row; forward < playList.count; forward++) {
+            if (playList.entryAt(forward).available)
+                return forward;
+        }
+        for (var backward = row - 1; backward >= 0; backward--) {
+            if (playList.entryAt(backward).available)
+                return backward;
+        }
+        return -1;
+    }
+    function reportLoadedEntry() {
+        var player = mediaComponent.mediaPlayer;
+        if (player.mediaLoaded && loadedEntrySource === player.source.toString())
+            playList.setLoaded(loadedEntryId, player.duration, player.isLive);
     }
     function promptResumeIfSaved() {
         var player = mediaComponent.mediaPlayer;
@@ -644,13 +677,17 @@ ApplicationWindow {
 
         onEnabledChanged: {
             if (enabled)
-                reset(playlistView.visibleIds(), playList.currentId);
+                reset(playlistView.playableIds(), playList.currentId);
         }
     }
     Connections {
+        function onPlayableEntriesChanged() {
+            if (appSettings.shuffle)
+                shuffleOrder.setCandidates(playlistView.playableIds());
+        }
         function onVisibleEntriesChanged() {
             if (appSettings.shuffle)
-                shuffleOrder.setCandidates(playlistView.visibleIds());
+                shuffleOrder.setCandidates(playlistView.playableIds());
         }
 
         target: playlistView
@@ -664,6 +701,15 @@ ApplicationWindow {
         target: mediaComponent
     }
     Connections {
+        function onDurationChanged() {
+            mainWindow.reportLoadedEntry();
+        }
+        function onErrorOccurred(errorString) {
+            playList.setUnavailable(playList.currentId, errorString);
+        }
+        function onLiveChanged() {
+            mainWindow.reportLoadedEntry();
+        }
         function onPositionCheckpoint(source, position, duration) {
             if (appSettings.rememberPositions)
                 PlaybackHistory.recordPosition(source.toString(), position, duration);
@@ -677,6 +723,7 @@ ApplicationWindow {
                 mainWindow.restoringSession = true;
                 var restored = mainWindow.applyLoadedPlaylist(tag, result);
                 var restoredCurrent = result.currentIndex >= 0 && result.currentIndex < restored.positions.length ? restored.positions[result.currentIndex] : -1;
+                restoredCurrent = mainWindow.availableRowNear(restoredCurrent);
                 if (restoredCurrent >= 0)
                     playList.currentRow = restoredCurrent;
                 mainWindow.restoringSession = false;
@@ -692,10 +739,11 @@ ApplicationWindow {
             if (loaded.first < 0)
                 return;
             var loadedCurrent = result.currentIndex >= 0 && result.currentIndex < loaded.positions.length ? loaded.positions[result.currentIndex] : -1;
-            if (tag === "replace")
-                mainWindow.selectPlaylistItem(loadedCurrent >= 0 ? loadedCurrent : loaded.first);
-            else if (tag === "open" || mediaComponent.path === "")
-                mainWindow.selectPlaylistItem(loaded.first);
+            var start = mainWindow.availableRowNear(tag === "replace" && loadedCurrent >= 0 ? loadedCurrent : loaded.first);
+            if (start < loaded.first)
+                return;
+            if (tag === "replace" || tag === "open" || mediaComponent.path === "")
+                mainWindow.selectPlaylistItem(start);
         }
         function onSaved(tag, ok) {
             if (tag === "save") {
@@ -1366,6 +1414,9 @@ ApplicationWindow {
         onFullscreenToggleRequested: mainWindow.toggleFullScreen()
         onMediaLoadedChanged: {
             if (mediaLoaded) {
+                mainWindow.loadedEntryId = playList.currentId;
+                mainWindow.loadedEntrySource = mediaPlayer.source.toString();
+                mainWindow.reportLoadedEntry();
                 mediaPlayer.playbackRate = appSettings.playbackRate;
                 if (appSettings.rememberRecentFiles)
                     PlaybackHistory.recordOpened(mediaPlayer.source.toString());
