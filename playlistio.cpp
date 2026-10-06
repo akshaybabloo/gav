@@ -1,5 +1,6 @@
 #include "playlistio.h"
 
+#include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
 #include <QFile>
@@ -17,7 +18,87 @@
 namespace {
 
 const QLatin1String extinfPrefix("#EXTINF:");
+const QLatin1String extgrpPrefix("#EXTGRP:");
 const QLatin1String currentPrefix("#GAV-CURRENT:");
+const QLatin1String groupAttribute("group-title");
+const QLatin1String logoAttribute("tvg-logo");
+
+struct Attribute {
+    QString name;
+    QString value;
+    qsizetype start = 0;
+    qsizetype end = 0;
+};
+
+QList<Attribute> parseAttributes(const QString &text) {
+    QList<Attribute> attributes;
+    const qsizetype size = text.size();
+    qsizetype i = 0;
+    while (i < size) {
+        if (text[i].isSpace()) {
+            ++i;
+            continue;
+        }
+        const qsizetype start = i;
+        while (i < size && text[i] != QLatin1Char('=') && !text[i].isSpace()) {
+            ++i;
+        }
+        if (i >= size || text[i] != QLatin1Char('=')) {
+            continue;
+        }
+        Attribute attribute;
+        attribute.name = text.mid(start, i - start);
+        attribute.start = start;
+        ++i;
+        if (i < size && text[i] == QLatin1Char('"')) {
+            qsizetype close = text.indexOf(QLatin1Char('"'), i + 1);
+            if (close < 0) {
+                close = size;
+            }
+            attribute.value = text.mid(i + 1, close - i - 1);
+            i = qMin(close + 1, size);
+        } else {
+            const qsizetype valueStart = i;
+            while (i < size && !text[i].isSpace()) {
+                ++i;
+            }
+            attribute.value = text.mid(valueStart, i - valueStart);
+        }
+        attribute.end = i;
+        if (!attribute.name.isEmpty()) {
+            attributes.append(attribute);
+        }
+    }
+    return attributes;
+}
+
+const Attribute *findAttribute(const QList<Attribute> &attributes, QLatin1String name) {
+    for (const Attribute &attribute : attributes) {
+        if (attribute.name.compare(name, Qt::CaseInsensitive) == 0) {
+            return &attribute;
+        }
+    }
+    return nullptr;
+}
+
+QString attributesWithGroup(const QString &attributes, const QString &group) {
+    if (group.isEmpty()) {
+        return attributes;
+    }
+    QString value = group;
+    value.replace(QLatin1Char('"'), QLatin1Char('\''));
+    value.replace(QLatin1Char('\n'), QLatin1Char(' '));
+    const QString written = groupAttribute + QStringLiteral("=\"") + value + QLatin1Char('"');
+    const QList<Attribute> parsed = parseAttributes(attributes);
+    const Attribute *existing = findAttribute(parsed, groupAttribute);
+    if (!existing) {
+        return attributes.isEmpty() ? written : attributes + QLatin1Char(' ') + written;
+    }
+    if (existing->value == value) {
+        return attributes;
+    }
+    return attributes.left(existing->start) + written + attributes.mid(existing->end);
+}
 
 QString decode(QByteArray data) {
     if (data.startsWith("\xEF\xBB\xBF")) {
@@ -73,6 +154,8 @@ PlaylistReadResult parseLines(const QByteArray &data, const QString &baseDirecto
     const QDir base(baseDirectory);
 
     QString pendingTitle;
+    QString pendingAttributes;
+    QString pendingGroup;
     int pendingDuration = -1;
     int originalCurrent = -1;
     int originalIndex = 0;
@@ -87,8 +170,15 @@ PlaylistReadResult parseLines(const QByteArray &data, const QString &baseDirecto
         if (line.startsWith(extinfPrefix)) {
             const QString rest = line.mid(extinfPrefix.size());
             const qsizetype comma = titleSeparator(rest);
-            pendingDuration = parseDuration(comma >= 0 ? rest.left(comma) : rest);
+            const QString head = (comma >= 0 ? rest.left(comma) : rest).trimmed();
+            const qsizetype space = head.indexOf(QLatin1Char(' '));
+            pendingDuration = parseDuration(head);
+            pendingAttributes = space >= 0 ? head.mid(space + 1).trimmed() : QString();
             pendingTitle = comma >= 0 ? rest.mid(comma + 1).trimmed() : QString();
+            continue;
+        }
+        if (line.startsWith(extgrpPrefix)) {
+            pendingGroup = line.mid(extgrpPrefix.size()).trimmed();
             continue;
         }
         if (line.startsWith(currentPrefix)) {
@@ -103,7 +193,23 @@ PlaylistReadResult parseLines(const QByteArray &data, const QString &baseDirecto
 
         const int thisIndex = originalIndex++;
         PlaylistEntry entry{QUrl(), pendingTitle, pendingDuration};
+        entry.attributes = pendingAttributes;
+        entry.group = pendingGroup;
+        if (!pendingAttributes.isEmpty()) {
+            const QList<Attribute> attributes = parseAttributes(pendingAttributes);
+            if (const Attribute *group = findAttribute(attributes, groupAttribute); group && !group->value.isEmpty()) {
+                entry.group = group->value;
+            }
+            if (const Attribute *logo = findAttribute(attributes, logoAttribute)) {
+                const QUrl url(logo->value);
+                if (url.isValid() && isHttpUrl(url)) {
+                    entry.logo = url;
+                }
+            }
+        }
         pendingTitle.clear();
+        pendingAttributes.clear();
+        pendingGroup.clear();
         pendingDuration = -1;
 
         QString localPath;
@@ -142,8 +248,9 @@ PlaylistReadResult parseLines(const QByteArray &data, const QString &baseDirecto
                 continue;
             }
             if (!info.exists()) {
-                ++result.skippedMissing;
-                continue;
+                entry.available = false;
+                entry.reason = QCoreApplication::translate("PlaylistFiles", "File not found");
+                ++result.unavailable;
             }
             entry.location = QUrl::fromLocalFile(localPath);
         }
@@ -206,7 +313,10 @@ QByteArray serialise(const PlaylistDocument &document) {
     for (const PlaylistEntry &entry : document.entries) {
         QString title = entry.title;
         title.replace(QLatin1Char('\n'), QLatin1Char(' '));
-        text += extinfPrefix + QString::number(entry.durationSec) + QLatin1Char(',') + title + QLatin1Char('\n');
+        QString attributes = attributesWithGroup(entry.attributes, entry.group);
+        attributes.replace(QLatin1Char('\n'), QLatin1Char(' '));
+        text += extinfPrefix + QString::number(entry.durationSec) + (attributes.isEmpty() ? QString() : QLatin1Char(' ') + attributes) +
+                QLatin1Char(',') + title + QLatin1Char('\n');
         text += (entry.location.isLocalFile() ? QDir::toNativeSeparators(entry.location.toLocalFile()) : entry.location.toString()) +
                 QLatin1Char('\n');
     }
@@ -243,13 +353,18 @@ QVariantMap PlaylistFiles::toVariant(const PlaylistReadResult &result) {
     for (const PlaylistEntry &entry : result.document.entries) {
         entries.append(QVariantMap{{QStringLiteral("path"), entry.location.toString()},
                                    {QStringLiteral("title"), entry.title},
-                                   {QStringLiteral("durationSec"), entry.durationSec}});
+                                   {QStringLiteral("durationSec"), entry.durationSec},
+                                   {QStringLiteral("group"), entry.group},
+                                   {QStringLiteral("logo"), entry.logo.toString()},
+                                   {QStringLiteral("attributes"), entry.attributes},
+                                   {QStringLiteral("available"), entry.available},
+                                   {QStringLiteral("reason"), entry.reason}});
     }
     return {{QStringLiteral("ok"), result.ok},
             {QStringLiteral("error"), result.error},
             {QStringLiteral("entries"), entries},
             {QStringLiteral("currentIndex"), result.document.currentIndex},
-            {QStringLiteral("skippedMissing"), result.skippedMissing},
+            {QStringLiteral("unavailable"), result.unavailable},
             {QStringLiteral("skippedUnsupported"), result.skippedUnsupported}};
 }
 
@@ -267,7 +382,13 @@ PlaylistDocument PlaylistFiles::fromVariant(const QVariantList &items, int curre
         if (i == currentIndex) {
             document.currentIndex = int(document.entries.size());
         }
-        document.entries.append({url, title, duration});
+        PlaylistEntry entry{url, title, duration};
+        entry.group = item.value(QStringLiteral("group")).toString();
+        entry.logo = QUrl(item.value(QStringLiteral("logo")).toString());
+        entry.attributes = item.value(QStringLiteral("attributes")).toString();
+        entry.available = !item.contains(QStringLiteral("available")) || item.value(QStringLiteral("available")).toBool();
+        entry.reason = item.value(QStringLiteral("reason")).toString();
+        document.entries.append(entry);
     }
     return document;
 }

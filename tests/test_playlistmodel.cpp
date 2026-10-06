@@ -259,3 +259,73 @@ TEST(PlaylistModelTest, ListsComeBackInPlaylistOrder) {
     EXPECT_EQ(model.locations(), QList<QUrl>({QUrl("file:///b.mp4"), QUrl("https://example.org/a.m3u8")}));
     EXPECT_TRUE(model.entryAt(5).isEmpty());
 }
+
+TEST(PlaylistModelTest, LoadingAnEntryRecordsWhatThePlayerLearned) {
+    PlaylistModel model;
+    QAbstractItemModelTester tester(&model, QAbstractItemModelTester::FailureReportingMode::Fatal);
+    model.append({item("https://example.org/film.m3u8", "Film"), item("https://example.org/news.m3u8", "News"), item("file:///videos/a.mp4")});
+    QSignalSpy changed(&model, &QAbstractItemModel::dataChanged);
+
+    model.setLoaded(model.idAt(0), 600000, false);
+    ASSERT_EQ(changed.count(), 1);
+    EXPECT_EQ(changed[0][0].toModelIndex().row(), 0);
+    EXPECT_EQ(changed[0][1].toModelIndex().row(), 0);
+    EXPECT_EQ(model.entry(0)->availability, PlaylistModel::Playable);
+    EXPECT_EQ(model.entry(0)->streamState, PlaylistModel::StreamOnDemand);
+    EXPECT_EQ(model.entry(0)->durationMs, 600000);
+    EXPECT_EQ(model.entryAt(0).value("durationSec").toInt(), 600);
+
+    model.setLoaded(model.idAt(1), 0, true);
+    ASSERT_EQ(changed.count(), 2);
+    EXPECT_EQ(changed[1][0].toModelIndex().row(), 1);
+    EXPECT_EQ(model.entry(1)->availability, PlaylistModel::Playable);
+    EXPECT_EQ(model.entry(1)->streamState, PlaylistModel::StreamLive);
+    EXPECT_EQ(model.entry(1)->durationMs, -1);
+    EXPECT_EQ(model.data(model.index(1), PlaylistModel::StreamStateRole).toInt(), PlaylistModel::StreamLive);
+
+    model.setLoaded(model.idAt(2), 30000, false);
+    ASSERT_EQ(changed.count(), 3);
+    EXPECT_EQ(model.entry(2)->availability, PlaylistModel::Playable);
+    EXPECT_EQ(model.entry(2)->streamState, PlaylistModel::StreamUnknown);
+    EXPECT_EQ(model.entry(2)->durationMs, 30000);
+
+    model.setLoaded(model.idAt(2), 30000, false);
+    model.setLoaded(999, 1000, false);
+    EXPECT_EQ(changed.count(), 3);
+}
+
+TEST(PlaylistModelTest, LoadedDurationDoesNotReplaceAKnownOneWithNothing) {
+    PlaylistModel model;
+    model.append({QVariantMap{{"path", "https://example.org/film.m3u8"}, {"durationSec", 600}}});
+    model.setLoaded(model.idAt(0), 0, false);
+    EXPECT_EQ(model.entry(0)->durationMs, 600000);
+    EXPECT_EQ(model.entry(0)->streamState, PlaylistModel::StreamOnDemand);
+}
+
+TEST(PlaylistModelTest, FailuresMarkAnEntryUnavailableUntilItLoads) {
+    PlaylistModel model;
+    QAbstractItemModelTester tester(&model, QAbstractItemModelTester::FailureReportingMode::Fatal);
+    model.append(files(3));
+    QSignalSpy changed(&model, &QAbstractItemModel::dataChanged);
+
+    model.setUnavailable(model.idAt(1), "Could not open the file");
+    ASSERT_EQ(changed.count(), 1);
+    EXPECT_EQ(changed[0][0].toModelIndex().row(), 1);
+    EXPECT_EQ(changed[0][1].toModelIndex().row(), 1);
+    EXPECT_EQ(model.entry(1)->availability, PlaylistModel::Unavailable);
+    EXPECT_FALSE(model.data(model.index(1), PlaylistModel::AvailableRole).toBool());
+    EXPECT_EQ(model.data(model.index(1), PlaylistModel::ReasonRole).toString(), "Could not open the file");
+    EXPECT_TRUE(model.data(model.index(0), PlaylistModel::AvailableRole).toBool());
+
+    model.setLoaded(model.idAt(1), 30000, false);
+    ASSERT_EQ(changed.count(), 2);
+    EXPECT_EQ(model.entry(1)->availability, PlaylistModel::Playable);
+    EXPECT_TRUE(model.data(model.index(1), PlaylistModel::AvailableRole).toBool());
+    EXPECT_TRUE(model.data(model.index(1), PlaylistModel::ReasonRole).toString().isEmpty());
+
+    model.setUnavailable(model.idAt(1), "Network error");
+    EXPECT_EQ(model.entry(1)->availability, PlaylistModel::Unavailable);
+    EXPECT_EQ(model.entryAt(1).value("reason").toString(), "Network error");
+    model.setUnavailable(999, "Nothing");
+    EXPECT_EQ(changed.count(), 3);
+}

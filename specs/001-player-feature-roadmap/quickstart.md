@@ -31,7 +31,7 @@ These must pass on all CI platforms:
 | Test file | Covers |
 |-----------|--------|
 | `test_playbackutils.cpp` | Time parsing (R13), chapter navigation (R12), resume window 5%/95% (FR-011) |
-| `test_playlistio.cpp` | [playlist-format.md](./contracts/playlist-format.md): round trip of 100 entries (SC-006), relative paths, BOM/CRLF, skipped counts, `#GAV-CURRENT` |
+| `test_playlistio.cpp` | [playlist-format.md](./contracts/playlist-format.md): round trip of 100 entries (SC-006), relative paths, BOM/CRLF, skipped and unavailable counts, `#GAV-CURRENT` |
 | `test_shuffleorder.cpp` | Every item once per cycle, mid-playlist enable, removal remapping (FR-017) |
 | `test_playbackhistory.cpp` | 200-entry eviction (FR-013), recent list of 10 without duplicates, corrupt-file recovery |
 | `test_subtitlefiles.cpp` | Sidecar discovery and preferred-language choice (R5) |
@@ -68,7 +68,7 @@ These must pass on all CI platforms:
 | Q2.6 | Rename the file, then choose it from recent files | "File not found" appears with a Remove action |
 | Q2.7 | Load 5 items, turn shuffle on, and let all of them play | Each item plays exactly once (FR-017) |
 | Q2.8 | Save the playlist, clear it, and open the saved `.m3u8` | Same items in the same order (FR-018) |
-| Q2.9 | Open `playlist-relative.m3u8` | Relative entries resolve, and the message says 1 item was skipped (FR-019) |
+| Q2.9 | Open `playlist-relative.m3u8` | Relative entries resolve, the missing entry is listed as "Unavailable – File not found", and the message says "Loaded 3 items, 1 unavailable" (FR-019) |
 | Q2.10 | Turn "Restore last playlist" on, load 3 items, select the second, then quit and relaunch | The 3 items are restored with the second selected and not playing (FR-019a) |
 | Q2.11 | With restore on, run `./build/gav tests/data/multi.mkv` | The restored items load and `multi.mkv` is appended and plays |
 | Q2.12 | Settings → Clear history | Recent files, positions and the session playlist are all removed (FR-016) |

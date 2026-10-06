@@ -42,6 +42,7 @@ Or open a file from the menu, or drag and drop files onto the window.
 ### Playlists
 
 - Open and save playlists (`.m3u`, `.m3u8`) from the File menu, or drop one onto the window.
+- Each row shows the entry's path or address and says whether it is a video, an audio file or a stream, with its duration (or "Live") and its group when the playlist gives one (`group-title`, `#EXTGRP`). Entries whose file is missing or that failed to play are marked "Unavailable" with the reason and are skipped by next and previous.
 - While a video plays, the playlist button on the control bar or `Ctrl+L` opens the playlist as a panel over the right side of the picture. Drag its left edge to resize it; click the picture or press `Esc` to close it.
 - "Restore last playlist on startup" in Settings reopens the previous session's playlist. It is off by default, as are "Resume where I left off" and "Remember recent files".
 

@@ -77,6 +77,8 @@ public:
     Q_INVOKABLE int insert(int row, const QVariantList &entries);
     Q_INVOKABLE int remove(const QList<int> &ids);
     Q_INVOKABLE void clear();
+    Q_INVOKABLE void setLoaded(int id, qint64 durationMs, bool isLive);
+    Q_INVOKABLE void setUnavailable(int id, const QString &reason);
     Q_INVOKABLE int rowForId(int id) const;
     Q_INVOKABLE int idAt(int row) const;
     Q_INVOKABLE QVariantMap entryAt(int row) const;

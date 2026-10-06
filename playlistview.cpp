@@ -74,6 +74,7 @@ void PlaylistView::setSource(PlaylistModel *source) {
                         emit dataChanged(index(first), index(last), roles);
                     }
                     if (roles.isEmpty() || roles.contains(PlaylistModel::AvailableRole)) {
+                        emit playableEntriesChanged();
                         updateNavigation();
                     }
                 });
@@ -183,6 +184,16 @@ int PlaylistView::previousRow() const {
         }
     }
     return -1;
+}
+
+QList<int> PlaylistView::playableIds() const {
+    QList<int> ids;
+    for (int row = 0; row < m_sourceRows.size(); ++row) {
+        if (available(row)) {
+            ids.append(m_source->idAt(m_sourceRows[row]));
+        }
+    }
+    return ids;
 }
 
 QList<int> PlaylistView::visibleIds() const {

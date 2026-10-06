@@ -18,6 +18,11 @@ struct PlaylistEntry {
     QUrl location;
     QString title;
     int durationSec = -1;
+    QString group;
+    QUrl logo;
+    QString attributes;
+    bool available = true;
+    QString reason;
 };
 
 struct PlaylistDocument {
@@ -29,7 +34,7 @@ struct PlaylistReadResult {
     bool ok = false;
     QString error;
     PlaylistDocument document;
-    int skippedMissing = 0;
+    int unavailable = 0;
     int skippedUnsupported = 0;
 };
 

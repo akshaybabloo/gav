@@ -232,8 +232,9 @@ change.
 
 **Rows**
 
-- **FR-006**: Each row MUST show the entry's title and a second line with the information known
-  about it: kind, duration when known, "Live" for a stream known to be live, and group.
+- **FR-006**: Each row MUST show the entry's title, its location (file path or web address) and a
+  line with the information known about it: kind, duration when known, "Live" for a stream known
+  to be live, and group.
 - **FR-007**: Each row MUST show, without relying on colour alone, whether the entry is a local
   video, a local audio file or a stream. Whether a stream is live or on-demand is not known until
   it has been opened: until then its row says "Stream", and afterwards it shows "Live" or its
@@ -244,8 +245,9 @@ change.
   MUST show the reason on demand, and MUST be skipped by automatic next and previous.
 - **FR-010**: Information that becomes known later (duration, live or on-demand, availability) MUST
   appear on the row without user action.
-- **FR-011**: The full title and location of an entry MUST be available on demand when the row
-  cannot show them completely.
+- **FR-011**: The title and location of an entry MUST be shown on its row. A location too long for
+  the row is shortened in the middle so that its start and its file name stay visible; widening
+  the playlist shows more of both. They are not shown in a hover tooltip.
 - **FR-012**: When a playlist provides an image for an entry, the system MUST show it on the row
   only if the user has turned channel logos on. The setting MUST be off by default. With it off,
   no image is requested.

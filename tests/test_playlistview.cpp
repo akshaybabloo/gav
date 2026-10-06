@@ -138,3 +138,21 @@ TEST_F(PlaylistViewTest, CurrentViewRowFollowsTheSource) {
     EXPECT_EQ(current.size(), 2);
     EXPECT_TRUE(view.data(view.index(2), PlaylistModel::IsCurrentRole).toBool());
 }
+
+TEST_F(PlaylistViewTest, PlayableIdsLeaveOutUnavailableEntries) {
+    model.append({files(1)[0], missing("gone.mp4"), files(1, 1)[0]});
+    QSignalSpy playable(&view, &PlaylistView::playableEntriesChanged);
+    EXPECT_EQ(view.playableIds(), QList<int>({model.idAt(0), model.idAt(2)}));
+    EXPECT_EQ(view.visibleIds().size(), 3);
+
+    model.setUnavailable(model.idAt(0), "Network error");
+    EXPECT_EQ(playable.count(), 1);
+    EXPECT_EQ(view.playableIds(), QList<int>({model.idAt(2)}));
+
+    model.setLoaded(model.idAt(1), 30000, false);
+    EXPECT_EQ(playable.count(), 2);
+    EXPECT_EQ(view.playableIds(), QList<int>({model.idAt(1), model.idAt(2)}));
+
+    model.setLoaded(model.idAt(2), 30000, false);
+    EXPECT_EQ(view.playableIds().size(), 2);
+}

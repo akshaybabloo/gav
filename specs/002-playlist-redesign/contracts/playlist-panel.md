@@ -42,18 +42,22 @@ list scrolls only if the panel is open and the user is not interacting with it.
 
 ## Rows
 
-**Entry row** (two lines, fixed height):
+**Entry row** (three lines, fixed height):
 
 - Leading: the channel logo when logos are on and the entry has one; otherwise an icon for the
   kind (video file, audio file, stream).
 - Line 1: title, elided at the end.
-- Line 2: kind in words ("Video", "Audio", "Stream"), then the duration when known, or "Live" for
+- Line 2: the location, a local path or a web address, shortened in the middle when it does not
+  fit.
+- Line 3: kind in words ("Video", "Audio", "Stream"), then the duration when known, or "Live" for
   a stream that has been opened and found to be live, then the group when grouping is off. A
-  stream that has not been opened shows only "Stream". For an unavailable entry, line 2 is
+  stream that has not been opened shows only "Stream". For an unavailable entry, line 3 is
   "Unavailable" and the reason.
 - Trailing: a "playing" indicator on the current entry; the queue position when queued; a remove
   button and a drag handle on hover or focus.
-- Tooltip: full title and location.
+- An unavailable entry's title and icon are dimmed, still at 4.5:1 or better, and line 3 says so in
+  words.
+- No tooltip on the row: title and location are on the row itself.
 
 **Group header row**: disclosure arrow, group name, entry count. Click or `Enter` toggles it.
 
@@ -104,7 +108,7 @@ keep working when the list has focus. `Q` is new and only acts when the list has
 | Entries removed | "Removed N items" with an **Undo** action. |
 | Duplicates removed | "Removed N duplicates" with **Undo**, or "No duplicates found". |
 | Entries added while a search or filter hides them | "Added N items (hidden by the current search)". |
-| Playlist loaded with unavailable entries | "Loaded N items, M unavailable". |
+| Playlist loaded with unavailable or unsupported entries | "Loaded N items, M unavailable", "Loaded N items, skipped M unsupported", or "Loaded N items, M unavailable, skipped K unsupported". |
 | Reorder attempted while not allowed | Tooltip on the handle: "Reordering is available in playlist order with no search, filter or grouping". |
 
 ## Accessibility

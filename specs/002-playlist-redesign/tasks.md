@@ -151,7 +151,7 @@ playing it (quickstart Q2.1–Q2.9).
 
 ### Tests for User Story 2
 
-- [ ] T018 [P] [US2] Extend `tests/test_playlistio.cpp` for the [format contract](./contracts/playlist-format.md):
+- [X] T018 [P] [US2] Extend `tests/test_playlistio.cpp` for the [format contract](./contracts/playlist-format.md):
   - `group-title` and `tvg-logo` are read, attribute names matched case-insensitively, quoted and unquoted values
   - `attributes` holds the text between duration and title verbatim, including attributes GAV does not use
   - `#EXTGRP:<name>` sets the group only when `#EXTINF` has no `group-title`
@@ -159,24 +159,26 @@ playing it (quickstart Q2.1–Q2.9).
   - a missing local file is kept with `available == false` and `reason == "File not found"`; the result reports `unavailable` and no longer has `skippedMissing`
   - `serialise` writes `#EXTINF:<seconds> <attributes>,<title>`, adds or replaces `group-title` when the entry has a group, and writes `'` for a double quote in a group name
   - round trip of `tests/data/mixed.m3u8`: same entries, order, titles, durations, groups and attribute text
-- [ ] T019 [P] [US2] Extend `tests/test_playlistmodel.cpp` with the state transitions in [data-model.md](./data-model.md#playlist-entry): `setLoaded(id, durationMs, isLive)` gives `Playable` and `OnDemand` or `Live`; `setUnavailable(id, reason)` gives `Unavailable` with the reason; a later `setLoaded` clears it; each emits `dataChanged` for that row only.
+- [X] T019 [P] [US2] Extend `tests/test_playlistmodel.cpp` with the state transitions in [data-model.md](./data-model.md#playlist-entry): `setLoaded(id, durationMs, isLive)` gives `Playable` and `OnDemand` or `Live`; `setUnavailable(id, reason)` gives `Unavailable` with the reason; a later `setLoaded` clears it; each emits `dataChanged` for that row only.
 
 ### Implementation for User Story 2: rows and playlist-file attributes
 
-- [ ] T020 [US2] Extend `playlistio.h` / `playlistio.cpp`: `PlaylistEntry` gains `group`, `logo`, `attributes`, `available`, `reason`; parse and serialise per the contract; `PlaylistReadResult` replaces `skippedMissing` with `unavailable`; `toVariant` / `fromVariant` carry the new fields. Make T018 pass and update the existing tests that asserted on `skippedMissing`. In the same change, update `specs/001-player-feature-roadmap/contracts/playlist-format.md` (missing local entries are kept and marked unavailable; point to [contracts/playlist-format.md](./contracts/playlist-format.md)) and the rows of `specs/001-player-feature-roadmap/quickstart.md` that expect missing entries to be skipped.
-- [ ] T021 [US2] Add `setLoaded` and `setUnavailable` to `playlistmodel.h` / `playlistmodel.cpp` and accept the new fields in `append` / `insert` / `toVariantList`. Make T019 pass.
-- [ ] T022 [US2] Feed the model from `Main.qml`:
-  - `applyLoadedPlaylist` passes `group`, `logo`, `attributes`, `available`, `reason` and `durationSec` through, and the message becomes "Loaded %1 items, %2 unavailable"
+- [X] T020 [US2] Extend `playlistio.h` / `playlistio.cpp`: `PlaylistEntry` gains `group`, `logo`, `attributes`, `available`, `reason`; parse and serialise per the contract; `PlaylistReadResult` replaces `skippedMissing` with `unavailable`; `toVariant` / `fromVariant` carry the new fields. Make T018 pass and update the existing tests that asserted on `skippedMissing`. In the same change, update `specs/001-player-feature-roadmap/contracts/playlist-format.md` (missing local entries are kept and marked unavailable; point to [contracts/playlist-format.md](./contracts/playlist-format.md)) and the rows of `specs/001-player-feature-roadmap/quickstart.md` that expect missing entries to be skipped.
+- [X] T021 [US2] Add `setLoaded` and `setUnavailable` to `playlistmodel.h` / `playlistmodel.cpp` and accept the new fields in `append` / `insert` / `toVariantList`. Make T019 pass.
+- [X] T022 [US2] Feed the model from `Main.qml`:
+  - `applyLoadedPlaylist` passes `group`, `logo`, `attributes`, `available`, `reason` and `durationSec` through, and the message becomes "Loaded %1 items, %2 unavailable" (with "skipped %3 unsupported" when entries were skipped)
   - on `mediaLoaded`, call `playList.setLoaded(currentId, mediaPlayer.duration, mediaPlayer.isLive)`
   - on the player's `errorOccurred`, call `playList.setUnavailable(currentId, errorString)`
   - a local file that has disappeared since loading is handled by the same `errorOccurred` path; do not check the file system on the UI thread before playing ([research R9](./research.md))
-- [ ] T023 [US2] Build `PlaylistRow.qml` to the [row contract](./contracts/playlist-panel.md#rows) and use it as the delegate in `PlayListComponent.qml`:
-  - fixed height, two lines; leading icon by `kind` (distinct glyphs for video file, audio file, stream)
-  - line 1 `title`, elided; line 2 kind in words, then formatted duration or "Live" (only when `streamState` is `Live`) or "Stream", then `group`
-  - unavailable: line 2 reads "Unavailable – <reason>" with reduced emphasis on the row, never colour alone
+  - later `durationChanged` / `liveChanged` for the same source update the row too, so a duration that arrives after loading still shows (FR-010)
+  - opening a playlist or restoring the session starts at the nearest available entry instead of a missing one, and shuffle draws from `playlistView.playableIds()` (FR-009)
+- [X] T023 [US2] Build `PlaylistRow.qml` to the [row contract](./contracts/playlist-panel.md#rows) and use it as the delegate in `PlayListComponent.qml`:
+  - fixed height, three lines; leading icon by `kind` (distinct glyphs for video file, audio file, stream)
+  - line 1 `title`, elided; line 2 the path or address, elided in the middle; line 3 kind in words, then formatted duration or "Live" (only when `streamState` is `Live`) or "Stream", then `group`
+  - unavailable: line 3 reads "Unavailable – <reason>" with reduced emphasis on the row, never colour alone
   - the "playing" marker from T014 moves into this component
-  - tooltip with full title and location; `Accessible.name` of title, kind and state
-- [ ] T024 [US2] Validate quickstart [Q2.1–Q2.5 and Q2.9](./quickstart.md#story-2-rows-that-tell-you-what-each-item-is), measuring Q2.9 with a contrast checker in both themes. Fix what fails.
+  - no tooltip: the location is on the row (changed on review, 2026-10-06); `Accessible.name` of title, kind and state
+- [X] T024 [US2] Validate quickstart [Q2.1–Q2.5 and Q2.9](./quickstart.md#story-2-rows-that-tell-you-what-each-item-is), measuring Q2.9 with a contrast checker in both themes. Fix what fails. Checked headless on 2026-10-06 against local on-demand and live HLS streams: Q2.1–Q2.5 pass. Q2.9 contrast, measured from screenshots in both themes: lowest text 5.17:1, lowest icon 5.90:1. Q2.9 focus: the search field shows its focus outline; the header buttons take keyboard focus but their Material focus ripple is not drawn by the headless renderer, so that needs a look on a real display; rows are not keyboard-focusable until T044/T047.
 
 **Checkpoint**: Stories 1 and 2 work without logos. Ships as its own PR.
 
