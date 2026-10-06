@@ -108,7 +108,7 @@ keep working when the list has focus. `Q` is new and only acts when the list has
 |---|---|
 | Entries removed | "Removed N items" with an **Undo** action. |
 | Duplicates removed | "Removed N duplicates" with **Undo**, or "No duplicates found". |
-| Entries added while a search or filter hides them | "Added N items (hidden by the current search)". |
+| Entries added while a search or filter hides them | "Added N items (hidden by the current search)", where N counts the hidden ones added in that action. |
 | Playlist loaded with unavailable or unsupported entries | "Loaded N items, M unavailable", "Loaded N items, skipped M unsupported", or "Loaded N items, M unavailable, skipped K unsupported". |
 | Reorder attempted while not allowed | Tooltip on the handle: "Reordering is available in playlist order with no search, filter or grouping". |
 

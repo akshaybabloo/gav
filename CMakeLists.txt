@@ -176,6 +176,7 @@ qt_add_qml_module(appgav
         NerdStatsOverlay.qml
         TrackMenu.qml
         QualityMenu.qml
+        PlaylistGroupHeader.qml
         PlaylistPanel.qml
         PlaylistRow.qml
         ResumeDialog.qml

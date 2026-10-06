@@ -56,9 +56,21 @@ and the set of collapsed groups, and rebuilds its row list when any of them or t
 - Sort orders: playlist order, title (locale-aware, case-insensitive), duration (unknown last).
   Sorting applies inside each group when grouping is on. Groups are ordered by first appearance
   in the playlist, with the catch-all "Ungrouped" last.
-- View changes that keep the same entries visible use `layoutAboutToBeChanged`/`layoutChanged`
-  with persistent-index updates, so the `ListView` keeps its scroll position. Changes to the
-  search text use a model reset and scroll to the top.
+- Collapsing or expanding a group removes or inserts exactly that group's rows, and removing
+  entries while the view is searched, filtered, sorted or grouped removes exactly their rows (and
+  the header of a group that becomes empty), so the `ListView` keeps its scroll position.
+- Changes to the search text, filter, sort order or grouping use a model reset, after which the
+  list returns to the top. `layoutChanged` was planned for these and dropped during
+  implementation: filtering and grouping change the number of rows, which a layout change cannot
+  express to a QML view, and for a pure sort Qt's QML delegate model turns a layout change into one
+  move per row. That per-row cost was read from Qt's source, not measured.
+- Title sort is case-insensitive, follows the locale, and puts numbers in counting order
+  ("Channel 2" before "Channel 10"). Under the `C` locale Qt's collator compares raw bytes, which
+  is neither, so English rules are used there instead. CI runs the tests under the `C` locale.
+- Grouping only takes effect when at least one entry has a group. Without groups the list stays
+  flat and reordering stays allowed.
+- A duration learned while the list is sorted by duration does not move the row until the view is
+  next rebuilt, so a row does not jump away when it starts playing.
 
 **Alternatives considered**
 
@@ -81,8 +93,16 @@ and the set of collapsed groups, and rebuilds its row list when any of them or t
 **Rationale**: The cost today is per-row QML work, not the size of the data. Removing that is
 enough; threading the view is kept as a measured fallback rather than built up front.
 
-**To measure during implementation**: rebuild time for search, sort and group at 10,000 and
-50,000 entries, logged by a timing test in the style of `SubtitleRendererTest.RenderTimeIsLogged`.
+**Measured** on 2026-10-06 with `PlaylistViewTest.RebuildTimeIsLogged` in a release build (Linux
+x64, one run):
+
+| Entries | Append | Search | Clear search | Sort by title | Sort by duration | Group | Collapse | Filter |
+|---|---|---|---|---|---|---|---|---|
+| 10,000 | 11.8 ms | 0.1 ms | 0.1 ms | 3.4 ms | 0.5 ms | 0.9 ms | 0.7 ms | 0.7 ms |
+| 50,000 | 64.3 ms | 0.7 ms | 0.5 ms | 19.1 ms | 5.4 ms | 6.6 ms | 5.3 ms | 5.9 ms |
+
+Every rebuild is far below the 50 ms threshold at 10,000 entries, so the view stays synchronous on
+the UI thread. In a debug build the worst rebuild at 10,000 entries was 9.5 ms.
 
 ## R4. The panel over the video (FR-001 to FR-004)
 

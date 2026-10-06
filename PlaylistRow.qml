@@ -17,7 +17,7 @@ ItemDelegate {
             parts.push(qsTr("Live"));
         else if (durationMs > 0)
             parts.push(AppConstants.formatTime(durationMs));
-        if (group)
+        if (group && showGroup)
             parts.push(group);
         return parts.join(" · ");
     }
@@ -35,6 +35,7 @@ ItemDelegate {
     }
     required property url logo
     required property string reason
+    property bool showGroup: true
     property bool showLogo: false
     required property int sourceRow
     required property int streamState

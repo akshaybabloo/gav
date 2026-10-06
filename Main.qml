@@ -17,6 +17,8 @@ ApplicationWindow {
     property bool mediaControlsContainsMouse: false
     property var pendingStartupUrls: []
     property var pendingSubtitleUrls: []
+    property int addedWhileNarrowed: 0
+    property int hiddenWhileNarrowed: 0
     property int loadedEntryId: -1
     property string loadedEntrySource: ""
     readonly property bool hasNextItem: appSettings.shuffle ? shuffleOrder.remaining > 0 : playlistView.canGoNext
@@ -231,6 +233,14 @@ ApplicationWindow {
                 return backward;
         }
         return -1;
+    }
+    function reportHiddenEntries() {
+        if (hiddenWhileNarrowed === 0)
+            return;
+        captureSnackbar.message = hiddenWhileNarrowed === addedWhileNarrowed ? qsTr("Added %1 items (hidden by the current search)").arg(addedWhileNarrowed) : qsTr("Added %1 items (%2 hidden by the current search)").arg(addedWhileNarrowed).arg(hiddenWhileNarrowed);
+        captureSnackbar.show();
+        addedWhileNarrowed = 0;
+        hiddenWhileNarrowed = 0;
     }
     function reportLoadedEntry() {
         var player = mediaComponent.mediaPlayer;
@@ -687,6 +697,11 @@ ApplicationWindow {
         }
     }
     Connections {
+        function onAddedEntriesHidden(added, hidden) {
+            mainWindow.addedWhileNarrowed += added;
+            mainWindow.hiddenWhileNarrowed += hidden;
+            Qt.callLater(mainWindow.reportHiddenEntries);
+        }
         function onPlayableEntriesChanged() {
             if (appSettings.shuffle)
                 shuffleOrder.setCandidates(playlistView.playableIds());
@@ -1553,11 +1568,13 @@ ApplicationWindow {
         }
         Shortcut {
             context: Qt.ApplicationShortcut
-            enabled: mainWindow.shortcutsEnabled && (mainWindow.playlistOverlayOpen || mainWindow.visibility === Window.FullScreen)
+            enabled: mainWindow.shortcutsEnabled && (mainWindow.playlistOverlayOpen || mainWindow.visibility === Window.FullScreen || (playlistPanel.visible && playlistView.searchText !== ""))
             sequence: "Esc"
 
             onActivated: {
-                if (mainWindow.playlistOverlayOpen)
+                if (playlistPanel.visible && playlistView.searchText !== "")
+                    playlistView.searchText = "";
+                else if (mainWindow.playlistOverlayOpen)
                     appSettings.playlistPanelOpen = false;
                 else
                     mainWindow.visibility = Window.Windowed;
@@ -1569,6 +1586,17 @@ ApplicationWindow {
             sequence: "Ctrl+L"
 
             onActivated: appSettings.playlistPanelOpen = !appSettings.playlistPanelOpen
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: !mainWindow.dialogOpen
+            sequence: "Ctrl+F"
+
+            onActivated: {
+                if (mainWindow.playlistOverlay)
+                    appSettings.playlistPanelOpen = true;
+                playlistPanel.focusSearch();
+            }
         }
         Shortcut {
             context: Qt.ApplicationShortcut
