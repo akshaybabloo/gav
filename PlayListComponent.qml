@@ -216,6 +216,7 @@ Item {
         id: playListView
 
         Accessible.name: qsTr("Playlist entries")
+        Accessible.role: Accessible.List
         activeFocusOnTab: true
         anchors.fill: parent
         boundsBehavior: Flickable.StopAtBounds
@@ -283,6 +284,11 @@ Item {
                     }
                 }
             }
+        }
+
+        onActiveFocusChanged: {
+            if (activeFocus && currentIndex < 0 && count > 0)
+                currentIndex = Math.max(0, root.playlistView.currentViewRow);
         }
 
         Keys.onPressed: function (event) {

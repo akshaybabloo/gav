@@ -41,11 +41,13 @@ Or open a file from the menu, or drag and drop files onto the window.
 
 ### Playlists
 
-- Open and save playlists (`.m3u`, `.m3u8`) from the File menu, or drop one onto the window.
-- Each row shows the entry's path or address and says whether it is a video, an audio file or a stream, with its duration (or "Live") and its group when the playlist gives one (`group-title`, `#EXTGRP`). Entries whose file is missing or that failed to play are marked "Unavailable" with the reason and are skipped by next and previous.
-- While a video plays, the playlist button on the control bar or `Ctrl+L` opens the playlist as a panel over the right side of the picture. Drag its left edge to resize it; click the picture or press `Esc` to close it.
-- Click selects a row (`Ctrl` and `Shift` select several) and double-click plays it. Right-click, or the `Menu` key, offers Play, Play next, Remove, and Show in file manager or Copy address. Drag a row by its handle to reorder, or drop files onto the list to insert them there. `Delete` removes the selection and `Ctrl+Z` undoes the last removal. "Remove duplicates" is in the playlist's "more" menu. The whole list works from the keyboard; Help > Keyboard Shortcuts lists the keys.
+- Open and save playlists (`.m3u`, `.m3u8`) from the File menu, or drop one onto the window. Saving keeps each entry's title, duration, group and other `#EXTINF` attributes, in playlist order.
+- With nothing playing, or audio only, the playlist fills the window. While a video plays, the playlist button on the control bar or `Ctrl+L` opens it as a panel over the right side of the picture. Drag the panel's left edge to resize it; click the picture or press `Esc` to close it.
+- Each row shows the entry's title, its path or address, and whether it is a video, an audio file or a stream, with its duration (or "Live") and its group when the playlist gives one (`group-title`, `#EXTGRP`). Entries whose file is missing or that failed to play are marked "Unavailable" with the reason and are skipped by next and previous.
 - `Ctrl+F` searches the playlist by title and group. The buttons next to the search field filter it to local files or streams, sort it by title or duration, and group it under the playlist's group headings, which can be collapsed. Next, previous and shuffle follow what is shown. None of this changes the order the playlist is saved in.
+- Click selects a row (`Ctrl` and `Shift` select several) and double-click or `Enter` plays it. Right-click, or the `Menu` key, offers Play, Play next, Remove, and Show in file manager or Copy address. Entries queued with "Play next" play before normal order resumes.
+- Drag a row by its handle to reorder, or drop files onto the list to insert them there. `Delete` removes the selection and `Ctrl+Z` undoes the last removal. "Remove duplicates" is in the playlist's "more" menu.
+- The whole playlist works from the keyboard. Settings → Shortcuts lists the keys.
 - "Show channel logos" (Settings → Playback, or the playlist's "more" menu) shows the image a playlist gives for an entry (`tvg-logo`). It is on by default; turn it off and nothing is downloaded. While it is on, logos are fetched only for the rows on screen, from `http` and `https` addresses, and kept in a 20 MB cache that "Clear history" empties.
 - "Restore last playlist on startup" in Settings reopens the previous session's playlist. It is off by default, as are "Resume where I left off" and "Remember recent files".
 
