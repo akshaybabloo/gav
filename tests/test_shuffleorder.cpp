@@ -199,6 +199,7 @@ TEST(ShuffleOrder, ShrinkingTheCandidatesMidRoundNeverPlaysAnythingElse) {
         EXPECT_FALSE(played.contains(id)) << id;
         played.insert(id);
     }
+    EXPECT_GE(played.size(), 2);
     for (int step = 0; step < 8; ++step) {
         const int id = order.next(true);
         EXPECT_TRUE(narrowed.contains(id)) << id;
