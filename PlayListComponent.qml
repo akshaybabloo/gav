@@ -37,8 +37,9 @@ Item {
         dropRow = -1;
     }
     function focusList() {
+        var fresh = playListView.currentIndex < 0;
         playListView.forceActiveFocus();
-        if (playListView.currentIndex < 0 && playListView.count > 0)
+        if (fresh && playListView.count > 0)
             focusRow(0, Qt.NoModifier);
     }
     function focusRow(viewRow, modifiers) {
