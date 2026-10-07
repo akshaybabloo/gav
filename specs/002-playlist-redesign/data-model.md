@@ -114,7 +114,7 @@ Stored in the existing QML `Settings`.
 |---|---|---|---|
 | `playlistPanelOpen` | boolean | `false` | Whether the panel is open while a video is showing. |
 | `playlistPanelWidth` | integer | `360` | Panel width in pixels. Clamped to 280 … 60 % of the window on use. |
-| `showChannelLogos` | boolean | `false` | Whether logo images may be downloaded (FR-012). |
+| `showChannelLogos` | boolean | `true` | Whether logo images may be downloaded (FR-012). |
 
 ## Logo cache
 

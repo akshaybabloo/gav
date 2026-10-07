@@ -94,7 +94,7 @@ specs/002-playlist-redesign/
 ```text
 + playlistmodel.h/.cpp        # Entries, current entry, queue, remove with undo, move, duplicates
 + playlistview.h/.cpp         # Search, filter, sort, grouping, selection, next/previous
-+ logoprovider.h/.cpp         # Opt-in channel logo image provider and cache
++ logoprovider.h/.cpp         # Channel logo image provider and cache
 + PlaylistPanel.qml           # Panel chrome: header, search row, resize edge, empty states
 + PlaylistRow.qml             # Entry row delegate
 + PlaylistGroupHeader.qml     # Group header delegate

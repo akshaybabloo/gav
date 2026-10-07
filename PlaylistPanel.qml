@@ -522,13 +522,17 @@ Item {
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.top: parent.top
-        color: Material.dividerColor
+        color: resizeEdge.activeFocus ? Material.foreground : Material.dividerColor
         visible: root.overlay && !root.narrow
-        width: 1
+        width: resizeEdge.activeFocus ? 3 : 1
     }
     MouseArea {
+        id: resizeEdge
+
+        Accessible.description: qsTr("Left widens the playlist and Right narrows it")
         Accessible.name: qsTr("Resize playlist")
         Accessible.role: Accessible.Grip
+        activeFocusOnTab: true
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.top: parent.top
@@ -537,6 +541,12 @@ Item {
         visible: root.overlay && !root.narrow
         width: 6
 
+        Keys.onLeftPressed: root.widthRequested(root.width + AppConstants.playlistPanelResizeStep)
+        Keys.onRightPressed: root.widthRequested(root.width - AppConstants.playlistPanelResizeStep)
+        Keys.onShortcutOverride: function (event) {
+            if (event.key === Qt.Key_Left || event.key === Qt.Key_Right)
+                event.accepted = true;
+        }
         onPositionChanged: function (mouse) {
             if (pressed)
                 root.widthRequested(Math.round(root.width - mouse.x));
