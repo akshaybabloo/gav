@@ -14,6 +14,7 @@ QtObject {
     // Playlist panel (in pixels, except the fraction of the window width)
     readonly property int playlistPanelDefaultWidth: 360
     readonly property int playlistPanelMinWidth: 280
+    readonly property int playlistPanelResizeStep: 20
     readonly property int playlistGroupHeaderHeight: 36
     readonly property int playlistRowHeight: 68
     readonly property real playlistPanelMaxFraction: 0.6
@@ -85,10 +86,14 @@ QtObject {
         { "keys": "N / P", "action": qsTr("Next / previous playlist item") },
         { "keys": "Ctrl+L", "action": qsTr("Show / hide playlist") },
         { "keys": "Ctrl+F", "action": qsTr("Search the playlist") },
+        { "keys": "Up / Down / Page Up / Page Down / Home / End", "action": qsTr("Playlist: move through the rows (Shift extends the selection)") },
         { "keys": "Enter / Q / Delete", "action": qsTr("Playlist: play / play next / remove") },
         { "keys": "Ctrl+A / Ctrl+Space", "action": qsTr("Playlist: select all / toggle selection") },
         { "keys": "Ctrl+Z", "action": qsTr("Playlist: undo the last removal") },
         { "keys": "Alt+Up / Alt+Down", "action": qsTr("Playlist: move the selection") },
+        { "keys": "Menu / Shift+F10", "action": qsTr("Playlist: open the row menu") },
+        { "keys": "Left / Right", "action": qsTr("Playlist: collapse / expand the focused group, or resize the panel from its edge") },
+        { "keys": "/", "action": qsTr("Playlist: search") },
         { "keys": "[ / ] / =", "action": qsTr("Slower / faster / normal speed") },
         { "keys": "Scroll", "action": qsTr("Volume") },
         { "keys": "Ctrl+Up / Ctrl+Down", "action": qsTr("Volume up / down") },

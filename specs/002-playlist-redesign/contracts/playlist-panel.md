@@ -96,6 +96,7 @@ With several entries selected: Play next (all, in order) · Remove.
 | `Alt+Up` / `Alt+Down` | Move the selected entries up or down one row, when reordering is allowed. |
 | `Menu` or `Shift+F10` | Open the row menu. |
 | `Left` / `Right` | Collapse / expand the focused group. |
+| `Left` / `Right` on the panel's left edge | Widen / narrow the panel by 20 px. The edge is a tab stop after the list and thickens while it has focus. |
 | `Ctrl+F` or `/` | Focus the search field. |
 | `Esc` | As in "Opening and closing". |
 
