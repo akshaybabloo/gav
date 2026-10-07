@@ -28,7 +28,16 @@ Item {
     signal urlsDropped(var urls, int sourceRow)
     signal widthRequested(int requestedWidth)
 
+    component FocusRing: Rectangle {
+        anchors.fill: parent
+        border.color: Material.foreground
+        border.width: 2
+        color: "transparent"
+        radius: 3
+        visible: parent.visualFocus
+    }
     component PanelButton: Button {
+        property bool active: false
         property string tip: ""
 
         Accessible.role: Accessible.Button
@@ -40,6 +49,19 @@ Item {
         hoverEnabled: true
         scale: 1.5
 
+        FocusRing {
+        }
+        Rectangle {
+            anchors.right: parent.right
+            anchors.rightMargin: 2
+            anchors.top: parent.top
+            anchors.topMargin: 5
+            color: Material.foreground
+            height: 5
+            radius: 2.5
+            visible: parent.active
+            width: 5
+        }
         ToolTip {
             delay: AppConstants.tooltipDelay
             text: parent.tip
@@ -118,22 +140,16 @@ Item {
                         opacity: 0.7
                         text: root.playlistView.searchText.trim() !== "" || root.playlistView.filter !== PlaylistView.All ? qsTr("%1 of %2").arg(root.playlistView.matchCount).arg(root.playList.count) : root.playList.count + " " + (root.playList.count === 1 ? qsTr("item") : qsTr("items"))
                     }
-                    Button {
+                    PanelButton {
                         id: shuffleButton
 
                         Accessible.description: qsTr("Play the playlist in random order")
-                        Accessible.name: qsTr("Shuffle")
-                        Accessible.role: Accessible.Button
-                        Layout.preferredHeight: 30
-                        Layout.preferredWidth: 25
-                        Material.roundedScale: Material.NotRounded
+                        Accessible.name: checked ? qsTr("Shuffle: On") : qsTr("Shuffle: Off")
+                        active: checked
                         checkable: true
                         checked: root.shuffleEnabled
-                        font.family: materialSymbolsOutlined.name
-                        font.weight: Font.Light
-                        hoverEnabled: true
-                        scale: 1.5
                         text: "\ue043"
+                        tip: checked ? qsTr("Shuffle: On") : qsTr("Shuffle: Off")
 
                         contentItem: Text {
                             color: shuffleButton.checked ? Material.accent : Material.foreground
@@ -145,66 +161,34 @@ Item {
                         }
 
                         onToggled: root.shuffleToggled(checked)
-
-                        ToolTip {
-                            delay: AppConstants.tooltipDelay
-                            text: shuffleButton.checked ? qsTr("Shuffle: On") : qsTr("Shuffle: Off")
-                            timeout: AppConstants.tooltipTimeout
-                            visible: shuffleButton.hovered
-                        }
                     }
-                    Button {
+                    PanelButton {
                         id: saveButton
 
                         Accessible.description: qsTr("Save the playlist to a file")
                         Accessible.name: qsTr("Save playlist")
-                        Accessible.role: Accessible.Button
-                        Layout.preferredHeight: 30
-                        Layout.preferredWidth: 25
-                        Material.roundedScale: Material.NotRounded
                         enabled: root.playList.count > 0
-                        font.family: materialSymbolsOutlined.name
-                        font.weight: Font.Light
-                        hoverEnabled: true
-                        scale: 1.5
                         text: "\ue161"
+                        tip: qsTr("Save playlist")
 
                         onClicked: root.saveRequested()
-
-                        ToolTip {
-                            delay: AppConstants.tooltipDelay
-                            text: qsTr("Save playlist")
-                            timeout: AppConstants.tooltipTimeout
-                            visible: saveButton.hovered
-                        }
                     }
                     CollageButton {
                         collageTarget: root.collageTarget
                         sourceUrls: root.playList.count > 0 ? root.playList.locations() : []
+
+                        FocusRing {
+                        }
                     }
-                    Button {
+                    PanelButton {
                         id: moreButton
 
                         Accessible.description: qsTr("More playlist actions")
                         Accessible.name: qsTr("More")
-                        Accessible.role: Accessible.Button
-                        Layout.preferredHeight: 30
-                        Layout.preferredWidth: 25
-                        Material.roundedScale: Material.NotRounded
-                        font.family: materialSymbolsOutlined.name
-                        font.weight: Font.Light
-                        hoverEnabled: true
-                        scale: 1.5
                         text: "\ue5d4"
+                        tip: qsTr("More")
 
                         onClicked: moreMenu.popup(moreButton, 0, moreButton.height)
-
-                        ToolTip {
-                            delay: AppConstants.tooltipDelay
-                            text: qsTr("More")
-                            timeout: AppConstants.tooltipTimeout
-                            visible: moreButton.hovered
-                        }
                         Menu {
                             id: moreMenu
 
@@ -229,30 +213,16 @@ Item {
                             }
                         }
                     }
-                    Button {
+                    PanelButton {
                         id: closeButton
 
                         Accessible.description: qsTr("Hide the playlist")
                         Accessible.name: qsTr("Close playlist")
-                        Accessible.role: Accessible.Button
-                        Layout.preferredHeight: 30
-                        Layout.preferredWidth: 25
-                        Material.roundedScale: Material.NotRounded
-                        font.family: materialSymbolsOutlined.name
-                        font.weight: Font.Light
-                        hoverEnabled: true
-                        scale: 1.5
                         text: "\ue5cd"
+                        tip: qsTr("Close playlist")
                         visible: root.overlay && root.narrow
 
                         onClicked: root.closeRequested()
-
-                        ToolTip {
-                            delay: AppConstants.tooltipDelay
-                            text: qsTr("Close playlist")
-                            timeout: AppConstants.tooltipTimeout
-                            visible: closeButton.hovered
-                        }
                     }
                 }
                 RowLayout {
@@ -265,6 +235,7 @@ Item {
                     Accessible.name: qsTr("Search playlist")
                     Layout.fillWidth: true
                     placeholderText: qsTr("Search playlist...")
+                    placeholderTextColor: Qt.rgba(Material.foreground.r, Material.foreground.g, Material.foreground.b, 0.7)
                     selectByMouse: true
 
                     onTextChanged: root.playlistView.searchText = text
@@ -299,6 +270,10 @@ Item {
                         visible: searchField.text.length > 0
                         width: 28
 
+                        FocusRing {
+                            radius: 14
+                        }
+
                         onClicked: {
                             searchField.text = "";
                             searchField.focus = false;
@@ -313,6 +288,7 @@ Item {
                     Accessible.description: qsTr("Choose which kinds of entry are shown")
                     Accessible.name: qsTr("Filter: %1").arg(current)
                     Material.foreground: root.playlistView.filter !== PlaylistView.All ? Material.accent : undefined
+                    active: root.playlistView.filter !== PlaylistView.All
                     text: "\ue152"
                     tip: qsTr("Filter: %1").arg(current)
 
@@ -365,6 +341,7 @@ Item {
                     Accessible.description: qsTr("Choose the order entries are shown in")
                     Accessible.name: qsTr("Sort: %1").arg(current)
                     Material.foreground: root.playlistView.sortOrder !== PlaylistView.PlaylistOrder ? Material.accent : undefined
+                    active: root.playlistView.sortOrder !== PlaylistView.PlaylistOrder
                     text: "\ue8d5"
                     tip: qsTr("Sort: %1").arg(current)
 
@@ -415,6 +392,7 @@ Item {
                     Accessible.description: qsTr("Show entries under their group headings")
                     Accessible.name: checked ? qsTr("Grouping: On") : qsTr("Grouping: Off")
                     Material.foreground: checked ? Material.accent : undefined
+                    active: checked
                     checkable: true
                     checked: root.playlistView.grouped
                     text: "\ue574"
@@ -479,6 +457,9 @@ Item {
                     text: qsTr("Clear search and filter")
 
                     onClicked: root.playlistView.clearSearchAndFilter()
+
+                    FocusRing {
+                    }
                 }
             }
             ColumnLayout {
@@ -547,6 +528,7 @@ Item {
     }
     MouseArea {
         Accessible.name: qsTr("Resize playlist")
+        Accessible.role: Accessible.Grip
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.top: parent.top

@@ -271,6 +271,14 @@ Item {
 
             onClicked: root.removeRequested()
 
+            Rectangle {
+                anchors.fill: parent
+                border.color: Material.foreground
+                border.width: 2
+                color: "transparent"
+                radius: 14
+                visible: removeButton.visualFocus
+            }
             ToolTip {
                 delay: AppConstants.tooltipDelay
                 text: qsTr("Remove from playlist")

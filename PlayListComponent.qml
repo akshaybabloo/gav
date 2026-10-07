@@ -37,8 +37,9 @@ Item {
         dropRow = -1;
     }
     function focusList() {
+        var fresh = playListView.currentIndex < 0;
         playListView.forceActiveFocus();
-        if (playListView.currentIndex < 0 && playListView.count > 0)
+        if (fresh && playListView.count > 0)
             focusRow(0, Qt.NoModifier);
     }
     function focusRow(viewRow, modifiers) {
@@ -216,6 +217,7 @@ Item {
         id: playListView
 
         Accessible.name: qsTr("Playlist entries")
+        Accessible.role: Accessible.List
         activeFocusOnTab: true
         anchors.fill: parent
         boundsBehavior: Flickable.StopAtBounds
@@ -283,6 +285,11 @@ Item {
                     }
                 }
             }
+        }
+
+        onActiveFocusChanged: {
+            if (activeFocus && currentIndex < 0 && count > 0)
+                currentIndex = Math.max(0, root.playlistView.currentViewRow);
         }
 
         Keys.onPressed: function (event) {
