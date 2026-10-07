@@ -32,7 +32,7 @@ QML).
 GAV keeps every source file at the repository root. QML files belong to the `gavqml` module, and
 C++ units are registered in `qt_add_qml_module(appgav … SOURCES …)` in `CMakeLists.txt`. Tests
 live in `tests/` and are compiled into the `gav_tests` target. Build, test, format and lint only
-through `just`, which uses `build-cli/`. Python-distributed tools are run with `uv` / `uvx`.
+through `just`, which uses `build-cli/`. clang-format and clang-tidy 23.1.0 are the ones on `PATH`.
 Icons in QML stay as `"\uXXXX"` escapes.
 
 ---
@@ -43,7 +43,7 @@ Icons in QML stay as `"\uXXXX"` escapes.
 
 **Purpose**: The pins and the build wiring every later phase needs
 
-- [X] T001 [P] Create `support/lint-requirements.txt` with exactly two lines, `clang-format==22.1.8` and `clang-tidy==22.1.8` ([data-model.md → Tool pin](./data-model.md#tool-pin): "one line per tool, `name==version`").
+- [X] T001 [P] Fix the version of the two C++ tools in one place: `set(GAV_LLVM_VERSION "23.1.0")` in `support/lint.cmake` ([data-model.md → Tool pin](./data-model.md#tool-pin)). There is no requirements file; the tools are not fetched.
 - [X] T002 In `CMakeLists.txt`: set `CMAKE_EXPORT_COMPILE_COMMANDS` to `ON` next to `CMAKE_CXX_STANDARD`; move the `QML_FILES` list of `qt_add_qml_module(appgav …)` into a variable `GAV_QML_FILES` and pass that variable; add `include(support/lint.cmake)` after both `appgav` and, when `BUILD_TESTS` is on, `gav_tests` are defined.
 - [X] T003 Create `support/lint.cmake` with the file lists only, per [research R6](./research.md):
   - `GAV_LINT_CPP_SOURCES`: the `SOURCES` of `appgav` and of `gav_tests` (when it exists) that end in `.cpp`, `.h` or `.mm`, lie under `CMAKE_SOURCE_DIR` and not under `CMAKE_BINARY_DIR` or `vcpkg-ports/`, without duplicates
@@ -62,10 +62,9 @@ Icons in QML stay as `"\uXXXX"` escapes.
 **⚠️ CRITICAL**: No story can start until the tools can be invoked at their pinned versions
 
 - [X] T004 In `support/lint.cmake`, resolve the C++ tools per [research R11](./research.md):
-  - read the two versions from `support/lint-requirements.txt`
-  - default: `find_program(uvx)`; the tool commands are `uvx --from clang-format==<version> clang-format` and `uvx --from clang-tidy==<version> clang-tidy`
-  - if `uvx` is not found and no override is set, the targets (not the configure step) fail with one message that says uv is needed and gives `https://docs.astral.sh/uv/`
-  - cache variables `GAV_CLANG_FORMAT` and `GAV_CLANG_TIDY` override the command with a given binary; then the target first compares `<binary> --version` with the pinned version and fails with "found X, need Y" on a mismatch
+  - the pinned version is `GAV_LLVM_VERSION` in `support/lint.cmake`
+  - each tool is the binary of its name found on `PATH`; the target (not the configure step) first compares its `--version` with the pinned version and fails with "found X, need Y" on a mismatch, or with a message naming the version needed when none is found
+  - cache variables `GAV_CLANG_FORMAT` and `GAV_CLANG_TIDY` override the command with a given binary, which gets the same version check
   - find `qmlformat` and `qmllint` next to the Qt in use (`QT6_INSTALL_PREFIX`/`bin`)
 - [X] T005 [P] Create `support/lint-run.cmake`, the script every target calls with `cmake -P`, starting with its `markers` action: over a file list passed in, it prints `file:line: message` and fails when a first-party file has: `NOLINT` or `NOLINTNEXTLINE` without `(check-name)` or without `: reason` after it; `clang-format off` without `: reason`; `qmllint disable` without a category, or without a comment line directly above it; `qmlformat off` without a comment line directly above it ([research R10](./research.md), [contracts/rules.md](./contracts/rules.md#suppressing-one-finding)).
 - [X] T006 In `support/lint.cmake` and `support/lint-run.cmake`, add a `lint-versions` target (the script's `versions` action) that the lint targets depend on and that prints the versions of clang-format, clang-tidy, qmlformat and qmllint in use; the format actions print the versions of the two formatters themselves ([contracts/commands.md](./contracts/commands.md#local-commands): "Each command starts by printing the versions of the tools it uses").
@@ -93,7 +92,7 @@ C++ file and QML file are restored exactly by `just format` (quickstart Q1.1–Q
 ### Reformat the existing code (Step 2; own issue and branch, opened when no other branch is open)
 
 - [ ] T013 [US1] Record the baseline before touching anything: `just test` and `LC_ALL=C LANG=C just test` pass; note the count of `\uXXXX` escapes per QML file (`grep -c 'u[0-9a-f]\{4\}' *.qml`). Then, in its own commit, add `*.cpp`, `*.h`, `*.mm` and `*.qml` to `.gitattributes` as `text eol=lf`, so a Windows checkout has the line endings both styles write ([research R12](./research.md)).
-- [ ] T014 [US1] Run `just format-cpp` and commit the result alone as "Reformat C++ sources with clang-format 22.1.8". The commit must contain nothing but what the tool produced (FR-006). Then `just build`, `just test` and `LC_ALL=C LANG=C just test` must pass.
+- [ ] T014 [US1] Run `just format-cpp` and commit the result alone as "Reformat C++ sources with clang-format 23.1.0". The commit must contain nothing but what the tool produced (FR-006). Then `just build`, `just test` and `LC_ALL=C LANG=C just test` must pass.
 - [ ] T015 [US1] Run `just format-qml` and commit the result alone as "Reformat QML sources with qmlformat (Qt 6.12.0)". Confirm the escape counts from T013 are unchanged (FR-007), `just build` succeeds, and a headless, silent run of the application starts with no QML warnings in its log.
 - [ ] T016 [US1] Create `.git-blame-ignore-revs` with the full ids of the two commits from T014 and T015, each under a comment line saying what it reformatted ([data-model.md → Reformatting change](./data-model.md#reformatting-change)). The pull request must be merged with a merge commit so the ids stay valid ([research R12](./research.md)).
 - [ ] T017 [US1] Validate quickstart [Q1.1–Q1.9](./quickstart.md#story-1-format-a-change-with-one-command). Fix what fails. `just format-check` must exit 0.
@@ -111,20 +110,20 @@ C++ file and one in a QML file are each reported with file, line and rule (quick
 
 ### Rule sets and commands (Step 1, Tooling; same branch as Phases 1–2)
 
-- [X] T018 [P] [US2] Create `.clang-tidy` per [research R4](./research.md) and [contracts/rules.md](./contracts/rules.md#c-rule-set-clang-tidy): the `Checks` list exactly as given there (the four full groups, the three exclusions, `cert-err33-c`, and the named `modernize-`, `readability-`, `misc-` and `cppcoreguidelines-` checks); `WarningsAsErrors: '*'`; `HeaderFilterRegex` and `ExcludeHeaderFilterRegex` that leave out build directories and vcpkg trees (the `lint-cpp` target passes exact filters built from the real source and build directories); `FormatStyle: file`; a comment above each of the three excluded checks giving its reason from R4.
+- [X] T018 [P] [US2] Create `.clang-tidy` per [research R4](./research.md) and [contracts/rules.md](./contracts/rules.md#c-rule-set-clang-tidy): the `Checks` list exactly as given there (the four full groups, the four exclusions, `cert-err33-c`, and the named `modernize-`, `readability-`, `misc-` and `cppcoreguidelines-` checks); `WarningsAsErrors: '*'`; `HeaderFilterRegex` and `ExcludeHeaderFilterRegex` that leave out build directories and vcpkg trees (the `lint-cpp` target passes exact filters built from the real source and build directories); `FormatStyle: file`; a comment above each of the four excluded checks giving its reason from R4.
 - [X] T019 [P] [US2] Create `.qmllint.ini` from `qmllint --write-defaults`, keeping every category at its default severity except `UnusedImports=warning` (FR-011; at the default, info, the warning limit does not count it) and setting `MaxWarnings=0` ([research R5](./research.md)).
 - [X] T020 [US2] In `support/lint.cmake`, add `lint-cpp`: one custom command per `.cpp` in `GAV_LINT_CPP_SOURCES` that runs clang-tidy with `--quiet` against that file's own entry of the compile commands (so a source shared by `appgav` and `gav_tests` is analysed once) and writes its findings to a result file; each depends on its source, on `.clang-tidy` and on every first-party header; the target then prints the findings of all result files, without duplicates, and fails if there are any; the target depends on `appgav` and `gav_tests` being built ([research R7](./research.md)). Files in `GAV_PLATFORM_ONLY_SOURCES` get no command.
 - [X] T021 [US2] In `support/lint.cmake`, add `lint-qml` (qmllint with the same import paths and resource files Qt's generated `appgav_qmllint` target uses, reading `.qmllint.ini`) and `lint` (`lint-cpp`, `lint-qml` and the marker check from T005 over all first-party files). On failure the last line is "Run `just lint` to reproduce."
-- [X] T022 [US2] Check the tooling step on the unfixed tree: `just lint-cpp` reports findings as `file:line: message [check]` and exits non-zero, with a count close to the 159 in research R4; `just lint-qml` reports close to 388; neither modifies a file; `mediasession_windows.cpp` and `mediasession_macos.mm` are not analysed.
-- [X] T023 [US2] Add a "Formatting and linting" part to the development section of `README.md` and to `CLAUDE.md`: uv as the one thing to install, the five recipes, and that `just lint` builds first ([contracts/commands.md](./contracts/commands.md)).
+- [X] T022 [US2] Check the tooling step on the unfixed tree: `just lint-cpp` reports findings as `file:line: message [check]` and exits non-zero, with a count close to the 161 in research R4; `just lint-qml` reports close to 388; neither modifies a file; `mediasession_windows.cpp` and `mediasession_macos.mm` are not analysed.
+- [X] T023 [US2] Add a "Formatting and linting" part to the development section of `README.md` and to `CLAUDE.md`: clang-format and clang-tidy 23.1.0 on `PATH` as the things to install, the recipes, and that `just lint` builds first ([contracts/commands.md](./contracts/commands.md)).
 
 **Checkpoint**: The tooling step is complete: all commands exist, no source file has changed. Ships as its own PR.
 
 ### C++ findings (Step 3; own issue and branch; after Step 2)
 
-- [ ] T024 [US2] Apply the automatic fixes, one check per commit, with `uvx --from clang-tidy==22.1.8 run-clang-tidy.py -p build-cli -fix -checks='-*,<check>'` restricted to first-party files, in this order: `readability-braces-around-statements` (45), `performance-avoid-endl` (13), `modernize-use-using` (11), `readability-inconsistent-declaration-parameter-name` (9), `cppcoreguidelines-prefer-member-initializer` (9). After each: read the diff, run `just format`, `just build` and `just test`, then commit. Formatting the lines a fix touched belongs in that fix's commit; what FR-015 rules out is mixing lint fixes into the bulk reformat.
+- [ ] T024 [US2] Apply the automatic fixes, one check per commit, with the `run-clang-tidy -p build-cli -fix -checks='-*,<check>'` that comes with clang-tidy 23.1.0, restricted to first-party files, in this order: `readability-braces-around-statements` (45), `performance-avoid-endl` (13), `modernize-use-using` (11), `readability-inconsistent-declaration-parameter-name` (9), `cppcoreguidelines-prefer-member-initializer` (9). After each: read the diff, run `just format`, `just build` and `just test`, then commit. Formatting the lines a fix touched belongs in that fix's commit; what FR-015 rules out is mixing lint fixes into the bulk reformat.
 - [ ] T025 [US2] Fix by hand, in their own commit, the integer-conversion findings: `bugprone-narrowing-conversions` (17), `bugprone-implicit-widening-of-multiplication-result` (16) and `bugprone-misplaced-widening-cast` (3). Prefer a wider type or an explicit conversion at the point of use; do not change a function's behaviour for values it already handles.
-- [ ] T026 [US2] Fix by hand the remaining 36 findings across 17 checks (list them with `just lint-cpp`), starting with `custommediaplayer.cpp`. Where a finding is a false positive or intentional, suppress it at that line with `// NOLINT(check-name): reason` ([contracts/rules.md](./contracts/rules.md#suppressing-one-finding)); do not disable a check project-wide without adding its reason to `.clang-tidy` (FR-014).
+- [ ] T026 [US2] Fix by hand the remaining 38 findings across 18 checks (list them with `just lint-cpp`), starting with `custommediaplayer.cpp`. Where a finding is a false positive or intentional, suppress it at that line with `// NOLINT(check-name): reason` ([contracts/rules.md](./contracts/rules.md#suppressing-one-finding)); do not disable a check project-wide without adding its reason to `.clang-tidy` (FR-014).
 - [ ] T027 [US2] Verify the C++ step: `just lint-cpp` exits 0; `just format-check` exits 0; `just test` and `LC_ALL=C LANG=C just test` pass; a headless, silent run plays a local file and a playlist without new warnings.
 
 **Checkpoint**: C++ is lint-clean. Ships as its own PR.
@@ -151,8 +150,8 @@ C++ file and one in a QML file are each reported with file, line and rule (quick
 **Independent Test**: A pull request with one formatting violation and one lint finding fails both
 checks with a message that says what and where; fixing them makes it pass (quickstart Q3.1–Q3.5).
 
-- [ ] T034 [US3] In `.github/workflows/build.yaml`, on the Linux x64 leg only (`matrix.os == 'ubuntu-24.04'`): add the `astral-sh/setup-uv` action before the configure step; add a "Check formatting" step right after "Configure CMake (Linux/macOS)" that builds the `format-check` target; add a "Lint" step right after "Build" that builds the `lint` target ([research R8](./research.md)). Neither step applies fixes or pushes anything.
-- [ ] T035 [US3] Confirm from the first run of the workflow that each step prints the tool versions and that they match `support/lint-requirements.txt` and Qt 6.12.0 (FR-021), and compare the Linux x64 leg's duration with a run from before this phase: the two steps together must add no more than 5 minutes (SC-005). If "Lint" takes longer, raise its parallel jobs or cache the per-file stamps, and note the measured time in [research R8](./research.md), replacing the estimate.
+- [ ] T034 [US3] In `.github/workflows/build.yaml`, on the Linux x64 leg only (`matrix.os == 'ubuntu-24.04'`): before the configure step, put clang-format and clang-tidy 23.1.0 on `PATH` from the builds the maintainer publishes (if those do not exist yet, unpack only the two binaries from the LLVM 23.1.0 release archive), cached with `actions/cache` under a key that contains `GAV_LLVM_VERSION`; add a "Check formatting" step right after "Configure CMake (Linux/macOS)" that builds the `format-check` target; add a "Lint" step right after "Build" that builds the `lint` target ([research R8](./research.md)). Neither step applies fixes or pushes anything.
+- [ ] T035 [US3] Confirm from the first run of the workflow that each step prints the tool versions and that they match `GAV_LLVM_VERSION` in `support/lint.cmake` and Qt 6.12.0 (FR-021), and compare the Linux x64 leg's duration with a run from before this phase: the two steps together must add no more than 5 minutes (SC-005). If "Lint" takes longer, raise its parallel jobs or cache the per-file stamps, and note the measured time in [research R8](./research.md), replacing the estimate.
 - [ ] T036 [US3] Run the seeded violations of [quickstart.md](./quickstart.md#seeded-violations-sc-003) on a throwaway branch and pull request: all ten must be reported, each with its file and, for lint, its line and rule; each failing step's log must end with the local command (FR-020). Close the pull request and delete the branch afterwards.
 - [ ] T037 [US3] Validate quickstart [Q3.1–Q3.5](./quickstart.md#story-3-every-change-is-checked-automatically). Fix what fails.
 
@@ -238,7 +237,7 @@ Task: "lint-qml and lint targets"                          # T021
 
 1. Tooling PR: configs and commands, no source changes
 2. Reformat PR: two formatting-only commits and the blame-ignore file
-3. C++ lint PR: 159 findings
+3. C++ lint PR: 161 findings
 4. QML lint PR: 388 findings
 5. Enforcement PR: the two CI steps and the seeded-violation run
 6. Wrap-up PR: constitution amendment and documentation

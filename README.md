@@ -111,4 +111,4 @@ The style and the lint rules are in `.clang-format`, `.clang-tidy`, `.qmlformat.
 
 `just format-cpp`, `just format-qml`, `just lint-cpp` and `just lint-qml` do the same for one language.
 
-The only thing to install is [uv](https://docs.astral.sh/uv/). The commands use it to fetch and run the clang-format and clang-tidy versions pinned in `support/lint-requirements.txt`; qmlformat and qmllint come with Qt.
+The commands need clang-format and clang-tidy 23.1.0 on `PATH`, for example from the [LLVM release](https://github.com/llvm/llvm-project/releases). Any other version is refused with a message. To use binaries that are not on `PATH`, configure with `-DGAV_CLANG_FORMAT=<path>` and `-DGAV_CLANG_TIDY=<path>`. qmlformat and qmllint come with Qt.

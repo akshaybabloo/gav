@@ -35,7 +35,7 @@ QML stay as escapes.
 - On in full: `clang-analyzer-*`, `bugprone-*`, `performance-*`, `portability-*`.
 - Off within those groups, each with its reason in the file:
   `bugprone-easily-swappable-parameters`, `bugprone-throwing-static-initialization`,
-  `performance-enum-size`.
+  `bugprone-signed-bitwise`, `performance-enum-size`.
 - On by name: `cert-err33-c` and the selected `modernize-`, `readability-`, `misc-` and
   `cppcoreguidelines-` checks listed, each by its full name, in research R4. `.clang-tidy` is the
   authoritative list.

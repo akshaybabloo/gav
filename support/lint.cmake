@@ -43,13 +43,13 @@ foreach (_file IN LISTS GAV_QML_FILES)
     list(APPEND GAV_LINT_QML_FILES "${CMAKE_SOURCE_DIR}/${_file}")
 endforeach ()
 
-set(GAV_CLANG_FORMAT "" CACHE FILEPATH "clang-format binary to use instead of the pinned one run through uvx")
-set(GAV_CLANG_TIDY "" CACHE FILEPATH "clang-tidy binary to use instead of the pinned one run through uvx")
+set(GAV_LLVM_VERSION "23.1.0")
+set(GAV_CLANG_FORMAT "" CACHE FILEPATH "clang-format binary to use instead of the one on PATH")
+set(GAV_CLANG_TIDY "" CACHE FILEPATH "clang-tidy binary to use instead of the one on PATH")
 
 set(_gav_lint_dir "${CMAKE_BINARY_DIR}/lint")
 set(_gav_lint_config "${_gav_lint_dir}/config.cmake")
 set(_gav_lint_script "${CMAKE_CURRENT_LIST_DIR}/lint-run.cmake")
-set(_gav_lint_requirements "${CMAKE_CURRENT_LIST_DIR}/lint-requirements.txt")
 
 set(_gav_tidy_headers ${GAV_FORMAT_CPP_FILES})
 list(FILTER _gav_tidy_headers INCLUDE REGEX "\\.h$")
@@ -73,7 +73,7 @@ foreach (_source IN LISTS GAV_LINT_CPP_SOURCES)
             "-DGAV_LINT_DIRECTORY=${_directory}"
             -P "${_gav_lint_script}"
             DEPENDS "${_source}" ${_gav_tidy_headers} "${_directory}/compile_commands.json"
-            "${CMAKE_SOURCE_DIR}/.clang-tidy" "${_gav_lint_requirements}" "${_gav_lint_script}"
+            "${CMAKE_SOURCE_DIR}/.clang-tidy" "${CMAKE_CURRENT_LIST_FILE}" "${_gav_lint_script}"
             COMMENT "clang-tidy ${_name}"
             VERBATIM
     )
@@ -105,7 +105,7 @@ endif ()
 file(GENERATE OUTPUT "${_gav_lint_config}" CONTENT "set(GAV_SOURCE_DIR \"${CMAKE_SOURCE_DIR}\")
 set(GAV_BINARY_DIR \"${CMAKE_BINARY_DIR}\")
 set(GAV_LINT_DIR \"${_gav_lint_dir}\")
-set(GAV_LINT_REQUIREMENTS \"${_gav_lint_requirements}\")
+set(GAV_LLVM_VERSION \"${GAV_LLVM_VERSION}\")
 set(GAV_CLANG_FORMAT \"${GAV_CLANG_FORMAT}\")
 set(GAV_CLANG_TIDY \"${GAV_CLANG_TIDY}\")
 set(GAV_QMLFORMAT \"${_gav_qmlformat}\")

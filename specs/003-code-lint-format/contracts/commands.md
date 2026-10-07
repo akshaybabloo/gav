@@ -16,11 +16,11 @@ All three are `just` recipes and use the `build-cli/` directory, like `just buil
 **Common behaviour**
 
 - Each command starts by printing the versions of the tools it uses.
-- The C++ tools run through `uvx` at the pinned version. If `uvx` is not installed, the command
-  stops before doing anything and says where to get uv.
-- A contributor who points `GAV_CLANG_FORMAT` or `GAV_CLANG_TIDY` at their own binary gets a
-  version check instead: on a mismatch the command stops and prints the version found and the
-  version needed.
+- clang-format and clang-tidy are the ones on `PATH`. Each one's version is checked before
+  anything else happens: on a mismatch the command stops and prints the version found and the
+  version needed, and if the tool is missing it says which version is needed.
+- A contributor who points `GAV_CLANG_FORMAT` or `GAV_CLANG_TIDY` at a binary when configuring
+  gets that binary, with the same version check.
 - "First-party" means the sources of the application and the unit tests and the QML files of the
   module, as the build defines them. Generated code, build output, downloaded dependencies and
   `vcpkg-ports/` are never read or written.
@@ -47,16 +47,16 @@ None of these runs as part of `just build`, `just test` or packaging.
 
 ## What a contributor installs
 
-Only [uv](https://docs.astral.sh/uv/). The commands fetch and run the pinned `clang-format` and
-`clang-tidy` through `uvx`, with the versions from `support/lint-requirements.txt`; nothing else
-is installed by hand. `qmlformat` and `qmllint` come with the Qt 6.12.0 installation the build
-already uses.
+`clang-format` and `clang-tidy` 23.1.0, on `PATH`. The version is fixed in `support/lint.cmake`
+(`GAV_LLVM_VERSION`), and the commands fetch nothing themselves. The maintainer plans to publish
+builds of the two tools; until then they are in the
+[LLVM 23.1.0 release](https://github.com/llvm/llvm-project/releases). `qmlformat` and `qmllint`
+come with the Qt 6.12.0 installation the build already uses.
 
-To run a tool directly, for example from an editor:
+To use binaries that are not on `PATH`, name them when configuring:
 
 ```text
-uvx --from clang-format==22.1.8 clang-format --version
-uvx --from clang-tidy==22.1.8 clang-tidy --version
+-DGAV_CLANG_FORMAT=<path> -DGAV_CLANG_TIDY=<path>
 ```
 
 ## Automatic checks
@@ -66,8 +66,8 @@ uvx --from clang-tidy==22.1.8 clang-tidy --version
 | Check formatting | Linux x64 leg of the `build` job | Every pull request and every push to `main` | Yes |
 | Lint | The same leg, after the build | The same | Yes |
 
-- They build the same targets as the recipes above, with the same pinned tool versions. uv comes
-  from the `astral-sh/setup-uv` action.
+- They build the same targets as the recipes above, with the same pinned tool versions. The
+  runner gets clang-format and clang-tidy from the builds the maintainer publishes.
 - "Check formatting" runs after CMake is configured and before the build; "Lint" runs after the
   build.
 - A failing step's log ends with the command to run locally.

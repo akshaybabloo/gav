@@ -7,8 +7,8 @@ How to check that the feature works. Commands are in
 ## Prerequisites
 
 - A checkout that builds with `just build`.
-- [uv](https://docs.astral.sh/uv/) installed (`uvx --version` works). The commands fetch the
-  pinned `clang-format` and `clang-tidy` themselves.
+- `clang-format` and `clang-tidy` 23.1.0 on `PATH` (`clang-format --version` and
+  `clang-tidy --version` report 23.1.0).
 
 - `just test` passing before you start, so that later failures are attributable.
 
@@ -31,7 +31,7 @@ How to check that the feature works. Commands are in
 | Q1.4 | Run `just format`, then `git diff` | No difference from the committed files (FR-003) |
 | Q1.5 | `grep -c 'u[0-9a-f]\{4\}' *.qml` before and after `just format` | The same counts: no icon escape was rewritten (FR-007) |
 | Q1.6 | Wrap a hand-aligned array in the opt-out markers from the rules contract, with a reason, and run `just format` | The region keeps its layout (FR-008) |
-| Q1.7 | Configure with `GAV_CLANG_FORMAT` pointing at a `clang-format` of a different version and run `just format-check`. Then hide `uvx` from `PATH` with no override and run it again | The first stops before checking anything and prints the version found and the version needed. The second stops and says where to get uv (FR-022) |
+| Q1.7 | Configure with `GAV_CLANG_FORMAT` pointing at a `clang-format` of a different version and run `just format-check`. Then hide `clang-format` from `PATH` with no override and run it again. Then put a `clang-tidy` of another version first on `PATH` and run `just lint-cpp` | The first stops before checking anything and prints the version found and the version needed. The second stops and says which version is needed. The third stops and prints the clang-tidy version found and the version needed (FR-022) |
 | Q1.8 | `git blame` a line that the reformat touched, with `blame.ignoreRevsFile` set | The line is attributed to the change before the reformat (FR-009) |
 | Q1.9 | Time `just format` | Under 30 s (SC-002) |
 
@@ -57,7 +57,7 @@ How to check that the feature works. Commands are in
 | Q3.2 | Push a commit with one misformatted C++ file | "Check formatting" fails before the build starts, names the file and says to run `just format` (FR-020) |
 | Q3.3 | Push a commit with one lint finding | "Lint" fails and shows file, line, rule and message |
 | Q3.4 | Compare the Linux x64 leg's duration with a run from before the feature | No more than 5 minutes longer (SC-005) |
-| Q3.5 | Read the start of each step's log | The tool versions are printed and match `support/lint-requirements.txt` (FR-021) |
+| Q3.5 | Read the start of each step's log | The tool versions are printed and match `GAV_LLVM_VERSION` in `support/lint.cmake` (FR-021) |
 
 ## Seeded violations (SC-003)
 

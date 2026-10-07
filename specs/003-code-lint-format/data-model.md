@@ -35,12 +35,13 @@ One per language. Lists the checks that are on.
 
 ## Tool pin
 
-`support/lint-requirements.txt`: one line per tool, `name==version`.
+`GAV_LLVM_VERSION` in `support/lint.cmake`: one version, shared by `clang-format` and
+`clang-tidy`.
 
 **Rules**
 
-- It is the single source for the versions of `clang-format` and `clang-tidy`. The CMake targets
-  read it and pass the versions to `uvx`, locally and in CI alike.
+- It is the single source for the version of the two C++ tools. The CMake targets compare it
+  with what each installed binary reports, locally and in CI alike.
 - The QML tools have no entry: their version is the Qt version the project builds with.
 
 ## Finding

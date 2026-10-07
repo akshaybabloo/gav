@@ -11,39 +11,48 @@ in the repository was changed to take them.
 
 | Purpose | Tool | Version | Where it comes from |
 |---|---|---|---|
-| C++ formatting | `clang-format` | 22.1.8 | PyPI wheel `clang-format==22.1.8`, run through `uvx` |
-| C++ linting | `clang-tidy` | 22.1.8 | PyPI wheel `clang-tidy==22.1.8`, run through `uvx` |
+| C++ formatting | `clang-format` | 23.1.0 | The machine: `clang-format` on `PATH`, or the binary named by `GAV_CLANG_FORMAT` |
+| C++ linting | `clang-tidy` | 23.1.0 | The machine: `clang-tidy` on `PATH`, or the binary named by `GAV_CLANG_TIDY` |
 | QML formatting | `qmlformat` | Qt 6.12.0 | The Qt installation the project already pins |
 | QML linting | `qmllint` | Qt 6.12.0 | The same |
 
-The two PyPI versions are listed in one file, `support/lint-requirements.txt`. The commands run
-the tools as `uvx --from clang-format==22.1.8 clang-format …`, with the version read from that
-file, so there is no install step and the version in use is always the pinned one. `uv` is the
-project's choice for Python-distributed tools and is the one new thing a contributor installs. In
-CI it comes from the `astral-sh/setup-uv` action.
+The version of the two C++ tools is fixed in one place, `GAV_LLVM_VERSION` in
+`support/lint.cmake`. The commands do not fetch anything: they use the binaries that are
+installed, check that each reports exactly that version, and stop with the version found and the
+version needed if it does not (R11).
+
+The maintainer chose this: 23.1.0 is the version they already use, and they plan to publish
+builds of the two tools for contributors and CI later. Until those exist, the binaries of the
+LLVM 23.1.0 release are the ones to install.
 
 **Rationale**
 
 - The issue asks for clang-tidy. `clang-format` is its companion and shares its configuration
   conventions, and `qmlformat` and `qmllint` are Qt's own tools, already present in every
   contributor's and CI's Qt 6.12.0.
-- The PyPI wheels are the upstream LLVM binaries, exist for Linux x64 and arm64, Windows and
-  macOS, and can be pinned to an exact version with one line. 22.1.8 is the newest version
-  published for both packages (clang-format also has 23.x; clang-tidy does not yet).
+- One version for both C++ tools, checked before every run, keeps the pin enforced without a
+  package manager in between: a different clang-format version would format the same file
+  differently, which FR-022 and SC-006 rule out.
+- Measured on `main` at `4f8e086`: clang-format 23.1.0 and 22.1.8 give byte-identical output on
+  all 66 C++ files. clang-tidy 23.1.0 reports every finding 22.1.8 does, plus 13 from two checks
+  that are new in the enabled groups (R4).
 - Distribution packages are not pinned: Ubuntu 24.04 offers 18, Homebrew and Chocolatey offer
-  whatever is current. Different clang-format versions format the same file differently, which
-  FR-022 and SC-006 rule out.
+  whatever is current. The version check turns those into a clear message.
 
 **Alternatives considered**
 
-- `pipx install` or `pip` into an environment: works, but leaves it to each contributor to install
-  and keep the right version; `uvx` pins per invocation. Checked: `uvx --from clang-format==22.1.8
-  clang-format --version` resolves, caches and runs in about a second the first time.
+- PyPI wheels run through `uvx`, with the versions in a requirements file: the first design. It
+  needs no install step, but PyPI has no clang-tidy newer than 22.1.8, so it cannot provide the
+  chosen version. Removed at the maintainer's request.
 - System packages (`apt`, `brew`, `choco`): unpinned, different per platform.
-- LLVM's own apt repository: pinned, but Linux only.
-- vcpkg: has no clang-tidy port, and the constitution's vcpkg rule is about libraries that are
-  linked into GAV, which these are not.
-- clazy (Qt-aware C++ checks): not on PyPI, would need its own build. Left for later.
+- LLVM's own apt repository: Linux only, and it carries the latest point release of a branch
+  rather than a chosen one, so it cannot provide exactly 23.1.0 once 23.1.1 is out.
+- vcpkg's `llvm` port with the `clang` and `clang-tools-extra` features: it builds both tools,
+  but from source, which is LLVM and clang for every contributor and CI leg unless it is made an
+  opt-in manifest feature, and again on every binary-cache miss. The pinned `VCPKG_COMMIT` has
+  18.1.6 and current vcpkg has 23.1.2, so it would also move the pin away from 23.1.0. Not
+  measured. The maintainer chose published binaries instead.
+- clazy (Qt-aware C++ checks): would need its own build. Left for later.
 
 ## R2. C++ style (FR-001, FR-002, FR-005)
 
@@ -143,9 +152,10 @@ filter that matches only first-party headers.
 | Rule set | Unique findings | Files | Time |
 |---|---|---|---|
 | Broad (every check in bugprone, performance, modernize, readability, misc, clang-analyzer, cppcoreguidelines, portability, cert) | 3,090 | 40 | 103 s |
-| Curated (above) | 159 | 35 | 99 s |
+| Curated (above) | 161 | 36 | 99 s |
 
-The 159 findings under the curated set:
+The broad run was made with clang-tidy 22.1.8; the curated figures are from 23.1.0. The 161
+findings under the curated set:
 
 | Findings | Check | How they get resolved |
 |---|---|---|
@@ -156,7 +166,7 @@ The 159 findings under the curated set:
 | 11 | `modernize-use-using` | Automatic fix |
 | 9 | `readability-inconsistent-declaration-parameter-name` | Automatic fix |
 | 9 | `cppcoreguidelines-prefer-member-initializer` | Automatic fix, reviewed |
-| 39 | 18 other checks, 1 to 5 each | By hand |
+| 41 | 19 other checks, 1 to 5 each | By hand |
 
 `custommediaplayer.cpp` has 48 of them; no other file has more than 15.
 
@@ -169,10 +179,13 @@ The 159 findings under the curated set:
   (316 each).
 - `clang-analyzer-*` reports nothing today, so turning it on costs no clean-up and guards against
   regressions.
-- The three excluded checks from otherwise-enabled groups, with the reasons that go into
+- The four excluded checks from otherwise-enabled groups, with the reasons that go into
   `.clang-tidy` (FR-014): swappable parameters fires on any two arguments of the same type;
   throwing static initialisation fires on every file-scope `QString` or `QRegularExpression`,
-  which is how Qt code is written; enum size is a micro-optimisation.
+  which is how Qt code is written; enum size is a micro-optimisation; signed bitwise, new in the
+  `bugprone` group in 23, fires on every test of a flag that FFmpeg or Qt declares as a signed
+  integer (11 findings, none of them a defect).
+- The other check that 23 adds findings for, `performance-use-std-move` (2), stays on.
 - The compile commands produced by GCC are accepted by clang-tidy as they are: the broad run had
   no compile errors.
 - Four groups are enabled by wildcard. That is still a fixed list, because the tool version is
@@ -292,6 +305,12 @@ order). Each step's failure message ends with the command to run locally (`just 
 - **Estimate to verify**: the curated clang-tidy run took 99 s here with 8 jobs. On a 4-core
   runner it should take 3 to 4 minutes. This is an estimate, not a measurement; the first CI run
   of the lint step is the check against SC-005.
+- clang-format and clang-tidy 23.1.0 have to be installed on the runner. They come from the
+  builds the maintainer plans to publish (R1). If the checks are turned on before those exist,
+  the fallback is the LLVM 23.1.0 release archive on GitHub, from which only the two binaries are
+  unpacked and then cached; it is about 1.7 GB, so the download counts towards the 5 minutes on a
+  run without the cache. LLVM's apt repository is not used because it cannot give an exact point
+  release. T035 measures the time either way.
 
 **Known side effect**: the matrix cancels its other legs when one fails, so a lint failure also
 shows the other platforms as failed. That is how it already behaves for test failures.
@@ -337,21 +356,19 @@ comments" rule has to give way, because the reason is the point.
 
 **Decision**
 
-- `support/lint.cmake` reads the pinned versions from `support/lint-requirements.txt` and runs the
-  C++ tools through `uvx --from <package>==<version>`, so the pinned version is the only one that
-  can run.
-- If `uvx` is not found, the targets stop with one message that says so and gives the address of
-  uv's install instructions.
-- A contributor who cannot use uv can point the cache variables `GAV_CLANG_FORMAT` and
-  `GAV_CLANG_TIDY` at their own binaries. In that case the target compares the binary's reported
-  version with the pinned one and stops on a mismatch with the version found and the version
-  needed.
+- The pinned version is `GAV_LLVM_VERSION` in `support/lint.cmake`.
+- Each tool is the binary of that name found on `PATH`. The target compares the version it
+  reports with the pinned one and stops on a mismatch with the version found and the version
+  needed. If none is found, it stops with a message that says which version is needed and how to
+  point at a binary.
+- The cache variables `GAV_CLANG_FORMAT` and `GAV_CLANG_TIDY` name a binary to use instead. It
+  gets the same version check.
 - Every check prints the tool versions at the start of its output.
 
 **Rationale**: A different clang-format version would silently reformat lines the pinned one
-accepts. Running through `uvx` removes that possibility for the normal path, and the override
-path stops early instead of producing a confusing diff. qmlformat and qmllint come from the pinned
-Qt, which the build already checks.
+accepts. Because the binaries are taken from the machine, the version check is what enforces the
+pin: it stops early instead of producing a confusing diff. qmlformat and qmllint come from the
+pinned Qt, which the build already checks.
 
 ## R12. Landing the reformat (FR-006, FR-009, FR-024)
 

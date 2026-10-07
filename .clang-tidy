@@ -6,6 +6,8 @@ Checks:
   - '-bugprone-easily-swappable-parameters'
   # Fires on every file-scope QString or QRegularExpression, which is how Qt code is written.
   - '-bugprone-throwing-static-initialization'
+  # Fires on every test of a flag that FFmpeg or Qt declares as a signed integer.
+  - '-bugprone-signed-bitwise'
   - 'performance-*'
   # A micro-optimisation that would change enum types across the code base.
   - '-performance-enum-size'
