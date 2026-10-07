@@ -98,3 +98,17 @@ ninja
 Add `-DCMAKE_BUILD_TYPE=Release` to the cmake command for a release build.
 
 This should install any required dependencies automatically and build the project.
+
+### Formatting and linting
+
+The style and the lint rules are in `.clang-format`, `.clang-tidy`, `.qmlformat.ini` and `.qmllint.ini`. The commands are [just](https://just.systems/) recipes and use the `build-cli/` directory:
+
+| Command | What it does |
+|---|---|
+| `just format` | Formats the C++ and QML sources in place |
+| `just format-check` | Lists the files `just format` would change, without changing them |
+| `just lint` | Builds the project, then runs clang-tidy and qmllint and reports each finding |
+
+`just format-cpp`, `just format-qml`, `just lint-cpp` and `just lint-qml` do the same for one language.
+
+The only thing to install is [uv](https://docs.astral.sh/uv/). The commands use it to fetch and run the clang-format and clang-tidy versions pinned in `support/lint-requirements.txt`; qmlformat and qmllint come with Qt.

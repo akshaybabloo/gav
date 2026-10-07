@@ -18,6 +18,7 @@ project(gav VERSION ${GAV_NUMERIC_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Option to build tests
 option(BUILD_TESTS "Build tests" ON)
@@ -154,10 +155,7 @@ set_source_files_properties(AppConstants.qml PROPERTIES
         QT_QML_SINGLETON_TYPE TRUE
 )
 
-qt_add_qml_module(appgav
-        URI gavqml
-        VERSION 1.0
-        QML_FILES
+set(GAV_QML_FILES
         Main.qml
         MediaComponent.qml
         Debug.qml
@@ -183,6 +181,13 @@ qt_add_qml_module(appgav
         RecentFilesMenu.qml
         GoToTimeDialog.qml
         OpenUrlDialog.qml
+)
+
+qt_add_qml_module(appgav
+        URI gavqml
+        VERSION 1.0
+        QML_FILES
+        ${GAV_QML_FILES}
         SOURCES
         custommediaplayer.h custommediaplayer.cpp
         collage.h collage.cpp
@@ -359,4 +364,5 @@ if (BUILD_TESTS)
     message(STATUS "Tests enabled. Run with: ctest or ./gav_tests")
 endif ()
 
+include(support/lint.cmake)
 include(support/cpack.cmake)
