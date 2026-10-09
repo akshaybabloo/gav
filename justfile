@@ -39,6 +39,41 @@ test *args:
 run *args: build
     {{ build_dir / "gav" + exe }} {{ args }}
 
+# Format the C++ and QML sources in place
+format:
+    @{{ configure_if_needed }}
+    cmake --build {{ build_dir }} --target format
+
+# Format the C++ sources in place
+format-cpp:
+    @{{ configure_if_needed }}
+    cmake --build {{ build_dir }} --target format-cpp
+
+# Format the QML sources in place
+format-qml:
+    @{{ configure_if_needed }}
+    cmake --build {{ build_dir }} --target format-qml
+
+# Report the files `just format` would change, without changing them
+format-check:
+    @{{ configure_if_needed }}
+    cmake --build {{ build_dir }} --target format-check
+
+# Build, then run clang-tidy and qmllint and check the suppression markers
+lint:
+    @{{ configure_if_needed }}
+    cmake --build {{ build_dir }} --target lint
+
+# Build, then run clang-tidy over the C++ sources
+lint-cpp:
+    @{{ configure_if_needed }}
+    cmake --build {{ build_dir }} --target lint-cpp
+
+# Build, then run qmllint over the QML module
+lint-qml:
+    @{{ configure_if_needed }}
+    cmake --build {{ build_dir }} --target lint-qml
+
 # Remove the build directory
 clean:
     cmake -E rm -rf {{ build_dir }}
