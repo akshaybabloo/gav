@@ -211,6 +211,8 @@ qt_add_qml_module(appgav
         SOURCES playlistview.h playlistview.cpp
         SOURCES logoprovider.h logoprovider.cpp
         SOURCES hlsmaster.h hlsmaster.cpp
+        SOURCES streamaddress.h streamaddress.cpp
+        SOURCES credentialfiltersink.h
         SOURCES streamquality.h streamquality.cpp
         SOURCES mediasession.h mediasession.cpp
 )
@@ -307,6 +309,7 @@ if (BUILD_TESTS)
             tests/test_playlistview.cpp
             tests/test_logocache.cpp
             tests/test_hlsmaster.cpp
+            tests/test_streamaddress.cpp
             collage.cpp
             collage.h
             playbackutils.cpp
@@ -333,6 +336,9 @@ if (BUILD_TESTS)
             logoprovider.h
             hlsmaster.cpp
             hlsmaster.h
+            streamaddress.cpp
+            streamaddress.h
+            credentialfiltersink.h
     )
 
     target_link_libraries(gav_tests

@@ -46,7 +46,8 @@ The address with the user name and password removed. Nothing else changes.
 |---|---|
 | The connection to the source | Full |
 | The playlist entry in memory, for as long as it is in the playlist | Full |
-| Playlist row (second line), search and filter matching | Display |
+| Playlist row (second line), and its "copy address" action | Display |
+| Playlist search | Matches titles and groups only, never an address |
 | A title made from the address when the entry has none | Made from the display address |
 | Window title, mini player title | Display |
 | Statistics overlay, and what its copy button copies | Display |

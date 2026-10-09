@@ -43,6 +43,7 @@ public:
         ReasonRole,
         IsCurrentRole,
         QueuePositionRole,
+        DisplayLocationRole,
     };
 
     struct Entry {

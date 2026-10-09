@@ -14,10 +14,12 @@
 #include <memory>
 
 #include "collage.h"
+#include "credentialfiltersink.h"
 #include "instancemanager.h"
 #include "previewimageprovider.h"
 #include "logoprovider.h"
 #include "probeworker.h"
+#include "streamaddress.h"
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -59,11 +61,11 @@ static bool hasUrlScheme(const QString &value) {
 static QUrl sourcePathToUrl(const QString &sourceValue, bool *unsupportedScheme) {
     if (hasUrlScheme(sourceValue)) {
         const QUrl url(sourceValue);
-        const QString scheme = url.scheme().toLower();
-        if (url.isValid() && (scheme == QLatin1String("http") || scheme == QLatin1String("https") || url.isLocalFile())) {
+        if (url.isValid() && (StreamAddress::isStream(url) || url.isLocalFile())) {
             return url;
         }
-        std::cerr << "Unsupported address (only http and https streams can be opened): " << sourceValue.toStdString() << std::endl;
+        std::cerr << "Unsupported address (only http and https streams can be opened): " << StreamAddress::withoutCredentials(sourceValue).toStdString()
+                  << std::endl;
         *unsupportedScheme = true;
         return {};
     }
@@ -103,7 +105,7 @@ void initLogging() {
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
 
     // Create logger with the sink
-    logger = std::make_shared<spdlog::logger>("gav", console_sink);
+    logger = std::make_shared<spdlog::logger>("gav", std::make_shared<CredentialFilterSink>(console_sink));
 
     // Register as default logger
     spdlog::set_default_logger(logger);
@@ -166,7 +168,7 @@ void logOutput(QtMsgType type, const QMessageLogContext &context, const QString 
 }
 
 static int runProbe(int argc, char *argv[]) {
-    logger = spdlog::stderr_color_mt("gav-probe");
+    logger = std::make_shared<spdlog::logger>("gav-probe", std::make_shared<CredentialFilterSink>(std::make_shared<spdlog::sinks::stderr_color_sink_mt>()));
     spdlog::set_default_logger(logger);
     logger->set_level(spdlog::level::warn);
     qInstallMessageHandler(logOutput);
@@ -258,7 +260,7 @@ int main(int argc, char *argv[]) {
         
         for (const QString &path : collagePaths) {
             if (hasUrlScheme(path) && !QUrl(path).isLocalFile()) {
-                std::cerr << "Collage needs local files; skipping " << path.toStdString() << std::endl;
+                std::cerr << "Collage needs local files; skipping " << StreamAddress::withoutCredentials(path).toStdString() << std::endl;
                 continue;
             }
             QFileInfo pathInfo(path);

@@ -36,7 +36,7 @@ saves.
 - A refused sign-in is recognised from the failure description FFmpeg gives, which GAV's message
   handler already receives. Only FFmpeg's own fixed status texts are matched.
 - One new unit, `StreamAddress`, defines which addresses are streams and what their display
-  form is. The nine places that each decide this today call it instead. Its text filter runs
+  form is. The eleven places that each decide this today call it instead. Its text filter runs
   inside the logger, the one point every log line passes, including the lines GAV writes
   directly rather than through Qt's message handler.
 - The playlist writer leaves credentials out unless a save confirmed twice by the user asks for
@@ -118,7 +118,6 @@ specs/004-rtsp-streams/
                                 # except for a save the user confirmed twice
 ~ playlistmodel.h / .cpp        # rtsp/rtsps entries are streams; display location role;
                                 # titles made from the display address
-~ playlistview.cpp              # Search and sort use the display location
 ~ playbackhistory.cpp           # Recent files hold the display address; no resume for RTSP
 ~ mediasession.cpp              # Now-playing uses the display address; accepts rtsp to open
 ~ mediasession_mpris.cpp        # Supported schemes
@@ -128,7 +127,9 @@ specs/004-rtsp-streams/
 ~ OpenUrlDialog.qml             # Accepts rtsp/rtsps; texts; can be opened pre-filled
 ~ SettingsDialog.qml            # "RTSP transport" in the Playback tab
 ~ NerdStatsOverlay.qml          # Transport row; display address
-~ MediaComponent.qml            # "Reconnecting…" with the buffering indicator
+~ MediaComponent.qml            # Shared rule; "Reconnecting…" with the buffering indicator
+~ MiniPlayerWindow.qml          # Shared rule
+~ PlayListComponent.qml         # "Copy address" copies the display address
 ~ MediaControlsComponent.qml    # End-of-media handling checked for RTSP
 ~ PlaylistRow.qml, RecentFilesMenu.qml   # Show the display address
 ~ CMakeLists.txt                # New sources in appgav and gav_tests
@@ -157,7 +158,7 @@ of steps 1 to 4 are merged.
 
 | Step | Content | Spec coverage | Visible change |
 |---|---|---|---|
-| 1. Addresses and credentials | `StreamAddress`; the nine scheme checks call it (still `http` and `https` only); display address everywhere it is shown or saved, including every playlist file GAV writes; the log filter in the logger. | FR-015 to FR-019, FR-021a, FR-022 (Story 3 for the addresses GAV already accepts) | HTTP addresses with credentials no longer show or store them |
+| 1. Addresses and credentials | `StreamAddress`; the eleven scheme checks call it (still `http` and `https` only); display address everywhere it is shown or saved, including every playlist file GAV writes; the log filter in the logger. | FR-015 to FR-019, FR-021a, FR-022 (Story 3 for the addresses GAV already accepts) | HTTP addresses with credentials no longer show or store them |
 | 2. Play RTSP | `rtsp` and `rtsps` become stream schemes; `RtspConnection` with the Automatic plan built in; first-picture and failure decisions; failure kinds and messages; Open URL texts; the twice-confirmed save with passwords. | FR-001 to FR-008, FR-014, FR-020, FR-021, FR-026, FR-027, FR-028 (Story 1 except reconnecting; Story 3 complete) | RTSP addresses play |
 | 3. Transport setting | The setting; forced TCP and UDP; the session's TCP memory; the statistics overlay row. | FR-009 to FR-013 (Story 2) | Settings → Playback → RTSP transport |
 | 4. Reconnecting | Loss detection, the three attempts, the "reconnecting" state, no playlist advance. | FR-027a, FR-027b (rest of Story 1) | A dropped stream comes back by itself |

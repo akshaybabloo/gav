@@ -1,5 +1,7 @@
 #include "mediasession.h"
 
+#include "streamaddress.h"
+
 #include <QDir>
 #include <QFile>
 #include <QSaveFile>
@@ -205,8 +207,7 @@ void MediaSession::requestSeek(qint64 positionMs) {
 }
 
 void MediaSession::requestOpenUri(const QUrl &url) {
-    const QString scheme = url.scheme().toLower();
-    if (url.isValid() && (url.isLocalFile() || scheme == QLatin1String("http") || scheme == QLatin1String("https"))) {
+    if (url.isValid() && (url.isLocalFile() || StreamAddress::isStream(url))) {
         emit openUriRequested(url);
     }
 }

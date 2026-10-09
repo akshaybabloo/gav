@@ -30,14 +30,7 @@ Item {
     required property int index
     required property bool isCurrent
     required property int kind
-    required property url location
-    readonly property string locationText: {
-        var text = location.toString();
-        if (!text.startsWith("file:"))
-            return text;
-        text = decodeURIComponent(text.replace(/^file:\/\//, ""));
-        return /^\/[A-Za-z]:/.test(text) ? text.substring(1) : text;
-    }
+    required property string displayLocation
     required property url logo
     required property int queuePosition
     required property string reason
@@ -159,7 +152,7 @@ Item {
                 elide: Text.ElideMiddle
                 font.pixelSize: 12
                 opacity: 0.7
-                text: root.locationText
+                text: root.displayLocation
             }
             Text {
                 Layout.fillWidth: true

@@ -45,6 +45,17 @@ TEST_F(PlaylistIOTest, RoundTripsHundredEntries) {
     EXPECT_EQ(result.document.currentIndex, -1);
 }
 
+TEST_F(PlaylistIOTest, WritesAddressesWithoutCredentials) {
+    PlaylistDocument document;
+    document.entries.append({QUrl("https://viewer:s3cr3t@example.org/cam.m3u8"), "Camera", -1});
+    document.entries.append({QUrl("https://example.org/live.m3u8"), "Radio", -1});
+    const QByteArray data = PlaylistIO::serialise(document);
+    EXPECT_FALSE(data.contains("s3cr3t"));
+    EXPECT_FALSE(data.contains("viewer"));
+    EXPECT_TRUE(data.contains("#EXTINF:-1,Camera\nhttps://example.org/cam.m3u8\n"));
+    EXPECT_TRUE(data.contains("#EXTINF:-1,Radio\nhttps://example.org/live.m3u8\n"));
+}
+
 TEST_F(PlaylistIOTest, WritesExtendedHeaderWithoutBom) {
     PlaylistDocument document;
     document.entries.append({QUrl("https://example.org/live.m3u8"), "Radio", -1});

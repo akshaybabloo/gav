@@ -168,7 +168,7 @@ Rectangle {
         return lines.join("\n");
     }
     function recordSample() {
-        const source = player ? player.source.toString() : "";
+        const source = player ? PlaybackUtils.displayAddress(player.source.toString()) : "";
         recording.push({
             time: (Date.now() - recordingStartedAt) / 1000,
             file: source === "" ? "" : decodeURIComponent(source.substring(source.lastIndexOf("/") + 1)),

@@ -1,6 +1,7 @@
 #include "custommediaplayer.h"
 #include "playbackutils.h"
 #include "previewimageprovider.h"
+#include "streamaddress.h"
 #include "streamquality.h"
 #include "subtitlefiles.h"
 #include <QQuickWindow>
@@ -175,7 +176,7 @@ void CustomMediaPlayer::checkForStall() {
 void CustomMediaPlayer::onStreamLoadTimeout() {
   if (m_mediaLoaded || m_source.isEmpty())
     return;
-  qWarning() << "Stream did not load within" << streamLoadTimeoutMs << "ms:" << m_source;
+  qWarning() << "Stream did not load within" << streamLoadTimeoutMs << "ms:" << StreamAddress::displayAddress(m_source);
   emit errorOccurred(tr("The stream took too long to open. Check the address and your connection."));
   stop();
 }
@@ -368,7 +369,7 @@ void CustomMediaPlayer::setSource(const QUrl &source) {
     return;
   }
   if (!source.isValid()) {
-    emit errorOccurred("Source URL is invalid: " + source.toString());
+    emit errorOccurred("Source URL is invalid: " + StreamAddress::displayAddress(source).toString());
     return;
   }
   

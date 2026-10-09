@@ -234,20 +234,22 @@ decides them today calls it:
 - whether an address carries a password
 - the text filter of R7
 
-**Rationale**: The rule "is this a stream" is written out separately in nine places today
+**Rationale**: The rule "is this a stream" is written out separately in eleven places today
 (`main.cpp`, `playlistio.cpp`, `playlistmodel.cpp`, `playbackhistory.cpp`, `mediasession.cpp`,
-`mediasession_mpris.cpp`, `Main.qml`, `RecentFilesMenu.qml`, `OpenUrlDialog.qml`). Adding two
-schemes in nine places invites missing one, and the constitution asks for the supported schemes
-to be explicit.
+`mediasession_mpris.cpp`, `Main.qml`, `RecentFilesMenu.qml`, `OpenUrlDialog.qml`,
+`MediaComponent.qml`, `MiniPlayerWindow.qml`). Adding two schemes in eleven places invites
+missing one, and the constitution asks for the supported schemes to be explicit. The last two
+were found only while making the change, which is the point.
 
 Not every `http` check changes. Fetching a playlist document, a logo, an HLS playlist or a
 subtitle file stays `http` and `https` only.
 
 Credentials are kept in memory on the playlist entry and on the player's source, so replaying
 within a session works (FR-019). Everything that leaves memory or reaches the screen uses the
-display address: the playlist row, the window title, titles derived from the address, recent
-files, the session playlist, the statistics overlay and its copy action, messages, and the
-operating system's now-playing data.
+display address: the playlist row and its "copy address" action, the window title, titles
+derived from the address, recent files, the session playlist, the statistics overlay and its
+copy action, messages, and the operating system's now-playing data. Playlist search matches
+titles and groups only, so it never sees an address.
 
 ## R9. Saving a playlist that contains passwords (FR-021)
 

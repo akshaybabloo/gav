@@ -72,6 +72,29 @@ TEST_F(PlaybackHistoryTest, RecentListKeepsStreamUrls) {
     EXPECT_EQ(history.recentFiles(), QStringList({"https://example.org/live.m3u8"}));
 }
 
+TEST_F(PlaybackHistoryTest, RecentListLeavesCredentialsOut) {
+    {
+        PlaybackHistory history(storagePath());
+        history.recordOpened("https://viewer:s3cr3t@example.org/cam.m3u8");
+        EXPECT_EQ(history.recentFiles(), QStringList({"https://example.org/cam.m3u8"}));
+    }
+    QFile file(storagePath());
+    ASSERT_TRUE(file.open(QIODevice::ReadOnly));
+    const QByteArray stored = file.readAll();
+    EXPECT_FALSE(stored.contains("s3cr3t"));
+    EXPECT_FALSE(stored.contains("viewer"));
+    EXPECT_TRUE(stored.contains("example.org/cam.m3u8"));
+}
+
+TEST_F(PlaybackHistoryTest, AnAddressWithAndWithoutCredentialsIsOneRecentEntry) {
+    PlaybackHistory history(storagePath());
+    history.recordOpened("https://example.org/cam.m3u8");
+    history.recordOpened("https://viewer:s3cr3t@example.org/cam.m3u8");
+    EXPECT_EQ(history.recentFiles(), QStringList({"https://example.org/cam.m3u8"}));
+    history.removeRecent("https://viewer:s3cr3t@example.org/cam.m3u8");
+    EXPECT_TRUE(history.recentFiles().isEmpty());
+}
+
 TEST_F(PlaybackHistoryTest, RoundTripsThroughDisk) {
     {
         PlaybackHistory history(storagePath());

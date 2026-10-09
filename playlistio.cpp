@@ -1,5 +1,7 @@
 #include "playlistio.h"
 
+#include "streamaddress.h"
+
 #include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
@@ -215,14 +217,14 @@ PlaylistReadResult parseLines(const QByteArray &data, const QString &baseDirecto
         QString localPath;
         if (remoteBase.isValid()) {
             const QUrl url = hasUrlScheme(line) ? QUrl(line) : remoteBase.resolved(QUrl(line));
-            if (!url.isValid() || !isHttpUrl(url)) {
+            if (!url.isValid() || !StreamAddress::isStream(url)) {
                 ++result.skippedUnsupported;
                 continue;
             }
             entry.location = url;
         } else if (hasUrlScheme(line)) {
             const QUrl url(line);
-            if (isHttpUrl(url)) {
+            if (StreamAddress::isStream(url)) {
                 entry.location = url;
             } else if (url.scheme().toLower() == QLatin1String("file")) {
                 localPath = url.toLocalFile();
@@ -317,7 +319,8 @@ QByteArray serialise(const PlaylistDocument &document) {
         attributes.replace(QLatin1Char('\n'), QLatin1Char(' '));
         text += extinfPrefix + QString::number(entry.durationSec) + (attributes.isEmpty() ? QString() : QLatin1Char(' ') + attributes) +
                 QLatin1Char(',') + title + QLatin1Char('\n');
-        text += (entry.location.isLocalFile() ? QDir::toNativeSeparators(entry.location.toLocalFile()) : entry.location.toString()) +
+        text += (entry.location.isLocalFile() ? QDir::toNativeSeparators(entry.location.toLocalFile())
+                                              : StreamAddress::displayAddress(entry.location).toString()) +
                 QLatin1Char('\n');
     }
     return text.toUtf8();

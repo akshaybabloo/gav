@@ -14,7 +14,7 @@ Dialog {
 
     function submit() {
         var text = urlField.text.trim();
-        if (!/^https?:\/\/[^\s\/]+/i.test(text)) {
+        if (/\s/.test(text) || !PlaybackUtils.isStreamAddress(text)) {
             invalid = true;
             return;
         }

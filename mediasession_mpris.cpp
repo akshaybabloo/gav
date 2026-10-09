@@ -1,5 +1,7 @@
 #include "mediasession.h"
 
+#include "streamaddress.h"
+
 #include <QCoreApplication>
 #include <QDBusAbstractAdaptor>
 #include <QDBusConnection>
@@ -36,7 +38,7 @@ public:
     bool hasTrackList() const { return false; }
     QString identity() const { return QStringLiteral("GAV"); }
     QString desktopEntry() const { return QStringLiteral("gav"); }
-    QStringList supportedUriSchemes() const { return {QStringLiteral("file"), QStringLiteral("http"), QStringLiteral("https")}; }
+    QStringList supportedUriSchemes() const { return QStringList{QStringLiteral("file")} + StreamAddress::schemes(); }
     QStringList supportedMimeTypes() const {
         return {QStringLiteral("video/mp4"),       QStringLiteral("video/x-matroska"), QStringLiteral("video/webm"), QStringLiteral("video/quicktime"),
                 QStringLiteral("video/x-msvideo"), QStringLiteral("video/x-flv"),      QStringLiteral("video/mpeg"), QStringLiteral("audio/mpeg"),

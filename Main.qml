@@ -45,7 +45,7 @@ ApplicationWindow {
         mainWindow.requestActivate();
     }
     function getMediaInfo(fileUrl) {
-        var path = fileUrl.toString();
+        var path = PlaybackUtils.displayAddress(fileUrl.toString());
         // On Windows, fileUrl can start with 'file:///'
         if (path.startsWith('file:///')) {
             path = path.substring(8);
@@ -94,7 +94,7 @@ ApplicationWindow {
     }
     function streamName(name, url) {
         if (!name)
-            return url.toString();
+            return PlaybackUtils.displayAddress(url.toString());
         try {
             return decodeURIComponent(name);
         } catch (error) {
@@ -137,8 +137,7 @@ ApplicationWindow {
         return AppConstants.isPlaylistExtension(name.substring(name.lastIndexOf('.') + 1));
     }
     function isStreamUrl(url) {
-        var name = url.toString();
-        return name.startsWith("http://") || name.startsWith("https://");
+        return PlaybackUtils.isStreamAddress(url);
     }
     function supportedMediaExtensions() {
         return AppConstants.videoExtensions.concat(AppConstants.audioExtensions);
@@ -1149,7 +1148,7 @@ ApplicationWindow {
                     font.family: "monospace"
                     font.pixelSize: 11
                     opacity: 0.7
-                    text: mediaComponent.path
+                    text: PlaybackUtils.displayAddress(mediaComponent.path)
                 }
                 Text {
                     Layout.fillWidth: true

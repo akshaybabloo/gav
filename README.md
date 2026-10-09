@@ -56,6 +56,7 @@ Or open a file from the menu, or drag and drop files onto the window.
 - File > Open URL (`Ctrl+N`) plays an `http://` or `https://` address: a video or audio file, an HLS stream (`.m3u8`) or a remote playlist (`.m3u`).
 - For HLS streams that offer several qualities, the quality button on the control bar lists every video quality and audio format. Auto picks one from a short download-speed check.
 - On-demand HLS streams list their subtitle tracks in the subtitle menu.
+- A user name and password inside an address (`https://user:password@…`) are used to sign in and nowhere else: GAV leaves them out of what it shows, logs, remembers and writes to playlist files. An address given on the command line is still visible to other programs in the system's process list.
 
 ### Keyboard shortcuts
 

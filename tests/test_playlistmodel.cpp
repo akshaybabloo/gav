@@ -511,3 +511,27 @@ TEST(PlaylistModelTest, QueueDropsRemovedEntriesAndClears) {
     EXPECT_EQ(model.currentId(), -1);
     EXPECT_EQ(model.takeQueued(), -1);
 }
+
+TEST(PlaylistModelTest, DisplayLocationLeavesCredentialsOut) {
+    PlaylistModel model;
+    model.append({item("file:///videos/a b.mp4"), item("https://example.org/live.m3u8"), item("https://user:pw@example.org/cam.m3u8")});
+    const auto shown = [&model](int row) { return model.data(model.index(row), PlaylistModel::DisplayLocationRole).toString(); };
+    EXPECT_EQ(shown(0), "/videos/a b.mp4");
+    EXPECT_EQ(shown(1), "https://example.org/live.m3u8");
+    EXPECT_EQ(shown(2), "https://example.org/cam.m3u8");
+    EXPECT_EQ(model.entryAt(2).value("displayPath").toString(), "https://example.org/cam.m3u8");
+    EXPECT_EQ(model.roleNames().value(PlaylistModel::DisplayLocationRole), "displayLocation");
+}
+
+TEST(PlaylistModelTest, LocationKeepsCredentialsForPlayback) {
+    PlaylistModel model;
+    model.append({item("https://user:pw@example.org/cam.m3u8")});
+    EXPECT_EQ(model.data(model.index(0), PlaylistModel::LocationRole).toUrl(), QUrl("https://user:pw@example.org/cam.m3u8"));
+    EXPECT_EQ(model.entryAt(0).value("path").toString(), "https://user:pw@example.org/cam.m3u8");
+}
+
+TEST(PlaylistModelTest, TitleDerivedFromAnAddressHasNoCredentials) {
+    PlaylistModel model;
+    model.append({item("https://user:pw@example.org/"), item("https://user:pw@example.org/cam.m3u8")});
+    EXPECT_EQ(titles(model), QStringList({"https://example.org/", "cam.m3u8"}));
+}

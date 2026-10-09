@@ -1,5 +1,7 @@
 #include "playbackutils.h"
 
+#include "streamaddress.h"
+
 #include <QDesktopServices>
 #include <QDir>
 #include <QFileInfo>
@@ -189,3 +191,11 @@ void PlaybackUtils::revealInFileManager(const QString &pathOrUrl) const {
 #endif
     QDesktopServices::openUrl(folder);
 }
+
+bool PlaybackUtils::isStreamAddress(const QUrl &address) const { return StreamAddress::isStream(address); }
+
+bool PlaybackUtils::isRtspAddress(const QUrl &address) const { return StreamAddress::isRtsp(address); }
+
+bool PlaybackUtils::hasPassword(const QUrl &address) const { return StreamAddress::hasPassword(address); }
+
+QString PlaybackUtils::displayAddress(const QString &pathOrUrl) const { return StreamAddress::displayText(pathOrUrl); }
