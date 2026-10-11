@@ -212,6 +212,7 @@ qt_add_qml_module(appgav
         SOURCES logoprovider.h logoprovider.cpp
         SOURCES hlsmaster.h hlsmaster.cpp
         SOURCES streamaddress.h streamaddress.cpp
+        SOURCES rtspconnection.h rtspconnection.cpp
         SOURCES credentialfiltersink.h
         SOURCES streamquality.h streamquality.cpp
         SOURCES mediasession.h mediasession.cpp
@@ -310,6 +311,8 @@ if (BUILD_TESTS)
             tests/test_logocache.cpp
             tests/test_hlsmaster.cpp
             tests/test_streamaddress.cpp
+            tests/test_rtspconnection.cpp
+            tests/test_rtspsupport.cpp
             collage.cpp
             collage.h
             playbackutils.cpp
@@ -338,6 +341,8 @@ if (BUILD_TESTS)
             hlsmaster.h
             streamaddress.cpp
             streamaddress.h
+            rtspconnection.cpp
+            rtspconnection.h
             credentialfiltersink.h
     )
 

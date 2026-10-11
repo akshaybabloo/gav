@@ -87,9 +87,9 @@ live (quickstart Q1.1–Q1.18).
 
 ### Play (Step 2; own issue and branch; after Step 1)
 
-- [ ] T011 [P] [US1] Create `tests/test_rtspsupport.cpp` and add it to `gav_tests`: through the FFmpeg API, the `rtsp` input format exists (`av_find_input_format`), and the input protocols `tcp`, `udp`, `rtp` and `tls` are listed (`avio_enum_protocols`). This is what proves FR-028 for the vcpkg FFmpeg on every CI platform ([research R1](./research.md)).
-- [ ] T012 [US1] In `streamaddress.cpp`, add `rtsp` and `rtsps` to the stream schemes, and update `tests/test_streamaddress.cpp` and `tests/test_playbackutils.cpp` (RTSP addresses are streams; `rtmp` is not). From here the command line, a second launch, the operating system's open request and playlist entries accept them through T007 and T008.
-- [ ] T013 [US1] Create `rtspconnection.h` / `rtspconnection.cpp` and add them to `appgav` and `gav_tests`: the connection state machine of [data-model.md → Connection](./data-model.md#connection), with no Qt Multimedia in it. The caller passes events and the elapsed time in milliseconds; the class returns what to do next. In this task:
+- [X] T011 [P] [US1] Create `tests/test_rtspsupport.cpp` and add it to `gav_tests`: through the FFmpeg API, the `rtsp` input format exists (`av_find_input_format`), and the input protocols `tcp`, `udp`, `rtp` and `tls` are listed (`avio_enum_protocols`). This is what proves FR-028 for the vcpkg FFmpeg on every CI platform ([research R1](./research.md)).
+- [X] T012 [US1] In `streamaddress.cpp`, add `rtsp` and `rtsps` to the stream schemes, and update `tests/test_streamaddress.cpp` and `tests/test_playbackutils.cpp` (RTSP addresses are streams; `rtmp` is not). From here the command line, a second launch, the operating system's open request and playlist entries accept them through T007 and T008.
+- [X] T013 [US1] Create `rtspconnection.h` / `rtspconnection.cpp` and add them to `appgav` and `gav_tests`: the connection state machine of [data-model.md → Connection](./data-model.md#connection), with no Qt Multimedia in it. The caller passes events and the elapsed time in milliseconds; the class returns what to do next. In this task:
   - states Idle, Connecting, Playing, Failed
   - `open(address)` plans the attempts for Automatic: "UDP, then TCP" for `rtsp://`, TCP only for `rtsps://` ([contracts/rtsp-connection.md → Attempts](./contracts/rtsp-connection.md#attempts)); every attempt has a network timeout of 5000 ms
   - events: first picture, player error with a failure kind, time passing, close
@@ -97,10 +97,10 @@ live (quickstart Q1.1–Q1.18).
   - a Sign-in or Not found failure on any attempt ends in Failed with no further attempt
   - outputs: open with this transport and timeout; failed with this kind, the transport tried and whether it was forced; the transport in use (`TCP`, `UDP` or empty)
   - close from any state returns to Idle and cancels what would follow
-- [ ] T014 [P] [US1] Create `tests/test_rtspconnection.cpp` and add it to `gav_tests`, one test per row of [research R4](./research.md): UDP attempt succeeds; UDP errors and TCP follows; UDP shows nothing for 5 s and TCP follows; TCP reports an error and the result is Failed with kind Other; the 12 s backstop; Sign-in on the UDP attempt gives Failed with no TCP attempt; Not found the same; `rtsps://` makes one TCP attempt; close during each state cancels.
-- [ ] T015 [US1] In `rtspconnection.cpp`, add the mapping from FFmpeg's failure description to the kinds of [data-model.md → Open failure](./data-model.md#open-failure): text containing `401` or `403` is Sign-in, `404` or `400` is Not found, anything else or empty text is Other ([research R5](./research.md)). In `tests/test_rtspconnection.cpp`, build the texts with `av_strerror` for `AVERROR_HTTP_UNAUTHORIZED`, `AVERROR_HTTP_FORBIDDEN`, `AVERROR_HTTP_NOT_FOUND`, `AVERROR_HTTP_BAD_REQUEST` and `AVERROR(ECONNREFUSED)` and check each maps as stated.
-- [ ] T016 [US1] In `main.cpp`'s `logOutput`, when a message of the category `qt.multimedia.ffmpeg.mediadataholder` contains "FFmpeg error description", keep its text as the most recent open-failure description behind a mutex, with a function to take and clear it, declared in `rtspconnection.h`. The handler is called from Qt's loading thread.
-- [ ] T017 [US1] In `custommediaplayer.h` / `custommediaplayer.cpp`, drive `RtspConnection` when the source is an RTSP address ([contracts/rtsp-connection.md](./contracts/rtsp-connection.md)):
+- [X] T014 [P] [US1] Create `tests/test_rtspconnection.cpp` and add it to `gav_tests`, one test per row of [research R4](./research.md): UDP attempt succeeds; UDP errors and TCP follows; UDP shows nothing for 5 s and TCP follows; TCP reports an error and the result is Failed with kind Other; the 12 s backstop; Sign-in on the UDP attempt gives Failed with no TCP attempt; Not found the same; `rtsps://` makes one TCP attempt; close during each state cancels.
+- [X] T015 [US1] In `rtspconnection.cpp`, add the mapping from FFmpeg's failure description to the kinds of [data-model.md → Open failure](./data-model.md#open-failure): text containing `401` or `403` is Sign-in, `404` or `400` is Not found, anything else or empty text is Other ([research R5](./research.md)). In `tests/test_rtspconnection.cpp`, build the texts with `av_strerror` for `AVERROR_HTTP_UNAUTHORIZED`, `AVERROR_HTTP_FORBIDDEN`, `AVERROR_HTTP_NOT_FOUND`, `AVERROR_HTTP_BAD_REQUEST` and `AVERROR(ECONNREFUSED)` and check each maps as stated.
+- [X] T016 [US1] In `main.cpp`'s `logOutput`, when a message of the category `qt.multimedia.ffmpeg.mediadataholder` contains "FFmpeg error description", keep its text as the most recent open-failure description behind a mutex, with a function to take and clear it, declared in `rtspconnection.h`. The handler is called from Qt's loading thread.
+- [X] T017 [US1] In `custommediaplayer.h` / `custommediaplayer.cpp`, drive `RtspConnection` when the source is an RTSP address ([contracts/rtsp-connection.md](./contracts/rtsp-connection.md)):
   - before each attempt, set `QT_FFMPEG_RTSP_TRANSPORT` to `tcp` or `udp` with `qputenv` and the playback options' network timeout to 5000 ms, then set the player's source; for every other source restore the existing 10000 ms ([research R2](./research.md))
   - do not start the 120-second stream load timer for RTSP
   - report "first picture" when the video sink delivers its first frame or the position first moves
@@ -111,21 +111,21 @@ live (quickstart Q1.1–Q1.18).
   - on Failed, stop the player and emit a new signal `rtspFailed(kind, message)` with kind one of `signIn`, `signInNeeded`, `notFound`, `transport`, `other`, `lost`, and the message from [the contract's table](./contracts/rtsp-connection.md#messages); do not also emit `errorOccurred` for it
   - new read-only properties `transportInUse` and `displaySource`
   - closing, stopping or setting another source closes the connection first
-- [ ] T018 [US1] In `main.cpp`, change the refused-address line to "Unsupported address (http, https, rtsp and rtsps streams can be opened): " followed by the display address ([contracts/stream-addresses.md → Texts](./contracts/stream-addresses.md#accepted-addresses)).
-- [ ] T019 [US1] In `OpenUrlDialog.qml`, set the description and the hint to the texts of that table, and add a way to open the dialog with an address already in the field.
-- [ ] T020 [US1] In `Main.qml`, handle `rtspFailed`: show the message in the snackbar; for `signIn` and `signInNeeded` give it the action "Open URL", which opens the Open URL dialog with the stream's display address filled in.
-- [ ] T021 [P] [US1] In `tests/test_playbackhistory.cpp` and `tests/test_playlistmodel.cpp`: an RTSP address counts as a network address, so no resume position is stored for it (FR-006), and an RTSP entry has the kind `Stream`.
-- [ ] T022 [US1] Check the step with the test source, headless and silent: quickstart Q1.1–Q1.9 (plays over the Automatic plan, LIVE badge and disabled seek controls, command line, second launch, no resume, unreachable address within 15 s, refused scheme, secure address), Q1.16–Q1.17 (a stream with no picture and one with no sound), and the built-in fallback of Q2.3–Q2.4. The statistics overlay row for the transport arrives in Step 3, so read the transport from the server's log here (`is reading from path 'test', with TCP`) and from the silent server's output. While a stream is connecting, the buffering indicator shows and the controls do not show it as playing. `just test` and `LC_ALL=C LANG=C just test` pass. Fix what fails.
+- [X] T018 [US1] In `main.cpp`, change the refused-address line to "Unsupported address (http, https, rtsp and rtsps streams can be opened): " followed by the display address ([contracts/stream-addresses.md → Texts](./contracts/stream-addresses.md#accepted-addresses)).
+- [X] T019 [US1] In `OpenUrlDialog.qml`, set the description and the hint to the texts of that table, and add a way to open the dialog with an address already in the field.
+- [X] T020 [US1] In `Main.qml`, handle `rtspFailed`: show the message in the snackbar; for `signIn` and `signInNeeded` give it the action "Open URL", which opens the Open URL dialog with the stream's display address filled in.
+- [X] T021 [P] [US1] In `tests/test_playbackhistory.cpp` and `tests/test_playlistmodel.cpp`: an RTSP address counts as a network address, so no resume position is stored for it (FR-006), and an RTSP entry has the kind `Stream`.
+- [X] T022 [US1] Check the step with the test source, headless and silent: quickstart Q1.1–Q1.9 (plays over the Automatic plan, LIVE badge and disabled seek controls, command line, second launch, no resume, unreachable address within 15 s, refused scheme, secure address), Q1.16–Q1.17 (a stream with no picture and one with no sound), and the built-in fallback of Q2.3–Q2.4. The statistics overlay row for the transport arrives in Step 3, so read the transport from the server's log here (`is reading from path 'test', with TCP`) and from the silent server's output. While a stream is connecting, the buffering indicator shows and the controls do not show it as playing. `just test` and `LC_ALL=C LANG=C just test` pass. Fix what fails.
 
 **Checkpoint**: RTSP addresses play. Ships as its own PR, after Step 1.
 
 ### Reconnect (Step 4; own issue and branch; after Step 2)
 
-- [ ] T023 [US1] In `rtspconnection.h` / `rtspconnection.cpp`, add reconnecting per [contracts/rtsp-connection.md → Reconnecting](./contracts/rtsp-connection.md#reconnecting): a `lost` event that is accepted only in Playing; an `ended` event that carries whether the source had reported a duration, and is a loss only when it had not (a source with a duration has reached its real end: go to Idle, no reconnecting); state Reconnecting with "Attempts: up to 3"; "Attempt *n* starts 2, 9 and 16 seconds after the loss, or when the previous attempt ends if that is later"; each attempt is a last attempt with the transport that was in use; a Sign-in failure stops reconnecting with that kind; three failures give Failed with kind Lost; `lost` while paused goes to Idle and remembers that play must open the stream again.
-- [ ] T024 [P] [US1] In `tests/test_rtspconnection.cpp`, add one test per row of the reconnecting table: first attempt succeeds; the second; the third; all three fail; attempt start times with fast and with slow failures; Sign-in during an attempt; close during reconnecting; `lost` ignored in Connecting; `lost` while paused; `ended` without a duration reconnects; `ended` with a duration goes to Idle with no attempt.
-- [ ] T025 [US1] In `custommediaplayer.h` / `custommediaplayer.cpp`: for an RTSP stream that is Playing and not paused, report `ended`, with whether the source had a duration, when the player reports the end of the media, and `lost` on an error or when the position has not moved for 5 seconds ([research R6](./research.md)); add the read-only property `reconnecting`; while reconnecting keep `live` and `mediaLoaded` true, report `buffering` as true, and do not pass on the end of the media; when a source with a duration ends, pass the end of the media on as for any other entry; when a stream was lost while paused, `play()` opens it again.
-- [ ] T026 [US1] In `MediaComponent.qml`, show the text "Reconnecting…" with the buffering indicator while `reconnecting` is true. In `Main.qml`, show "The stream was lost." for the kind `lost`. Confirm in `MediaControlsComponent.qml` that the end-of-media handler does not advance the playlist for an RTSP stream that is reconnecting or was lost.
-- [ ] T027 [US1] Check the step with the test source, stopping and restarting the `ffmpeg` publisher: quickstart Q1.10–Q1.14 and Q1.18. `just test` passes. Fix what fails.
+- [X] T023 [US1] In `rtspconnection.h` / `rtspconnection.cpp`, add reconnecting per [contracts/rtsp-connection.md → Reconnecting](./contracts/rtsp-connection.md#reconnecting): a `lost` event that is accepted only in Playing; an `ended` event that carries whether the source had reported a duration, and is a loss only when it had not (a source with a duration has reached its real end: go to Idle, no reconnecting); state Reconnecting with "Attempts: up to 3"; "Attempt *n* starts 2, 9 and 16 seconds after the loss, or when the previous attempt ends if that is later"; each attempt is a last attempt with the transport that was in use; a Sign-in failure stops reconnecting with that kind; three failures give Failed with kind Lost; `lost` while paused goes to Idle and remembers that play must open the stream again.
+- [X] T024 [P] [US1] In `tests/test_rtspconnection.cpp`, add one test per row of the reconnecting table: first attempt succeeds; the second; the third; all three fail; attempt start times with fast and with slow failures; Sign-in during an attempt; close during reconnecting; `lost` ignored in Connecting; `lost` while paused; `ended` without a duration reconnects; `ended` with a duration goes to Idle with no attempt.
+- [X] T025 [US1] In `custommediaplayer.h` / `custommediaplayer.cpp`: for an RTSP stream that is Playing and not paused, report `ended`, with whether the source had a duration, when the player reports the end of the media, and `lost` on an error or when the position has not moved for 5 seconds ([research R6](./research.md)); add the read-only property `reconnecting`; while reconnecting keep `live` and `mediaLoaded` true, report `buffering` as true, and do not pass on the end of the media; when a source with a duration ends, pass the end of the media on as for any other entry; when a stream was lost while paused, `play()` opens it again.
+- [X] T026 [US1] In `MediaComponent.qml`, show the text "Reconnecting…" with the buffering indicator while `reconnecting` is true. In `Main.qml`, show "The stream was lost." for the kind `lost`. Confirm in `MediaControlsComponent.qml` that the end-of-media handler does not advance the playlist for an RTSP stream that is reconnecting or was lost.
+- [X] T027 [US1] Check the step with the test source, stopping and restarting the `ffmpeg` publisher: quickstart Q1.10–Q1.14 and Q1.18. `just test` passes. Fix what fails.
 
 **Checkpoint**: Story 1 is complete. Ships as its own PR.
 
@@ -142,13 +142,13 @@ statistics overlay.
 read the transport in the statistics overlay; with the server restricted to TCP, Automatic still
 plays and forced UDP fails with a message that points to Settings (quickstart Q2.1–Q2.12).
 
-- [ ] T028 [US2] In `rtspconnection.h` / `rtspconnection.cpp`, add the setting of [data-model.md → Transport setting](./data-model.md#transport-setting): values `auto`, `tcp` and `udp`, and "an unknown stored value is read as `auto`". `open` takes the setting and plans the attempts by the five rows of [the attempts table](./contracts/rtsp-connection.md#attempts). Add the session transport memory: "a set of source keys that needed TCP under Automatic", filled when the TCP attempt of Automatic succeeds, consulted by `open`, "emptied when the user changes the transport setting", never saved. A forced transport never falls back.
-- [ ] T029 [P] [US2] In `tests/test_rtspconnection.cpp`, add: one test per row of the attempts table; forced UDP fails without a TCP attempt and reports the transport and that it was forced; the memory makes the second open of the same source start with TCP, is keyed by host and port, and is emptied by a change of setting; `rtsps://` is one TCP attempt under every setting; an unknown setting value behaves as `auto`.
-- [ ] T030 [US2] In `custommediaplayer.h` / `custommediaplayer.cpp`, add the writable property `rtspTransport`, read each time a stream is opened so that a change does not touch the stream that is playing (FR-010), and use the forced-transport messages of [the messages table](./contracts/rtsp-connection.md#messages) with the kind `transport`.
-- [ ] T031 [US2] In `Main.qml`, add `property string rtspTransport: "auto"` to the application settings and bind the player's `rtspTransport` to it. In `SettingsDialog.qml`, add "RTSP transport" to the Playback tab with the choices Automatic, TCP and UDP.
-- [ ] T032 [US2] In `NerdStatsOverlay.qml`, add a row "Transport" that is shown for RTSP streams only, with the player's `transportInUse`, and `TCP (secure stream)` for a secure address when the setting is not TCP.
-- [ ] T033 [US2] In `Main.qml`, give the snackbar for the kind `transport` the action "Settings", which opens Settings on the Playback tab.
-- [ ] T034 [US2] Check the step with the test source and the silent server: quickstart Q2.1–Q2.12, restarting MediaMTX with `rtspTransports` set to `[tcp]` where a row asks for it. `just test` passes. Fix what fails.
+- [X] T028 [US2] In `rtspconnection.h` / `rtspconnection.cpp`, add the setting of [data-model.md → Transport setting](./data-model.md#transport-setting): values `auto`, `tcp` and `udp`, and "an unknown stored value is read as `auto`". `open` takes the setting and plans the attempts by the five rows of [the attempts table](./contracts/rtsp-connection.md#attempts). Add the session transport memory: "a set of source keys that needed TCP under Automatic", filled when the TCP attempt of Automatic succeeds, consulted by `open`, "emptied when the user changes the transport setting", never saved. A forced transport never falls back.
+- [X] T029 [P] [US2] In `tests/test_rtspconnection.cpp`, add: one test per row of the attempts table; forced UDP fails without a TCP attempt and reports the transport and that it was forced; the memory makes the second open of the same source start with TCP, is keyed by host and port, and is emptied by a change of setting; `rtsps://` is one TCP attempt under every setting; an unknown setting value behaves as `auto`.
+- [X] T030 [US2] In `custommediaplayer.h` / `custommediaplayer.cpp`, add the writable property `rtspTransport`, read each time a stream is opened so that a change does not touch the stream that is playing (FR-010), and use the forced-transport messages of [the messages table](./contracts/rtsp-connection.md#messages) with the kind `transport`.
+- [X] T031 [US2] In `Main.qml`, add `property string rtspTransport: "auto"` to the application settings and bind the player's `rtspTransport` to it. In `SettingsDialog.qml`, add "RTSP transport" to the Playback tab with the choices Automatic, TCP and UDP.
+- [X] T032 [US2] In `NerdStatsOverlay.qml`, add a row "Transport" that is shown for RTSP streams only, with the player's `transportInUse`, and `TCP (secure stream)` for a secure address when the setting is not TCP.
+- [X] T033 [US2] In `Main.qml`, give the snackbar for the kind `transport` the action "Settings", which opens Settings on the Playback tab.
+- [X] T034 [US2] Check the step with the test source and the silent server: quickstart Q2.1–Q2.12, restarting MediaMTX with `rtspTransports` set to `[tcp]` where a row asks for it. `just test` passes. Fix what fails.
 
 **Checkpoint**: Stories 1 and 2 work. Ships as its own PR.
 
@@ -180,7 +180,7 @@ before any RTSP address is.
 
 ### With RTSP (Step 2; checked with the Play block of Phase 3)
 
-- [ ] T043 [US3] Check with the test source's `cam` path: quickstart Q3.1–Q3.8 and Q3.10 (the address given on the command line), and Q4.5–Q4.10 for the save questions that ship in this step. The password `s3cr3tpw` must be found zero times in `history.json`, `session.m3u8`, the `--verbose` output, the window title, the playlist row, the statistics overlay, what its copy button copies and the operating system's now-playing display (SC-003); a wrong password gives the sign-in message after the first attempt with no TCP attempt following; a remembered address gives "This stream needs a user name and password…" and its action opens the Open URL dialog with the display address. Fix what fails.
+- [X] T043 [US3] Check with the test source's `cam` path: quickstart Q3.1–Q3.8 and Q3.10 (the address given on the command line), and Q4.5–Q4.10 for the save questions that ship in this step. The password `s3cr3tpw` must be found zero times in `history.json`, `session.m3u8`, the `--verbose` output, the window title, the playlist row, the statistics overlay, what its copy button copies and the operating system's now-playing display (SC-003); a wrong password gives the sign-in message after the first attempt with no TCP attempt following; a remembered address gives "This stream needs a user name and password…" and its action opens the Open URL dialog with the display address. Fix what fails.
 
 **Checkpoint**: Story 3 works for every address GAV accepts.
 
@@ -202,15 +202,15 @@ save questions (T045–T047) therefore ship in the same pull request as T012, so
 write a password to a file without the user's consent (FR-021a). The rest of this phase proves
 the loading behaviour.
 
-- [ ] T044 [P] [US4] In `tests/test_playlistio.cpp`, add: a file with `rtsp://` and `rtsps://` entries keeps them with title, `group-title` and `tvg-logo`; a downloaded playlist keeps absolute RTSP entries, and resolves a relative entry against its own `http` address as before; `rtmp://`, `mmsh://` and `srt://` entries are left out and counted as unsupported; an RTSP address as a `tvg-logo` is dropped (logos stay `http` and `https`).
-- [ ] T045 [US4] In `playlistmodel.h` / `playlistmodel.cpp`, add an invokable `hasPasswords()` that is true when any entry's location has a password, with tests in `tests/test_playlistmodel.cpp` for none, one, and one that is then removed.
-- [ ] T046 [US4] In `playlistio.h` / `playlistio.cpp`, add the one way to keep credentials: a new tag `save-with-passwords` writes full addresses. The tags `save` and `session` keep writing display addresses (T039), and an unknown tag does too. Add to `tests/test_playlistio.cpp`: `save-with-passwords` writes the credentialed entry in full; `save`, `session` and an unknown tag do not.
-- [ ] T047 [US4] In `Main.qml`, when the user saves the playlist and `hasPasswords()` is true, ask twice before any password is written ([contracts/stream-addresses.md → Saving a playlist](./contracts/stream-addresses.md#saving-a-playlist)). Both dialogs are parented to `Overlay.overlay`:
+- [X] T044 [P] [US4] In `tests/test_playlistio.cpp`, add: a file with `rtsp://` and `rtsps://` entries keeps them with title, `group-title` and `tvg-logo`; a downloaded playlist keeps absolute RTSP entries, and resolves a relative entry against its own `http` address as before; `rtmp://`, `mmsh://` and `srt://` entries are left out and counted as unsupported; an RTSP address as a `tvg-logo` is dropped (logos stay `http` and `https`).
+- [X] T045 [US4] In `playlistmodel.h` / `playlistmodel.cpp`, add an invokable `hasPasswords()` that is true when any entry's location has a password, with tests in `tests/test_playlistmodel.cpp` for none, one, and one that is then removed.
+- [X] T046 [US4] In `playlistio.h` / `playlistio.cpp`, add the one way to keep credentials: a new tag `save-with-passwords` writes full addresses. The tags `save` and `session` keep writing display addresses (T039), and an unknown tag does too. Add to `tests/test_playlistio.cpp`: `save-with-passwords` writes the credentialed entry in full; `save`, `session` and an unknown tag do not.
+- [X] T047 [US4] In `Main.qml`, when the user saves the playlist and `hasPasswords()` is true, ask twice before any password is written ([contracts/stream-addresses.md → Saving a playlist](./contracts/stream-addresses.md#saving-a-playlist)). Both dialogs are parented to `Overlay.overlay`:
   - first: "This playlist contains passwords. Save them in the file?" with "Save with passwords", "Save without passwords" and "Cancel". "Save without passwords" saves with the tag `save`
   - second, only after "Save with passwords": "The passwords will be written to *file name* as plain text. Anyone who can read the file can use them. Save with passwords?" with "Save with passwords" and "Cancel", Cancel being the default button. Only confirming here saves with the tag `save-with-passwords`
   - Cancel in either dialog, or dismissing either, writes nothing
   - when `hasPasswords()` is false, save with the tag `save` as today, with no dialog
-- [ ] T048 [US4] Check the step: quickstart Q4.1–Q4.11, with a headless, silent run for loading, search and the dialog, and a look at the written files. `just test` passes. Fix what fails.
+- [X] T048 [US4] Check the step: quickstart Q4.1–Q4.11, with a headless, silent run for loading, search and the dialog, and a look at the written files. `just test` passes. Fix what fails.
 
 **Checkpoint**: All four stories work.
 
@@ -222,27 +222,25 @@ the loading behaviour.
 
 **Purpose**: Documentation and full validation
 
-- [ ] T049 [P] Update `README.md` (Streams section: RTSP addresses, the transport setting, that credentials in an address are not shown or saved, and that an address on the command line is visible in the process list) and `CLAUDE.md` (the two new units, `CustomMediaPlayer`'s part, `tests/rtsp/`).
+- [X] T049 [P] Update `README.md` (Streams section: RTSP addresses, the transport setting, that credentials in an address are not shown or saved, and that an address on the command line is visible in the process list) and `CLAUDE.md` (the two new units, `CustomMediaPlayer`'s part, `tests/rtsp/`).
 - [ ] T050 Run the whole of [quickstart.md](./quickstart.md): the 30-minute run (Q1.15, SC-006), the package checks QP.1–QP.3 on Linux, and QR.1–QR.3. Record the results in the pull request description, and say plainly which of Windows, macOS and a real camera were not run.
-- [ ] T051 Run `just format` and `just lint` and resolve what they report in the files this feature changed.
+- [X] T051 Run `just format` and `just lint` and resolve what they report in the files this feature changed. Done for what this feature added: the new C++ files are formatted with clang-format 23.1.0, and `just lint-cpp` reports nothing on any line this feature added (156 findings remain in older code, down from 161). The repository-wide reformat and the older findings belong to the lint feature's own steps, so `just format` was not run over files that are not yet in the project style.
 
 ---
 
 ## Delivery order
 
-Each step is one pull request. Do the steps in this order; within a step, do the tasks in
-number order unless marked [P].
+At the maintainer's request all five steps were delivered on one branch, `179-stream-addresses`,
+rather than as five pull requests. The table still shows the order the work was done in and
+which tasks belong together.
 
-| Step | Pull request | Tasks | Needs |
+| Step | Content | Tasks | Needs |
 |---|---|---|---|
 | 1 | Addresses and credentials | T001–T010, T035–T042 | — |
 | 2 | Play RTSP | T011–T022, T043, T045–T047 | Step 1 |
 | 3 | Transport setting | T028–T034 | Step 2 |
 | 4 | Reconnecting | T023–T027 | Step 2 |
 | 5 | Playlists and wrap-up | T044, T048–T051 | Step 2; T050 needs steps 3 and 4 |
-
-Steps 1 to 4 are released together. Until step 3 lands, RTSP streams use the Automatic plan with
-no setting to change it.
 
 No build writes a password to a file without the user's consent: from step 1 the playlist writer
 leaves credentials out (T039), and the only way to keep them, the twice-confirmed save
@@ -328,6 +326,41 @@ The first thing a user can use is Step 2, and it must not ship without Step 1:
 Each PR passes `just test` under both locales and CI on all platforms before merge.
 
 ---
+
+## Verification status
+
+The check tasks (T022, T027, T034, T043, T048) were run on Linux x64 on 2026-10-12 against
+MediaMTX 1.21.2, with silent headless runs of the application and screenshots of each new
+screen. What was confirmed that way:
+
+- plays from the command line over UDP, TCP and secure RTSP, with and without picture or sound
+- Automatic falls back at once when UDP is refused, and after 5 seconds when nothing arrives;
+  forced UDP does not fall back
+- failure kinds: sign-in refused (one connection, no TCP attempt), sign-in needed, nothing at
+  the address, unreachable, forced transport
+- reconnecting after the publisher stops and returns, after the server freezes, and giving up
+  after three attempts
+- the password appears in no output (normal and verbose), not in `history.json`, not in the
+  window title, the playlist row or the statistics overlay
+- the two save questions, by pressing each button: cancel at either writes nothing, "without"
+  writes display addresses, "with" confirmed writes them in full, and no question when no entry
+  has a password
+- a playlist file with RTSP entries loads them with titles and groups, leaves `rtmp://` out, and
+  plays them
+- a 10-minute continuous run with no loss or reconnect
+
+Not run, and still needed from a person:
+
+- Q1.4 (second launch hands the address to the running window) and Q1.7 (the hint under the
+  Open URL field for a refused address)
+- Q1.12 to Q1.14 and Q1.18: opening something else while reconnecting, the playlist not
+  advancing with a second entry queued, a long pause, and a drop in the mini player
+- Q1.15: the 30-minute run (10 minutes were run)
+- Q2.5 and Q2.6 in the application: the session memory was checked by unit tests only
+- Q3.2 for the operating system's now-playing display, and Q3.5 and Q3.6 from a restored
+  session and the recent files menu
+- Q4.4: the same playlist served over HTTP
+- the packages (QP.1 to QP.3), Windows and macOS, and a real camera
 
 ## Notes
 

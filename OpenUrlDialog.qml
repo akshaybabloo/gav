@@ -8,9 +8,15 @@ import gavqml
 Dialog {
     id: root
 
+    property string initialAddress: ""
     property bool invalid: false
 
     signal urlAccepted(url url)
+
+    function openWith(address) {
+        initialAddress = address;
+        open();
+    }
 
     function submit() {
         var text = urlField.text.trim();
@@ -49,7 +55,7 @@ Dialog {
         Text {
             Layout.fillWidth: true
             color: Material.foreground
-            text: qsTr("Enter the web address of a video or audio file, a stream (.m3u8) or a playlist (.m3u).")
+            text: qsTr("Enter the address of a video or audio file, a stream (.m3u8 or rtsp://) or a playlist (.m3u).")
             wrapMode: Text.WordWrap
         }
         TextField {
@@ -69,7 +75,7 @@ Dialog {
             Layout.fillWidth: true
             color: Material.color(Material.Red)
             font.pixelSize: 12
-            text: qsTr("Enter an address starting with http:// or https://")
+            text: qsTr("Enter an address starting with http://, https://, rtsp:// or rtsps://")
             visible: root.invalid
             wrapMode: Text.WordWrap
         }
@@ -77,7 +83,8 @@ Dialog {
 
     onAboutToShow: {
         invalid = false;
-        urlField.text = "";
+        urlField.text = initialAddress;
+        initialAddress = "";
     }
     onOpened: urlField.forceActiveFocus()
 }

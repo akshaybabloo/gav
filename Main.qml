@@ -29,7 +29,7 @@ ApplicationWindow {
     readonly property bool playlistOverlay: mediaComponent.isVideoAndPlaying || loadingScreen.visible
     readonly property bool playlistOverlayOpen: playlistOverlay && appSettings.playlistPanelOpen
     property int repeatMode: 0
-    readonly property bool dialogOpen: aboutDialog.opened || playbackErrorDialog.opened || updateDialog.opened || settingsDialog.opened || resumeDialog.opened || goToTimeDialog.opened || openUrlDialog.opened
+    readonly property bool dialogOpen: aboutDialog.opened || playbackErrorDialog.opened || updateDialog.opened || settingsDialog.opened || resumeDialog.opened || goToTimeDialog.opened || openUrlDialog.opened || savePasswordsDialog.opened || confirmPasswordsDialog.opened
     readonly property bool shortcutsEnabled: !textInputFocused && !dialogOpen && !playlistPanel.popupOpen
     property bool shouldAutoPlay: false
     readonly property bool textInputFocused: activeFocusItem instanceof TextInput || activeFocusItem instanceof TextEdit
@@ -456,6 +456,7 @@ ApplicationWindow {
         property bool rememberPositions: false
         property bool rememberRecentFiles: false
         property bool restoreLastPlaylist: false
+        property string rtspTransport: "auto"
         property bool showChannelLogos: true
         property bool shuffle: false
         property real subtitleScale: 1.0
@@ -625,6 +626,26 @@ ApplicationWindow {
         actionText: qsTr("Remove from list")
 
         onActionTriggered: PlaybackHistory.removeRecent(missingPath)
+    }
+    CustomSnackbar {
+        id: streamSnackbar
+
+        property string address: ""
+        property string kind: ""
+
+        actionText: kind === "signIn" || kind === "signInNeeded" ? qsTr("Open URL") : (kind === "transport" ? qsTr("Settings") : "")
+
+        onActionTriggered: {
+            if (kind === "transport")
+                settingsDialog.openPlayback();
+            else
+                openUrlDialog.openWith(address);
+        }
+    }
+    Binding {
+        property: "rtspTransport"
+        target: mediaComponent.mediaPlayer
+        value: appSettings.rtspTransport
     }
     OpenUrlDialog {
         id: openUrlDialog
@@ -816,6 +837,13 @@ ApplicationWindow {
         function onErrorOccurred(errorString) {
             playList.setUnavailable(playList.currentId, errorString);
         }
+        function onRtspFailed(kind, message, address) {
+            playList.setUnavailable(playList.currentId, message);
+            streamSnackbar.kind = kind;
+            streamSnackbar.address = address;
+            streamSnackbar.message = message;
+            streamSnackbar.show();
+        }
         function onLiveChanged() {
             mainWindow.reportLoadedEntry();
         }
@@ -859,7 +887,7 @@ ApplicationWindow {
                 mainWindow.selectPlaylistItem(start);
         }
         function onSaved(tag, ok) {
-            if (tag === "save") {
+            if (tag === "save" || tag === "save-with-passwords") {
                 captureSnackbar.message = ok ? qsTr("Playlist saved") : qsTr("Could not save playlist");
                 captureSnackbar.show();
             }
@@ -1398,6 +1426,7 @@ ApplicationWindow {
         rememberPositions: appSettings.rememberPositions
         rememberRecentFiles: appSettings.rememberRecentFiles
         restoreLastPlaylist: appSettings.restoreLastPlaylist
+        rtspTransport: appSettings.rtspTransport
         showChannelLogos: appSettings.showChannelLogos
 
         onCheckUpdatesOnStartupToggled: function (enabled) {
@@ -1421,6 +1450,9 @@ ApplicationWindow {
         }
         onRestoreLastPlaylistToggled: function (enabled) {
             appSettings.restoreLastPlaylist = enabled;
+        }
+        onRtspTransportSelected: function (transport) {
+            appSettings.rtspTransport = transport;
         }
         onShowChannelLogosToggled: function (enabled) {
             appSettings.showChannelLogos = enabled;
@@ -1469,7 +1501,98 @@ ApplicationWindow {
         nameFilters: [AppConstants.getPlaylistExtensionsFilter()]
         title: qsTr("Save Playlist")
 
-        onAccepted: PlaylistFiles.save(selectedFile, playList.toVariantList(), playList.currentRow, "save")
+        onAccepted: {
+            if (playList.hasPasswords()) {
+                savePasswordsDialog.file = selectedFile;
+                savePasswordsDialog.open();
+            } else {
+                PlaylistFiles.save(selectedFile, playList.toVariantList(), playList.currentRow, "save");
+            }
+        }
+    }
+    Dialog {
+        id: savePasswordsDialog
+
+        property url file
+
+        anchors.centerIn: parent
+        modal: true
+        parent: Overlay.overlay
+        title: qsTr("Save Playlist")
+        width: Math.min(480, mainWindow.width - 48)
+
+        footer: DialogButtonBox {
+            Button {
+                DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
+                flat: true
+                text: qsTr("Cancel")
+            }
+            Button {
+                DialogButtonBox.buttonRole: DialogButtonBox.ActionRole
+                flat: true
+                text: qsTr("Save without passwords")
+
+                onClicked: {
+                    savePasswordsDialog.close();
+                    PlaylistFiles.save(savePasswordsDialog.file, playList.toVariantList(), playList.currentRow, "save");
+                }
+            }
+            Button {
+                DialogButtonBox.buttonRole: DialogButtonBox.ActionRole
+                flat: true
+                text: qsTr("Save with passwords")
+
+                onClicked: {
+                    savePasswordsDialog.close();
+                    confirmPasswordsDialog.file = savePasswordsDialog.file;
+                    confirmPasswordsDialog.open();
+                }
+            }
+        }
+
+        Text {
+            color: Material.foreground
+            text: qsTr("This playlist contains passwords. Save them in the file?")
+            width: savePasswordsDialog.availableWidth
+            wrapMode: Text.WordWrap
+        }
+    }
+    Dialog {
+        id: confirmPasswordsDialog
+
+        property url file
+        readonly property string fileName: decodeURIComponent(file.toString().substring(file.toString().lastIndexOf("/") + 1))
+
+        anchors.centerIn: parent
+        modal: true
+        parent: Overlay.overlay
+        title: qsTr("Save Passwords")
+        width: Math.min(480, mainWindow.width - 48)
+
+        footer: DialogButtonBox {
+            Button {
+                DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
+                flat: true
+                text: qsTr("Save with passwords")
+            }
+            Button {
+                id: confirmPasswordsCancel
+
+                DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
+                flat: true
+                text: qsTr("Cancel")
+            }
+        }
+
+        Text {
+            color: Material.foreground
+            text: qsTr("The passwords will be written to %1 as plain text. Anyone who can read the file can use them. Save with passwords?").arg(confirmPasswordsDialog.fileName)
+            width: confirmPasswordsDialog.availableWidth
+            wrapMode: Text.WordWrap
+        }
+
+        onAccepted: PlaylistFiles.save(file, playList.toVariantList(), playList.currentRow, "save-with-passwords")
+        onOpened: confirmPasswordsCancel.forceActiveFocus()
     }
     FileDialog {
         id: fileDialog

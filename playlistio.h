@@ -44,8 +44,8 @@ PlaylistReadResult parse(const QByteArray &data, const QString &baseDirectory, c
 PlaylistReadResult parseRemote(const QByteArray &data, const QUrl &source, const QUrl &base);
 PlaylistReadResult read(const QString &path, const QStringList &supportedExtensions);
 bool isHlsPlaylist(const QByteArray &data);
-QByteArray serialise(const PlaylistDocument &document);
-bool write(const QString &path, const PlaylistDocument &document, QString *error = nullptr);
+QByteArray serialise(const PlaylistDocument &document, bool keepCredentials = false);
+bool write(const QString &path, const PlaylistDocument &document, QString *error = nullptr, bool keepCredentials = false);
 
 }
 

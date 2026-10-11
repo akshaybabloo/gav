@@ -152,9 +152,9 @@ player.
 
 ## Delivery order
 
-Each step is its own branch and pull request and leaves `main` building and passing. Issue #179
-is the parent; sub-issues are created with the tasks. Stories 1 to 3 are not released until all
-of steps 1 to 4 are merged.
+The plan was five branches and pull requests. At the maintainer's request all five steps were
+delivered on one branch, `179-stream-addresses`, under issue #179. The table shows the order the
+work was done in.
 
 | Step | Content | Spec coverage | Visible change |
 |---|---|---|---|

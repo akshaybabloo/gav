@@ -104,11 +104,11 @@ TEST(PlaylistModelTest, KindComesFromTheLocation) {
     EXPECT_EQ(model.entryAt(6).value("kind").toInt(), PlaylistModel::LocalVideo);
 }
 
-TEST(PlaylistModelTest, RejectsLocationsThatAreNeitherLocalNorHttp) {
+TEST(PlaylistModelTest, RejectsLocationsThatAreNeitherLocalNorStreams) {
     PlaylistModel model;
-    EXPECT_EQ(model.append({item("rtsp://example.org/a"), item("ftp://example.org/a.mp4"), item(""), QVariantMap()}), -1);
+    EXPECT_EQ(model.append({item("rtmp://example.org/a"), item("ftp://example.org/a.mp4"), item(""), QVariantMap()}), -1);
     EXPECT_EQ(model.count(), 0);
-    EXPECT_EQ(model.append({item("rtsp://example.org/a"), item("https://example.org/a.mp4")}), 0);
+    EXPECT_EQ(model.append({item("rtmp://example.org/a"), item("https://example.org/a.mp4")}), 0);
     EXPECT_EQ(model.count(), 1);
 }
 
@@ -534,4 +534,25 @@ TEST(PlaylistModelTest, TitleDerivedFromAnAddressHasNoCredentials) {
     PlaylistModel model;
     model.append({item("https://user:pw@example.org/"), item("https://user:pw@example.org/cam.m3u8")});
     EXPECT_EQ(titles(model), QStringList({"https://example.org/", "cam.m3u8"}));
+}
+
+TEST(PlaylistModelTest, RtspEntriesAreStreams) {
+    PlaylistModel model;
+    model.append({item("rtsp://viewer:s3cr3t@cam.local/live"), item("rtsps://cam.local:8322/"), item("rtmp://example.org/live")});
+    ASSERT_EQ(model.count(), 2);
+    EXPECT_EQ(model.entryAt(0).value("kind").toInt(), PlaylistModel::Stream);
+    EXPECT_EQ(model.entryAt(1).value("kind").toInt(), PlaylistModel::Stream);
+    EXPECT_EQ(model.entryAt(0).value("displayPath").toString(), "rtsp://cam.local/live");
+    EXPECT_EQ(titles(model), QStringList({"live", "rtsps://cam.local:8322/"}));
+}
+
+TEST(PlaylistModelTest, HasPasswordsFollowsTheEntries) {
+    PlaylistModel model;
+    EXPECT_FALSE(model.hasPasswords());
+    model.append({item("file:///videos/a.mp4"), item("rtsp://cam.local/live"), item("rtsp://viewer@cam.local/live")});
+    EXPECT_FALSE(model.hasPasswords());
+    model.append({item("rtsp://viewer:s3cr3t@cam.local/other")});
+    EXPECT_TRUE(model.hasPasswords());
+    model.remove({model.idAt(3)});
+    EXPECT_FALSE(model.hasPasswords());
 }

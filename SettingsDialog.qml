@@ -15,6 +15,7 @@ Dialog {
     required property bool rememberPositions
     required property bool rememberRecentFiles
     required property bool restoreLastPlaylist
+    required property string rtspTransport
     required property bool showChannelLogos
 
     signal themeToggled(bool isDark)
@@ -25,8 +26,14 @@ Dialog {
     signal rememberPositionsToggled(bool enabled)
     signal rememberRecentFilesToggled(bool enabled)
     signal restoreLastPlaylistToggled(bool enabled)
+    signal rtspTransportSelected(string transport)
     signal showChannelLogosToggled(bool enabled)
     signal clearHistoryRequested
+
+    function openPlayback() {
+        tabs.currentIndex = 1;
+        open();
+    }
 
     component SectionTitle: Text {
         Layout.topMargin: 6
@@ -281,6 +288,45 @@ Dialog {
                             root.defaultSpeedChanged(AppConstants.playbackSpeeds[index]);
                         }
                     }
+                }
+                Divider {
+                    Layout.rightMargin: 12
+                }
+                SectionTitle {
+                    text: qsTr("Streams")
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.rightMargin: 12
+                    spacing: 10
+
+                    SettingLabel {
+                        text: qsTr("RTSP transport")
+                    }
+                    ComboBox {
+                        id: rtspTransportCombo
+
+                        readonly property var values: ["auto", "tcp", "udp"]
+
+                        Accessible.name: qsTr("RTSP transport")
+                        Layout.preferredWidth: 140
+                        currentIndex: Math.max(0, values.indexOf(root.rtspTransport))
+                        model: [qsTr("Automatic"), qsTr("TCP"), qsTr("UDP")]
+
+                        onActivated: function (index) {
+                            root.rtspTransportSelected(values[index]);
+                        }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    Layout.rightMargin: 12
+                    Layout.topMargin: -8
+                    color: Material.foreground
+                    font.pixelSize: 12
+                    opacity: 0.5
+                    text: qsTr("Automatic tries UDP first and switches to TCP when nothing arrives. A change applies to the next stream opened.")
+                    wrapMode: Text.WordWrap
                 }
                 Divider {
                     Layout.rightMargin: 12

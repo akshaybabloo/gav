@@ -515,6 +515,10 @@ QVariantList PlaylistModel::toVariantList() const {
     return list;
 }
 
+bool PlaylistModel::hasPasswords() const {
+    return std::any_of(m_entries.cbegin(), m_entries.cend(), [](const Entry &entry) { return StreamAddress::hasPassword(entry.location); });
+}
+
 QList<QUrl> PlaylistModel::locations() const {
     QList<QUrl> list;
     for (const Entry &entry : m_entries) {

@@ -6,7 +6,7 @@ The measurements behind the numbers are in [research R4 and R6](../research.md).
 
 ## The setting
 
-Settings → Playback → **RTSP transport**: Automatic (default), TCP, UDP. Stored as
+Settings → Playback → Streams → **RTSP transport**: Automatic (default), TCP, UDP. Stored as
 `rtspTransport` = `auto` | `tcp` | `udp`. It is read when a stream is opened, so a change applies
 to the next stream and never interrupts the one that is playing.
 
@@ -114,11 +114,22 @@ paused, when one of these happens:
 | `reconnecting` | true or false | A reconnect attempt is in progress or scheduled |
 | `displaySource` | address | The display address of the current source |
 
-The existing `mediaLoaded` and `errorOccurred` keep their meaning. For an RTSP source, `live` is
-always true, and `buffering` is true while connecting and while reconnecting. While
-reconnecting, `live` and `mediaLoaded` stay true and the end of the media is not reported.
+`errorOccurred` keeps its meaning and is not emitted for an RTSP failure. For an RTSP source:
 
-A failure is reported with the signal `rtspFailed(kind, message)`:
+- `mediaLoaded` becomes true at the first picture, not when the underlying player says it has
+  loaded, so the interface's loading screen stays up while connecting and whatever runs "when
+  loaded" (recent files, the playlist's current mark) runs only for a stream that really played
+- `live` equals `mediaLoaded`, and `seekable` is always false
+- `buffering` is true while connecting and while reconnecting
+- while reconnecting, `live`, `mediaLoaded` and `hasVideo` stay as they were, `playbackState` reads
+  as playing (or paused, if the user paused), and the end of the media is not reported, so the
+  interface keeps the playing layout and its controls stay usable
+- the player starts playback itself once an attempt has loaded, because no media arrives until
+  it plays; a pause requested while connecting or reconnecting takes effect at the first picture
+
+A failure is reported with the signal `rtspFailed(kind, message, address)`, where `address` is
+the display address. The playlist entry is then marked unavailable with the message, as for any
+other playback error.
 
 | `kind` | When | Message row |
 |---|---|---|

@@ -38,6 +38,16 @@ TEST_F(PlaybackHistoryTest, NetworkUrlsNeverStorePositions) {
     EXPECT_EQ(history.savedPosition("https://example.org/movie.mp4"), -1);
 }
 
+TEST_F(PlaybackHistoryTest, RtspAddressesNeverStorePositions) {
+    PlaybackHistory history(storagePath());
+    EXPECT_TRUE(PlaybackHistory::isNetworkUrl("rtsp://cam.local/live"));
+    EXPECT_TRUE(PlaybackHistory::isNetworkUrl("rtsps://viewer:pw@cam.local/live"));
+    history.recordPosition("rtsp://cam.local/recording", 720000, 1800000);
+    EXPECT_EQ(history.savedPosition("rtsp://cam.local/recording"), -1);
+    history.recordOpened("rtsp://viewer:s3cr3t@cam.local/live");
+    EXPECT_EQ(history.recentFiles(), QStringList({"rtsp://cam.local/live"}));
+}
+
 TEST_F(PlaybackHistoryTest, EvictsOldestBeyondLimit) {
     PlaybackHistory history(storagePath());
     for (int i = 0; i <= PlaybackHistory::maxPositions; ++i) {

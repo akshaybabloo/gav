@@ -14,6 +14,7 @@
 #include <QUrl>
 #include <QVideoSink>
 
+#include "rtspconnection.h"
 #include "streamquality.h"
 #include "subtitlecontroller.h"
 
@@ -54,6 +55,10 @@ class CustomMediaPlayer : public QQuickItem {
   Q_PROPERTY(QString mediaArtist READ mediaArtist NOTIFY nowPlayingChanged)
   Q_PROPERTY(QString mediaAlbum READ mediaAlbum NOTIFY nowPlayingChanged)
   Q_PROPERTY(QImage coverArt READ coverArt NOTIFY nowPlayingChanged)
+  Q_PROPERTY(QUrl displaySource READ displaySource NOTIFY sourceChanged)
+  Q_PROPERTY(QString rtspTransport READ rtspTransport WRITE setRtspTransport NOTIFY rtspTransportChanged)
+  Q_PROPERTY(QString transportInUse READ transportInUse NOTIFY transportInUseChanged)
+  Q_PROPERTY(bool reconnecting READ reconnecting NOTIFY reconnectingChanged)
 
 public:
   CustomMediaPlayer();
@@ -124,11 +129,17 @@ public:
   QString mediaArtist() const;
   QString mediaAlbum() const;
   QImage coverArt() const;
+  QUrl displaySource() const;
+  QString rtspTransport() const;
+  void setRtspTransport(const QString &transport);
+  QString transportInUse() const;
+  bool reconnecting() const;
 
   static constexpr int streamNetworkTimeoutMs = 10000;
   static constexpr int streamLoadTimeoutMs = 120000;
   static constexpr int stallPollIntervalMs = 250;
   static constexpr int stallThresholdMs = 750;
+  static constexpr int rtspStallLimitMs = 5000;
 
 signals:
   void sourceChanged();
@@ -157,6 +168,10 @@ signals:
   void bufferingChanged();
   void qualitiesChanged();
   void nowPlayingChanged();
+  void rtspTransportChanged();
+  void transportInUseChanged();
+  void reconnectingChanged();
+  void rtspFailed(const QString &kind, const QString &message, const QString &address);
 
 private slots:
   void onPreviewPlayerStatusChanged(QMediaPlayer::MediaStatus status);
@@ -190,6 +205,20 @@ private:
   void switchPlayback(const StreamQuality::Playback &playback);
   void onQualityFailed(const QString &error);
   int screenHeight() const;
+  bool isRtspSource() const;
+  bool rtspBusy() const;
+  qint64 rtspNow() const;
+  void setNetworkTimeout(int timeoutMs);
+  void openRtsp();
+  void closeRtsp();
+  void applyRtspStep(const RtspConnection::Step &step);
+  void openRtspAttempt(const RtspConnection::Step &step);
+  void failRtsp(const RtspConnection::Step &step);
+  void onRtspData();
+  void onRtspTimer();
+  bool onRtspEnded();
+  void updateRtspState();
+  void updateMediaLoaded();
   QString audioTrackName(int index) const;
 
   QMediaPlayer *m_mediaPlayer;
@@ -238,6 +267,17 @@ private:
   bool m_resolvingQuality = false;
   bool m_pauseWhenLoaded = false;
   qint64 m_resumePositionMs = -1;
+
+  RtspConnection m_rtsp;
+  QElapsedTimer m_rtspClock;
+  QTimer *m_rtspTimer = nullptr;
+  QMetaObject::Connection m_rtspFrameConnection;
+  QString m_rtspTransport = QStringLiteral("auto");
+  QString m_transportInUse;
+  bool m_rtspPauseOnPicture = false;
+  bool m_rtspBusy = false;
+  bool m_rtspConnecting = false;
+  bool m_reconnecting = false;
   QList<HlsSubtitle> m_streamSubtitles;
   QBuffer *m_manifest = nullptr;
 };

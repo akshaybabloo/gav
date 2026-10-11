@@ -158,6 +158,7 @@ TEST(PlaybackUtilsReveal, AcceptsLocalPathsAndFileUrlsOnly) {
 TEST(PlaybackUtilsAddresses, StreamAddressesAreNetworkStreams) {
     PlaybackUtils utils;
     EXPECT_TRUE(utils.isStreamAddress(QUrl("https://example.org/live.m3u8")));
+    EXPECT_TRUE(utils.isStreamAddress(QUrl("rtsp://cam.local/live")));
     EXPECT_FALSE(utils.isStreamAddress(QUrl("/videos/a.mp4")));
     EXPECT_FALSE(utils.isStreamAddress(QUrl("rtmp://example.org/live")));
 }

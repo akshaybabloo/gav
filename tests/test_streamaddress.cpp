@@ -22,6 +22,14 @@ std::string logged(const std::function<void(spdlog::logger &)> &write) {
 
 } // namespace
 
+TEST(StreamAddressTest, RtspAddressesAreStreams) {
+    EXPECT_TRUE(StreamAddress::isStream(QUrl("rtsp://cam.local/live")));
+    EXPECT_TRUE(StreamAddress::isStream(QUrl("rtsps://cam.local:8322/live")));
+    EXPECT_TRUE(StreamAddress::isStream(QUrl("RTSP://viewer:pw@192.168.1.20:554/stream1")));
+    EXPECT_FALSE(StreamAddress::isStream(QUrl("rtsp:///live")));
+    EXPECT_EQ(StreamAddress::schemes(), QStringList({"http", "https", "rtsp", "rtsps"}));
+}
+
 TEST(StreamAddressTest, HttpAndHttpsAreStreams) {
     EXPECT_TRUE(StreamAddress::isStream(QUrl("http://example.org/a.mp4")));
     EXPECT_TRUE(StreamAddress::isStream(QUrl("https://example.org/live.m3u8")));
@@ -31,6 +39,8 @@ TEST(StreamAddressTest, HttpAndHttpsAreStreams) {
 
 TEST(StreamAddressTest, OtherAddressesAreNotStreams) {
     EXPECT_FALSE(StreamAddress::isStream(QUrl("rtmp://example.org/live")));
+    EXPECT_FALSE(StreamAddress::isStream(QUrl("mmsh://example.org/live")));
+    EXPECT_FALSE(StreamAddress::isStream(QUrl("srt://example.org:9000")));
     EXPECT_FALSE(StreamAddress::isStream(QUrl("file:///home/user/a.mp4")));
     EXPECT_FALSE(StreamAddress::isStream(QUrl::fromLocalFile("/home/user/a.mp4")));
     EXPECT_FALSE(StreamAddress::isStream(QUrl("videos/a.mp4")));

@@ -326,7 +326,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 color: AppConstants.overlayTextColor
                 font.pixelSize: 16
-                text: openingStream ? qsTr("Opening stream…") : qsTr("Buffering…")
+                text: customMediaPlayer.reconnecting ? qsTr("Reconnecting…") : (openingStream ? qsTr("Opening stream…") : qsTr("Buffering…"))
             }
         }
     }

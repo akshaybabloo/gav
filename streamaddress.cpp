@@ -11,7 +11,7 @@ constexpr int secureRtspPort = 322;
 
 } // namespace
 
-QStringList StreamAddress::schemes() { return {QStringLiteral("http"), QStringLiteral("https")}; }
+QStringList StreamAddress::schemes() { return {QStringLiteral("http"), QStringLiteral("https"), rtspScheme, secureRtspScheme}; }
 
 bool StreamAddress::isStream(const QUrl &url) { return url.isValid() && !url.host().isEmpty() && schemes().contains(url.scheme().toLower()); }
 
