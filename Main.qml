@@ -27,7 +27,8 @@ ApplicationWindow {
     property bool restoringSession: false
     readonly property url sessionPlaylistUrl: StandardPaths.writableLocation(StandardPaths.AppDataLocation) + "/session.m3u8"
     readonly property bool playlistOverlay: mediaComponent.isVideoAndPlaying || loadingScreen.visible
-    readonly property bool playlistOverlayOpen: playlistOverlay && appSettings.playlistPanelOpen
+    readonly property bool playlistOverlayOpen: playlistOverlay && playlistPanelOpen
+    property bool playlistPanelOpen: false
     property int repeatMode: 0
     readonly property bool dialogOpen: aboutDialog.opened || playbackErrorDialog.opened || updateDialog.opened || settingsDialog.opened || resumeDialog.opened || goToTimeDialog.opened || openUrlDialog.opened || savePasswordsDialog.opened || confirmPasswordsDialog.opened
     readonly property bool shortcutsEnabled: !textInputFocused && !dialogOpen && !playlistPanel.popupOpen
@@ -82,7 +83,12 @@ ApplicationWindow {
                 "title": mediaInfo.name
             }]);
     }
+    function togglePlaylistPanel() {
+        if (playlistOverlay)
+            playlistPanelOpen = !playlistPanelOpen;
+    }
     function openAndPlay(url) {
+        playlistPanelOpen = false;
         if (isPlaylistUrl(url)) {
             PlaylistFiles.load(url, supportedMediaExtensions(), "open");
             return;
@@ -277,6 +283,7 @@ ApplicationWindow {
                 waiting = [];
                 if (mediaComponent.path === "" && !firstFileSet) {
                     firstFileSet = true;
+                    playlistPanelOpen = false;
                     selectPlaylistItem(at);
                 }
                 at++;
@@ -284,6 +291,7 @@ ApplicationWindow {
             }
             addToPlaylist(mediaInfo);
             if (!firstFileSet) {
+                playlistPanelOpen = false;
                 mediaComponent.path = mediaInfo.path;
                 mainWindow.title = appTitle + " - " + mediaInfo.name;
                 playList.currentRow = playList.count - 1;
@@ -380,6 +388,7 @@ ApplicationWindow {
                 continue;
             addToPlaylist(mediaInfo);
             if (startPlayback) {
+                playlistPanelOpen = false;
                 mediaComponent.path = mediaInfo.path;
                 mainWindow.title = appTitle + " - " + mediaInfo.name;
                 playList.currentRow = playList.count - 1;
@@ -449,7 +458,6 @@ ApplicationWindow {
         property bool checkUpdatesOnStartup: true
         property bool isDarkTheme: true
         property real playbackRate: 1.0
-        property bool playlistPanelOpen: false
         property int playlistPanelWidth: AppConstants.playlistPanelDefaultWidth
         property string preferredAudioLanguage: ""
         property string preferredSubtitleLanguage: ""
@@ -883,8 +891,10 @@ ApplicationWindow {
             var start = mainWindow.availableRowNear(tag === "replace" && loadedCurrent >= 0 ? loadedCurrent : loaded.first);
             if (start < loaded.first)
                 return;
-            if (tag === "replace" || tag === "open" || mediaComponent.path === "")
+            if (tag === "replace" || tag === "open" || mediaComponent.path === "") {
+                mainWindow.playlistPanelOpen = false;
                 mainWindow.selectPlaylistItem(start);
+            }
         }
         function onSaved(tag, ok) {
             if (tag === "save" || tag === "save-with-passwords") {
@@ -1608,6 +1618,7 @@ ApplicationWindow {
             if (!mediaInfo)
                 return;
             addToPlaylist(mediaInfo);
+            mainWindow.playlistPanelOpen = false;
             mediaComponent.path = mediaInfo.path;
             mainWindow.title = appTitle + " - " + mediaInfo.name;
             playList.currentRow = playList.count - 1;
@@ -1761,7 +1772,7 @@ ApplicationWindow {
                 if (playlistPanel.visible && playlistView.searchText !== "")
                     playlistView.searchText = "";
                 else if (mainWindow.playlistOverlayOpen)
-                    appSettings.playlistPanelOpen = false;
+                    mainWindow.playlistPanelOpen = false;
                 else
                     mainWindow.visibility = Window.Windowed;
             }
@@ -1771,7 +1782,7 @@ ApplicationWindow {
             enabled: mainWindow.shortcutsEnabled
             sequence: "Ctrl+L"
 
-            onActivated: appSettings.playlistPanelOpen = !appSettings.playlistPanelOpen
+            onActivated: mainWindow.togglePlaylistPanel()
         }
         Shortcut {
             context: Qt.ApplicationShortcut
@@ -1780,7 +1791,7 @@ ApplicationWindow {
 
             onActivated: {
                 if (mainWindow.playlistOverlay)
-                    appSettings.playlistPanelOpen = true;
+                    mainWindow.playlistPanelOpen = true;
                 playlistPanel.focusSearch();
             }
         }
@@ -1923,7 +1934,7 @@ ApplicationWindow {
         visible: mainWindow.playlistOverlayOpen && !playlistPanel.narrow
         z: 60
 
-        onClicked: appSettings.playlistPanelOpen = false
+        onClicked: mainWindow.playlistPanelOpen = false
     }
     PlaylistPanel {
         id: playlistPanel
@@ -1939,11 +1950,11 @@ ApplicationWindow {
         playlistView: playlistView
         showLogos: appSettings.showChannelLogos
         shuffleEnabled: appSettings.shuffle
-        visible: overlay ? appSettings.playlistPanelOpen : true
+        visible: overlay ? mainWindow.playlistPanelOpen : true
         width: !overlay || narrow ? parent.width : Math.max(AppConstants.playlistPanelMinWidth, Math.min(appSettings.playlistPanelWidth, mainWindow.width * AppConstants.playlistPanelMaxFraction))
         z: overlay ? 60 : 0
 
-        onCloseRequested: appSettings.playlistPanelOpen = false
+        onCloseRequested: mainWindow.playlistPanelOpen = false
         onSaveRequested: savePlaylistDialog.open()
         onShowLogosToggled: function (enabled) {
             appSettings.showChannelLogos = enabled;
@@ -2019,7 +2030,7 @@ ApplicationWindow {
             hasPreviousTrack: mainWindow.hasPreviousItem
             playlistCount: playList.count
             playlistCurrentIndex: playList.currentRow
-            playlistOpen: appSettings.playlistPanelOpen
+            playlistOpen: mainWindow.playlistPanelOpen
             repeatMode: mainWindow.repeatMode
             videoOutput: mediaComponent.videoOutput
 
@@ -2041,7 +2052,7 @@ ApplicationWindow {
             }
             onGoToTimeRequested: goToTimeDialog.open()
             onNextTrack: mainWindow.nextItem()
-            onPlaylistToggleRequested: appSettings.playlistPanelOpen = !appSettings.playlistPanelOpen
+            onPlaylistToggleRequested: mainWindow.togglePlaylistPanel()
             onPreviousTrack: mainWindow.previousItem()
         }
     }

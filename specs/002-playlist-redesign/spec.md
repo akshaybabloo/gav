@@ -53,6 +53,10 @@ a time.
   for large text and icons), and every control shows a visible focus indicator when reached by
   keyboard.
 
+### Session 2026-10-12
+
+- Q: When a video starts playing, when should the playlist panel appear beside it? → A: Only when the user opens it. Every newly opened file or stream starts with the panel closed, however it was opened; it stays open while the user moves between entries; nothing about it is remembered across restarts.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Browse and switch while watching (Priority: P1)
@@ -76,8 +80,11 @@ started from it.
    from it, **Then** that item starts playing and the playlist stays open in the same place.
 3. **Given** the playlist is open, **When** the user looks at it, **Then** the item that is playing
    is clearly marked and is scrolled into view when the playlist opens.
-4. **Given** the user has opened, closed or resized the playlist, **When** they restart GAV,
-   **Then** the playlist comes back in the same state and size.
+4. **Given** the user has resized the playlist, **When** they restart GAV, **Then** the playlist
+   comes back at the same size.
+4a. **Given** the playlist is open beside a video, **When** the user opens another file or stream
+   (from the menu, by dropping it on the window, from the command line or by address), **Then**
+   it starts with the playlist closed. Moving between entries of the playlist keeps it open.
 5. **Given** nothing is loaded, **When** GAV starts, **Then** the playlist area shows a clear empty
    state that explains how to add files, playlists or a web address.
 6. **Given** the window is in full screen or too narrow for the panel to leave part of the picture
@@ -227,8 +234,13 @@ change.
 - **FR-002a**: Clicking the visible part of the picture MUST close the panel without affecting
   playback. Pressing Escape MUST clear the search text if there is any, and otherwise close the
   panel, also without affecting playback.
-- **FR-003**: The system MUST remember whether the playlist was open and how large it was, and
-  restore that on the next start.
+- **FR-003**: The system MUST remember how large the playlist was and restore that on the next
+  start. Whether the playlist is open beside a video MUST NOT be remembered: every newly opened
+  file or stream starts with it closed, however it was opened, and it stays as the user left it
+  while they move between entries. The controls that open and close it MUST do nothing while the
+  playlist already fills the window, so that its state never changes out of sight. (Changed on
+  2026-10-12: the open state used to be remembered across restarts, which made it unpredictable
+  whether the playlist would appear beside the next video.)
 - **FR-004**: The playlist MUST remain usable in full screen and in narrow windows, and MUST be
   dismissible with one action in both (two presses of Escape when a search is active, as in
   FR-002a).
@@ -369,8 +381,9 @@ change.
 - Channel logos are the only images shown. Thumbnails generated from local videos are out of scope. Local entries are told apart by kind
   and duration.
 - "Play next" lasts for the current session and is not saved with the playlist.
-- Search, filter, grouping and sort choices are remembered for the session; the open or closed
-  state and size of the playlist are remembered across restarts.
+- Search, filter, grouping and sort choices are remembered for the session; the size of the
+  playlist is remembered across restarts. Its open or closed state beside a video lasts only
+  until another file or stream is opened.
 - The mini player keeps its current behaviour and does not get its own playlist.
 - Existing settings that affect the playlist (shuffle, restore last playlist on startup) keep their
   meaning and defaults.

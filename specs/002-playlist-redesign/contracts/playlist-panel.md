@@ -14,14 +14,16 @@ What the user can rely on. Covers FR-001 to FR-005, FR-008, FR-013, FR-019 to FR
 | Mini player | No playlist. Unchanged. |
 
 Panel width: default 360 px, between 280 px and 60 % of the window width, changed by dragging the
-panel's left edge. Width and open state are remembered across restarts.
+panel's left edge. The width is remembered across restarts. The open state is not: it lasts
+until another file or stream is opened.
 
 ## Opening and closing
 
 | Action | Result |
 |---|---|
-| Playlist button in the control bar | Toggles the panel. |
-| `Ctrl+L` | Toggles the panel. |
+| Playlist button in the control bar | Toggles the panel. Does nothing while the playlist fills the window. |
+| `Ctrl+L` | The same. |
+| Opening a file or stream (menu, drop on the window, command line, Open URL, recent files, a playlist that starts playing) | It starts with the panel closed. |
 | `Ctrl+F` | Opens the panel if needed and puts the cursor in the search field. |
 | Click on the visible part of the video while the panel is open | Closes the panel. Does not toggle play/pause. |
 | `Esc` | Clears the search if it has text; otherwise closes the panel; otherwise leaves full screen (existing behaviour). |
