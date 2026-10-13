@@ -154,3 +154,29 @@ TEST(PlaybackUtilsReveal, AcceptsLocalPathsAndFileUrlsOnly) {
     EXPECT_TRUE(PlaybackUtils::localPathFor("ftp://example.org/a.mp4").isEmpty());
     EXPECT_TRUE(PlaybackUtils::localPathFor("").isEmpty());
 }
+
+TEST(PlaybackUtilsAddresses, StreamAddressesAreNetworkStreams) {
+    PlaybackUtils utils;
+    EXPECT_TRUE(utils.isStreamAddress(QUrl("https://example.org/live.m3u8")));
+    EXPECT_TRUE(utils.isStreamAddress(QUrl("rtsp://cam.local/live")));
+    EXPECT_FALSE(utils.isStreamAddress(QUrl("/videos/a.mp4")));
+    EXPECT_FALSE(utils.isStreamAddress(QUrl("rtmp://example.org/live")));
+}
+
+TEST(PlaybackUtilsAddresses, RtspAddressesAreRecognised) {
+    PlaybackUtils utils;
+    EXPECT_TRUE(utils.isRtspAddress(QUrl("rtsps://cam.local/live")));
+    EXPECT_FALSE(utils.isRtspAddress(QUrl("https://cam.local/live")));
+}
+
+TEST(PlaybackUtilsAddresses, HasPasswordReportsCredentials) {
+    PlaybackUtils utils;
+    EXPECT_TRUE(utils.hasPassword(QUrl("https://user:pw@example.org/a.m3u8")));
+    EXPECT_FALSE(utils.hasPassword(QUrl("https://example.org/a.m3u8")));
+}
+
+TEST(PlaybackUtilsAddresses, DisplayAddressLeavesCredentialsOut) {
+    PlaybackUtils utils;
+    EXPECT_EQ(utils.displayAddress("https://user:pw@example.org/a.m3u8"), "https://example.org/a.m3u8");
+    EXPECT_EQ(utils.displayAddress("/videos/a.mp4"), "/videos/a.mp4");
+}

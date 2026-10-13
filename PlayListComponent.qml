@@ -210,7 +210,7 @@ Item {
             text: qsTr("Copy address")
             visible: rowMenu.single && !rowMenu.local
 
-            onTriggered: SystemStats.copyToClipboard(rowMenu.location)
+            onTriggered: SystemStats.copyToClipboard(PlaybackUtils.displayAddress(rowMenu.location))
         }
     }
     ListView {

@@ -14,10 +14,13 @@
 #include <memory>
 
 #include "collage.h"
+#include "credentialfiltersink.h"
 #include "instancemanager.h"
 #include "previewimageprovider.h"
 #include "logoprovider.h"
 #include "probeworker.h"
+#include "rtspconnection.h"
+#include "streamaddress.h"
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -59,11 +62,10 @@ static bool hasUrlScheme(const QString &value) {
 static QUrl sourcePathToUrl(const QString &sourceValue, bool *unsupportedScheme) {
     if (hasUrlScheme(sourceValue)) {
         const QUrl url(sourceValue);
-        const QString scheme = url.scheme().toLower();
-        if (url.isValid() && (scheme == QLatin1String("http") || scheme == QLatin1String("https") || url.isLocalFile())) {
+        if (url.isValid() && (StreamAddress::isStream(url) || url.isLocalFile())) {
             return url;
         }
-        std::cerr << "Unsupported address (only http and https streams can be opened): " << sourceValue.toStdString() << std::endl;
+        std::cerr << "Unsupported address (http, https, rtsp and rtsps streams can be opened): " << StreamAddress::withoutCredentials(sourceValue).toStdString() << '\n';
         *unsupportedScheme = true;
         return {};
     }
@@ -103,7 +105,7 @@ void initLogging() {
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
 
     // Create logger with the sink
-    logger = std::make_shared<spdlog::logger>("gav", console_sink);
+    logger = std::make_shared<spdlog::logger>("gav", std::make_shared<CredentialFilterSink>(console_sink));
 
     // Register as default logger
     spdlog::set_default_logger(logger);
@@ -124,6 +126,14 @@ void initLogging() {
 static bool showFFmpegLogs = false;
 
 void logOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg) {
+    static const QLatin1String openFailureCategory("qt.multimedia.ffmpeg.mediadataholder");
+    if (context.category && openFailureCategory == QLatin1String(context.category) && msg.contains(QLatin1String("FFmpeg error description"))) {
+        RtspConnection::noteOpenFailure(msg);
+        if (!showFFmpegLogs) {
+            return;
+        }
+    }
+
     static const QLatin1String ffmpegPrefix("\"FFmpeg log: ");
     if (msg.startsWith(ffmpegPrefix)) {
         const bool isError = type == QtCriticalMsg || type == QtFatalMsg;
@@ -166,7 +176,7 @@ void logOutput(QtMsgType type, const QMessageLogContext &context, const QString 
 }
 
 static int runProbe(int argc, char *argv[]) {
-    logger = spdlog::stderr_color_mt("gav-probe");
+    logger = std::make_shared<spdlog::logger>("gav-probe", std::make_shared<CredentialFilterSink>(std::make_shared<spdlog::sinks::stderr_color_sink_mt>()));
     spdlog::set_default_logger(logger);
     logger->set_level(spdlog::level::warn);
     qInstallMessageHandler(logOutput);
@@ -233,7 +243,7 @@ int main(int argc, char *argv[]) {
         showFFmpegLogs = true;
         logger->debug("Verbose logging enabled");
     } else {
-        QLoggingCategory::setFilterRules(QStringLiteral("qt.multimedia*=false"));
+        QLoggingCategory::setFilterRules(QStringLiteral("qt.multimedia*=false\nqt.multimedia.ffmpeg.mediadataholder.warning=true"));
     }
 
     QStringList sourceValues;
@@ -258,7 +268,7 @@ int main(int argc, char *argv[]) {
         
         for (const QString &path : collagePaths) {
             if (hasUrlScheme(path) && !QUrl(path).isLocalFile()) {
-                std::cerr << "Collage needs local files; skipping " << path.toStdString() << std::endl;
+                std::cerr << "Collage needs local files; skipping " << StreamAddress::withoutCredentials(path).toStdString() << '\n';
                 continue;
             }
             QFileInfo pathInfo(path);

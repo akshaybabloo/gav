@@ -48,7 +48,10 @@ Run with `just run`. Each row is one check.
 | Q1.3 | Double-click another entry in the panel | It plays. The panel stays open and marks the new entry as playing (FR-008) |
 | Q1.4 | Click the visible part of the video | The panel closes. Playback does not pause (FR-002a) |
 | Q1.5 | Open the panel, press `Esc`; press `Esc` again in full screen | First `Esc` closes the panel, the second leaves full screen |
-| Q1.6 | Drag the panel's left edge, close GAV with the panel open, start it again and play a video | The panel reopens at the same width (FR-003) |
+| Q1.6 | Drag the panel's left edge, close GAV with the panel open, start it again, play a video and open the panel | The video starts with the panel closed; opened, it has the same width (FR-003) |
+| Q1.6a | With the panel open beside a video, open another file from the menu, then drop one on the window | Each starts with the panel closed (FR-003) |
+| Q1.6b | Open the panel, then play another entry from it and use next and previous | The panel stays open (FR-003, FR-008) |
+| Q1.6c | Stop playback so the playlist fills the window, press the playlist button and `Ctrl+L`, then play an entry | Nothing changes on screen, and the video starts with the panel as it was before (FR-003) |
 | Q1.7 | With the panel open, make the window narrower than 560 px (tile it or split the screen; dragging stops at the 640 px minimum, where the panel still leaves part of the picture visible) | The panel takes the full width and shows a close button (FR-004) |
 | Q1.8 | Play an audio file | The playlist fills the content area, as before the redesign |
 | Q1.9 | Open the mini player | It behaves as before and has no playlist |

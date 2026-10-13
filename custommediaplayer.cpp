@@ -1,6 +1,7 @@
 #include "custommediaplayer.h"
 #include "playbackutils.h"
 #include "previewimageprovider.h"
+#include "streamaddress.h"
 #include "streamquality.h"
 #include "subtitlefiles.h"
 #include <QQuickWindow>
@@ -26,14 +27,17 @@
 #include <memory>
 #include <utility>
 
-CustomMediaPlayer::CustomMediaPlayer() {
+CustomMediaPlayer::CustomMediaPlayer() : m_rtspTimer(new QTimer(this)) {
   m_mediaPlayer = new QMediaPlayer(this);
 
   // Forward signals from QMediaPlayer
-  connect(m_mediaPlayer, &QMediaPlayer::playbackStateChanged, this,
-          &CustomMediaPlayer::playbackStateChanged);
-  connect(m_mediaPlayer, &QMediaPlayer::mediaStatusChanged, this,
-          &CustomMediaPlayer::mediaStatusChanged);
+  connect(m_mediaPlayer, &QMediaPlayer::playbackStateChanged, this, [this] { emit playbackStateChanged(playbackState()); });
+  connect(m_mediaPlayer, &QMediaPlayer::mediaStatusChanged, this, [this](QMediaPlayer::MediaStatus status) {
+    if (status == QMediaPlayer::EndOfMedia && onRtspEnded()) {
+      return;
+    }
+    emit mediaStatusChanged(status);
+  });
   connect(m_mediaPlayer, &QMediaPlayer::tracksChanged, this, &CustomMediaPlayer::updateHasVideo);
   connect(m_mediaPlayer, &QMediaPlayer::playbackRateChanged, this, &CustomMediaPlayer::playbackRateChanged);
 
@@ -42,6 +46,11 @@ CustomMediaPlayer::CustomMediaPlayer() {
           &CustomMediaPlayer::durationChanged);
   connect(m_mediaPlayer, &QMediaPlayer::positionChanged, this,
           &CustomMediaPlayer::positionChanged);
+  connect(m_mediaPlayer, &QMediaPlayer::positionChanged, this, [this](qint64 position) {
+    if (position > 0) {
+      onRtspData();
+    }
+  });
   connect(m_mediaPlayer, &QMediaPlayer::mediaStatusChanged, this,
           &CustomMediaPlayer::onStatusChanged);
 
@@ -96,6 +105,10 @@ CustomMediaPlayer::CustomMediaPlayer() {
   m_streamLoadTimer->setInterval(streamLoadTimeoutMs);
   connect(m_streamLoadTimer, &QTimer::timeout, this, &CustomMediaPlayer::onStreamLoadTimeout);
 
+  m_rtspClock.start();
+  m_rtspTimer->setSingleShot(true);
+  connect(m_rtspTimer, &QTimer::timeout, this, &CustomMediaPlayer::onRtspTimer);
+
   m_stallTimer = new QTimer(this);
   m_stallTimer->setInterval(stallPollIntervalMs);
   connect(m_stallTimer, &QTimer::timeout, this, &CustomMediaPlayer::checkForStall);
@@ -129,10 +142,13 @@ CustomMediaPlayer::~CustomMediaPlayer() {
 
 SubtitleController *CustomMediaPlayer::subtitles() const { return m_subtitles; }
 
-bool CustomMediaPlayer::seekable() const { return m_mediaLoaded && m_mediaPlayer->isSeekable(); }
+bool CustomMediaPlayer::seekable() const { return m_mediaLoaded && !isRtspSource() && m_mediaPlayer->isSeekable(); }
 
 bool CustomMediaPlayer::isLive() const {
   const QUrl current = m_source;
+  if (isRtspSource()) {
+    return m_mediaLoaded;
+  }
   return m_mediaLoaded && !current.isEmpty() && !current.isLocalFile() && m_mediaPlayer->duration() <= 0 && !m_mediaPlayer->isSeekable();
 }
 
@@ -148,7 +164,7 @@ QString CustomMediaPlayer::mediaAlbum() const { return m_mediaPlayer->metaData()
 
 QImage CustomMediaPlayer::coverArt() const { return m_mediaPlayer->metaData().value(QMediaMetaData::CoverArtImage).value<QImage>(); }
 
-bool CustomMediaPlayer::buffering() const { return m_buffering; }
+bool CustomMediaPlayer::buffering() const { return m_buffering || m_rtspBusy; }
 
 void CustomMediaPlayer::setBuffering(bool buffering) {
   if (m_buffering == buffering)
@@ -170,12 +186,15 @@ void CustomMediaPlayer::checkForStall() {
   if (m_stallClock.isValid() && m_stallClock.elapsed() >= stallThresholdMs) {
     setBuffering(true);
   }
+  if (m_stallClock.isValid() && m_stallClock.elapsed() >= rtspStallLimitMs && m_rtsp.state() == RtspConnection::State::Playing) {
+    applyRtspStep(m_rtsp.lost(rtspNow()));
+  }
 }
 
 void CustomMediaPlayer::onStreamLoadTimeout() {
   if (m_mediaLoaded || m_source.isEmpty())
     return;
-  qWarning() << "Stream did not load within" << streamLoadTimeoutMs << "ms:" << m_source;
+  qWarning() << "Stream did not load within" << streamLoadTimeoutMs << "ms:" << StreamAddress::displayAddress(m_source);
   emit errorOccurred(tr("The stream took too long to open. Check the address and your connection."));
   stop();
 }
@@ -368,7 +387,7 @@ void CustomMediaPlayer::setSource(const QUrl &source) {
     return;
   }
   if (!source.isValid()) {
-    emit errorOccurred("Source URL is invalid: " + source.toString());
+    emit errorOccurred("Source URL is invalid: " + StreamAddress::displayAddress(source).toString());
     return;
   }
   
@@ -385,10 +404,12 @@ void CustomMediaPlayer::setSource(const QUrl &source) {
   clearPendingStep();
   m_pendingAudioTrack = -1;
   m_audioSelectionApplied = false;
-  if (source.isLocalFile())
+  closeRtsp();
+  if (source.isLocalFile() || StreamAddress::isRtsp(source)) {
     m_streamLoadTimer->stop();
-  else
+  } else {
     m_streamLoadTimer->start();
+  }
 
   const bool changed = m_source != source;
   m_source = source;
@@ -396,12 +417,17 @@ void CustomMediaPlayer::setSource(const QUrl &source) {
   m_pauseWhenLoaded = false;
   m_streamSubtitles.clear();
   m_quality->cancel();
-  if (StreamQuality::handles(source)) {
+  if (isRtspSource()) {
+    m_resolvingQuality = false;
+    openRtsp();
+  } else if (StreamQuality::handles(source)) {
+    setNetworkTimeout(streamNetworkTimeoutMs);
     m_resolvingQuality = true;
     setPlaybackSource({});
     emit mediaStatusChanged(QMediaPlayer::LoadingMedia);
     m_quality->resolve(source, screenHeight());
   } else {
+    setNetworkTimeout(streamNetworkTimeoutMs);
     m_resolvingQuality = false;
     setPlaybackSource({source, {}});
   }
@@ -504,6 +530,14 @@ void CustomMediaPlayer::setVideoOutput(QObject *videoOutput) {
   emit videoOutputChanged();
 
   m_videoSink = videoOutput ? qobject_cast<QVideoSink *>(videoOutput->property("videoSink").value<QObject *>()) : nullptr;
+  QObject::disconnect(m_rtspFrameConnection);
+  if (m_videoSink) {
+    m_rtspFrameConnection = connect(m_videoSink, &QVideoSink::videoFrameChanged, this, [this](const QVideoFrame &frame) {
+      if (frame.isValid()) {
+        onRtspData();
+      }
+    });
+  }
   updateFrameCounting();
 }
 
@@ -808,12 +842,16 @@ void CustomMediaPlayer::setAudioOutput(QAudioOutput *audioOutput) {
 }
 
 QMediaPlayer::PlaybackState CustomMediaPlayer::playbackState() const {
+  if (m_rtsp.state() == RtspConnection::State::Reconnecting) {
+    return m_rtspPauseOnPicture ? QMediaPlayer::PausedState : QMediaPlayer::PlayingState;
+  }
   return m_mediaPlayer->playbackState();
 }
 
 QMediaPlayer::MediaStatus CustomMediaPlayer::mediaStatus() const {
-  if (m_resolvingQuality)
+  if (m_resolvingQuality || m_rtsp.state() == RtspConnection::State::Connecting) {
     return QMediaPlayer::LoadingMedia;
+  }
   return m_mediaPlayer->mediaStatus();
 }
 
@@ -837,6 +875,13 @@ void CustomMediaPlayer::play() {
   }
   clearPendingStep();
   m_pauseWhenLoaded = false;
+  if (std::exchange(m_rtspPauseOnPicture, false) && m_reconnecting) {
+    emit playbackStateChanged(playbackState());
+  }
+  if (m_rtsp.reopenOnPlay()) {
+    openRtsp();
+    return;
+  }
   if (m_resolvingQuality || m_mediaPlayer->mediaStatus() < QMediaPlayer::LoadedMedia) {
     m_playWhenLoaded = true;
   } else {
@@ -846,6 +891,13 @@ void CustomMediaPlayer::play() {
 
 void CustomMediaPlayer::pause() {
   m_playWhenLoaded = false;
+  if (m_rtspBusy) {
+    m_rtspPauseOnPicture = true;
+    if (m_reconnecting) {
+      emit playbackStateChanged(playbackState());
+    }
+    return;
+  }
   if (m_resumePositionMs >= 0)
     m_pauseWhenLoaded = true;
   m_mediaPlayer->pause();
@@ -854,6 +906,7 @@ void CustomMediaPlayer::pause() {
 void CustomMediaPlayer::stop() {
   m_playWhenLoaded = false;
   m_streamLoadTimer->stop();
+  closeRtsp();
   checkpoint();
   resetPreviewPlayer();
   m_subtitles->clear();
@@ -891,6 +944,9 @@ void CustomMediaPlayer::stop() {
 }
 
 void CustomMediaPlayer::updateHasVideo() {
+  if (m_rtsp.state() == RtspConnection::State::Reconnecting) {
+    return;
+  }
   bool hasVideo = !m_mediaPlayer->videoTracks().isEmpty();
   if (m_hasVideo != hasVideo) {
     m_hasVideo = hasVideo;
@@ -904,17 +960,12 @@ void CustomMediaPlayer::updateHasVideo() {
 void CustomMediaPlayer::onStatusChanged(QMediaPlayer::MediaStatus status) {
   updateHasVideo(); // Ensure m_hasVideo is current
 
-  bool loaded = (status >= QMediaPlayer::LoadedMedia &&
-                 status != QMediaPlayer::InvalidMedia);
-  if (m_mediaLoaded != loaded) {
-    m_mediaLoaded = loaded;
-    emit mediaLoadedChanged();
-  }
+  updateMediaLoaded();
 
   if (status == QMediaPlayer::LoadedMedia) {
     emit videoVisibilityChanged(m_hasVideo);
-  } else if (status == QMediaPlayer::NoMedia ||
-             status == QMediaPlayer::InvalidMedia) {
+  } else if ((status == QMediaPlayer::NoMedia || status == QMediaPlayer::InvalidMedia) &&
+             m_rtsp.state() != RtspConnection::State::Reconnecting) {
     emit videoVisibilityChanged(false);
   }
 
@@ -935,7 +986,7 @@ void CustomMediaPlayer::onStatusChanged(QMediaPlayer::MediaStatus status) {
     m_mediaPlayer->setPosition(position);
     if (playAfter)
       m_mediaPlayer->play();
-  } else if (status == QMediaPlayer::LoadedMedia && m_playWhenLoaded) {
+  } else if (status == QMediaPlayer::LoadedMedia && (m_playWhenLoaded || m_rtsp.opening())) {
     m_mediaPlayer->play();
     m_playWhenLoaded = false;
   } else if (status == QMediaPlayer::LoadedMedia && std::exchange(m_pauseWhenLoaded, false)) {
@@ -943,7 +994,7 @@ void CustomMediaPlayer::onStatusChanged(QMediaPlayer::MediaStatus status) {
   }
 
   // Connected after the QML-facing forward above, so a repeat mode has already restarted playback.
-  if (status == QMediaPlayer::EndOfMedia && !m_statsEnabled &&
+  if (status == QMediaPlayer::EndOfMedia && !m_statsEnabled && !m_reconnecting && !m_rtsp.reopenOnPlay() &&
       m_mediaPlayer->mediaStatus() == QMediaPlayer::EndOfMedia &&
       m_mediaPlayer->playbackState() == QMediaPlayer::StoppedState) {
     stop();
@@ -1072,11 +1123,17 @@ void CustomMediaPlayer::onPreviewPlayerStatusChanged(QMediaPlayer::MediaStatus s
 // Removed timer logic
 void CustomMediaPlayer::onMediaPlayerError(QMediaPlayer::Error error,
                                            const QString &errorString) {
-  if (error != QMediaPlayer::NoError) {
-    m_streamLoadTimer->stop();
-    qWarning() << "MediaPlayer Error:" << error << errorString;
-    emit errorOccurred(errorString);
+  if (error == QMediaPlayer::NoError) {
+    return;
   }
+  m_streamLoadTimer->stop();
+  qWarning() << "MediaPlayer Error:" << error << errorString;
+  if (isRtspSource() && (m_rtspBusy || m_rtsp.state() == RtspConnection::State::Playing)) {
+    const RtspConnection::Failure failure = RtspConnection::failureFor(RtspConnection::takeOpenFailure());
+    applyRtspStep(m_rtsp.playerError(failure, rtspNow(), m_mediaPlayer->playbackState() == QMediaPlayer::PausedState));
+    return;
+  }
+  emit errorOccurred(errorString);
 }
 
 void CustomMediaPlayer::capturePreviewFrame() {
@@ -1137,3 +1194,183 @@ void CustomMediaPlayer::clearMainVideoFrame() {
   }
 }
 
+QUrl CustomMediaPlayer::displaySource() const { return StreamAddress::displayAddress(m_source); }
+
+QString CustomMediaPlayer::rtspTransport() const { return m_rtspTransport; }
+
+void CustomMediaPlayer::setRtspTransport(const QString &transport) {
+  const QString normalised = RtspConnection::settingName(RtspConnection::settingFor(transport));
+  if (m_rtspTransport == normalised) {
+    return;
+  }
+  m_rtspTransport = normalised;
+  m_rtsp.forgetTransports();
+  emit rtspTransportChanged();
+}
+
+QString CustomMediaPlayer::transportInUse() const { return m_transportInUse; }
+
+bool CustomMediaPlayer::reconnecting() const { return m_reconnecting; }
+
+bool CustomMediaPlayer::isRtspSource() const { return StreamAddress::isRtsp(m_source); }
+
+qint64 CustomMediaPlayer::rtspNow() const { return m_rtspClock.elapsed(); }
+
+void CustomMediaPlayer::setNetworkTimeout(int timeoutMs) {
+  QPlaybackOptions options = m_mediaPlayer->playbackOptions();
+  if (options.networkTimeout() == std::chrono::milliseconds(timeoutMs)) {
+    return;
+  }
+  options.setNetworkTimeout(std::chrono::milliseconds(timeoutMs));
+  m_mediaPlayer->setPlaybackOptions(options);
+}
+
+void CustomMediaPlayer::openRtsp() {
+  applyRtspStep(m_rtsp.open(m_source, RtspConnection::settingFor(m_rtspTransport), rtspNow()));
+}
+
+void CustomMediaPlayer::closeRtsp() {
+  m_rtsp.close();
+  m_rtspTimer->stop();
+  m_rtspPauseOnPicture = false;
+  updateRtspState();
+}
+
+void CustomMediaPlayer::applyRtspStep(const RtspConnection::Step &step) {
+  switch (step.kind) {
+  case RtspConnection::Step::Kind::Open:
+    openRtspAttempt(step);
+    break;
+  case RtspConnection::Step::Kind::Wait:
+    spdlog::debug("RTSP: not playing, reconnect attempt {} is next", m_rtsp.reconnectAttempt());
+    m_mediaPlayer->stop();
+    setPlaybackSource({});
+    break;
+  case RtspConnection::Step::Kind::Fail:
+    failRtsp(step);
+    return;
+  default:
+    break;
+  }
+  const qint64 deadline = m_rtsp.deadlineMs();
+  if (deadline < 0) {
+    m_rtspTimer->stop();
+  } else {
+    m_rtspTimer->start(int(std::max<qint64>(0, deadline - rtspNow())));
+  }
+  updateRtspState();
+}
+
+void CustomMediaPlayer::openRtspAttempt(const RtspConnection::Step &step) {
+  spdlog::debug("RTSP: opening {} over {}{}", displaySource().toString().toStdString(), RtspConnection::transportName(step.transport).toStdString(),
+                m_rtsp.state() == RtspConnection::State::Reconnecting ? fmt::format(" (reconnect attempt {})", m_rtsp.reconnectAttempt()) : std::string());
+  RtspConnection::takeOpenFailure();
+  qputenv("QT_FFMPEG_RTSP_TRANSPORT", step.transport == RtspConnection::Transport::Udp ? "udp" : "tcp");
+  setNetworkTimeout(step.networkTimeoutMs);
+  if (!m_mediaPlayer->source().isEmpty()) {
+    setPlaybackSource({});
+  }
+  setPlaybackSource({m_source, {}});
+}
+
+void CustomMediaPlayer::failRtsp(const RtspConnection::Step &step) {
+  QString kind = QStringLiteral("other");
+  QString message = tr("Could not open the stream. Check the address and your connection.");
+  switch (step.failure) {
+  case RtspConnection::Failure::SignIn:
+    if (m_source.userInfo().isEmpty()) {
+      kind = QStringLiteral("signInNeeded");
+      message = tr("This stream needs a user name and password. Open it as rtsp://user:password@…");
+    } else {
+      kind = QStringLiteral("signIn");
+      message = tr("Signing in to the stream failed. Check the user name and password.");
+    }
+    break;
+  case RtspConnection::Failure::NotFound:
+    kind = QStringLiteral("notFound");
+    message = tr("The source has no stream at this address.");
+    break;
+  case RtspConnection::Failure::Lost:
+    kind = QStringLiteral("lost");
+    message = tr("The stream was lost.");
+    break;
+  default:
+    if (step.forced) {
+      kind = QStringLiteral("transport");
+      message = step.transport == RtspConnection::Transport::Udp ? tr("Could not open the stream over UDP. Choose Automatic or TCP in Settings.")
+                                                                 : tr("Could not open the stream over TCP. Choose Automatic or UDP in Settings.");
+    }
+    break;
+  }
+  const QString address = displaySource().toString();
+  spdlog::debug("RTSP: {} failed ({}) over {}", address.toStdString(), kind.toStdString(), RtspConnection::transportName(step.transport).toStdString());
+  m_rtspTimer->stop();
+  emit rtspFailed(kind, message, address);
+  stop();
+}
+
+void CustomMediaPlayer::onRtspData() {
+  const QMediaPlayer::MediaStatus status = m_mediaPlayer->mediaStatus();
+  if (!m_rtsp.opening() || status < QMediaPlayer::LoadedMedia || status == QMediaPlayer::InvalidMedia) {
+    return;
+  }
+  m_rtsp.firstPicture();
+  m_rtspTimer->stop();
+  spdlog::debug("RTSP: playing over {}", RtspConnection::transportName(m_rtsp.transportInUse()).toStdString());
+  if (std::exchange(m_rtspPauseOnPicture, false)) {
+    m_mediaPlayer->pause();
+  }
+  updateRtspState();
+}
+
+void CustomMediaPlayer::onRtspTimer() { applyRtspStep(m_rtsp.timePassed(rtspNow())); }
+
+bool CustomMediaPlayer::onRtspEnded() {
+  if (m_rtsp.state() != RtspConnection::State::Playing) {
+    return m_reconnecting || m_rtsp.reopenOnPlay();
+  }
+  const bool paused = m_mediaPlayer->playbackState() == QMediaPlayer::PausedState;
+  const RtspConnection::Step step = m_rtsp.ended(m_mediaPlayer->duration() > 0, rtspNow(), paused);
+  if (step.kind == RtspConnection::Step::Kind::Ended) {
+    return false;
+  }
+  applyRtspStep(step);
+  return true;
+}
+
+void CustomMediaPlayer::updateRtspState() {
+  const RtspConnection::State state = m_rtsp.state();
+  const bool busy = state == RtspConnection::State::Connecting || state == RtspConnection::State::Reconnecting;
+  const bool reconnecting = state == RtspConnection::State::Reconnecting;
+  const QString transport = RtspConnection::transportName(m_rtsp.transportInUse());
+  updateMediaLoaded();
+  if (std::exchange(m_transportInUse, transport) != transport) {
+    emit transportInUseChanged();
+  }
+  if (std::exchange(m_reconnecting, reconnecting) != reconnecting) {
+    emit reconnectingChanged();
+    emit playbackStateChanged(playbackState());
+  }
+  if (std::exchange(m_rtspBusy, busy) != busy) {
+    emit bufferingChanged();
+  }
+  const bool connecting = state == RtspConnection::State::Connecting;
+  if (std::exchange(m_rtspConnecting, connecting) != connecting) {
+    emit mediaStatusChanged(mediaStatus());
+  }
+}
+
+void CustomMediaPlayer::updateMediaLoaded() {
+  bool loaded = false;
+  if (isRtspSource()) {
+    const RtspConnection::State state = m_rtsp.state();
+    loaded = state == RtspConnection::State::Playing || state == RtspConnection::State::Reconnecting || m_rtsp.reopenOnPlay();
+  } else {
+    const QMediaPlayer::MediaStatus status = m_mediaPlayer->mediaStatus();
+    loaded = status >= QMediaPlayer::LoadedMedia && status != QMediaPlayer::InvalidMedia;
+  }
+  if (m_mediaLoaded != loaded) {
+    m_mediaLoaded = loaded;
+    emit mediaLoadedChanged();
+  }
+}

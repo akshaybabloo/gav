@@ -1,5 +1,7 @@
 #include "playbackhistory.h"
+
 #include "playbackutils.h"
+#include "streamaddress.h"
 
 #include <QCryptographicHash>
 #include <QDir>
@@ -54,7 +56,7 @@ QString PlaybackHistory::normalizePath(const QString &pathOrUrl) {
         return QDir::cleanPath(url.toLocalFile());
     }
     if (isNetworkUrl(pathOrUrl)) {
-        return url.toString();
+        return StreamAddress::displayAddress(url).toString();
     }
     return QDir::cleanPath(pathOrUrl);
 }
@@ -63,10 +65,7 @@ QString PlaybackHistory::positionKey(const QString &pathOrUrl) {
     return QString::fromLatin1(QCryptographicHash::hash(normalizePath(pathOrUrl).toUtf8(), QCryptographicHash::Sha256).toHex());
 }
 
-bool PlaybackHistory::isNetworkUrl(const QString &pathOrUrl) {
-    const QString scheme = QUrl(pathOrUrl).scheme().toLower();
-    return scheme == QLatin1String("http") || scheme == QLatin1String("https");
-}
+bool PlaybackHistory::isNetworkUrl(const QString &pathOrUrl) { return StreamAddress::isStream(QUrl(pathOrUrl)); }
 
 QString PlaybackHistory::storagePath() const { return m_storagePath; }
 

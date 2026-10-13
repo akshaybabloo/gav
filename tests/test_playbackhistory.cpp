@@ -38,6 +38,16 @@ TEST_F(PlaybackHistoryTest, NetworkUrlsNeverStorePositions) {
     EXPECT_EQ(history.savedPosition("https://example.org/movie.mp4"), -1);
 }
 
+TEST_F(PlaybackHistoryTest, RtspAddressesNeverStorePositions) {
+    PlaybackHistory history(storagePath());
+    EXPECT_TRUE(PlaybackHistory::isNetworkUrl("rtsp://cam.local/live"));
+    EXPECT_TRUE(PlaybackHistory::isNetworkUrl("rtsps://viewer:pw@cam.local/live"));
+    history.recordPosition("rtsp://cam.local/recording", 720000, 1800000);
+    EXPECT_EQ(history.savedPosition("rtsp://cam.local/recording"), -1);
+    history.recordOpened("rtsp://viewer:s3cr3t@cam.local/live");
+    EXPECT_EQ(history.recentFiles(), QStringList({"rtsp://cam.local/live"}));
+}
+
 TEST_F(PlaybackHistoryTest, EvictsOldestBeyondLimit) {
     PlaybackHistory history(storagePath());
     for (int i = 0; i <= PlaybackHistory::maxPositions; ++i) {
@@ -70,6 +80,29 @@ TEST_F(PlaybackHistoryTest, RecentListKeepsStreamUrls) {
     PlaybackHistory history(storagePath());
     history.recordOpened("https://example.org/live.m3u8");
     EXPECT_EQ(history.recentFiles(), QStringList({"https://example.org/live.m3u8"}));
+}
+
+TEST_F(PlaybackHistoryTest, RecentListLeavesCredentialsOut) {
+    {
+        PlaybackHistory history(storagePath());
+        history.recordOpened("https://viewer:s3cr3t@example.org/cam.m3u8");
+        EXPECT_EQ(history.recentFiles(), QStringList({"https://example.org/cam.m3u8"}));
+    }
+    QFile file(storagePath());
+    ASSERT_TRUE(file.open(QIODevice::ReadOnly));
+    const QByteArray stored = file.readAll();
+    EXPECT_FALSE(stored.contains("s3cr3t"));
+    EXPECT_FALSE(stored.contains("viewer"));
+    EXPECT_TRUE(stored.contains("example.org/cam.m3u8"));
+}
+
+TEST_F(PlaybackHistoryTest, AnAddressWithAndWithoutCredentialsIsOneRecentEntry) {
+    PlaybackHistory history(storagePath());
+    history.recordOpened("https://example.org/cam.m3u8");
+    history.recordOpened("https://viewer:s3cr3t@example.org/cam.m3u8");
+    EXPECT_EQ(history.recentFiles(), QStringList({"https://example.org/cam.m3u8"}));
+    history.removeRecent("https://viewer:s3cr3t@example.org/cam.m3u8");
+    EXPECT_TRUE(history.recentFiles().isEmpty());
 }
 
 TEST_F(PlaybackHistoryTest, RoundTripsThroughDisk) {

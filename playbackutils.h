@@ -4,6 +4,7 @@
 #include <QList>
 #include <QObject>
 #include <QString>
+#include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
@@ -42,6 +43,10 @@ public:
     Q_INVOKABLE qint64 chapterTarget(const QVariantList &chapters, qint64 positionMs, int direction) const;
     Q_INVOKABLE bool isResumeEligible(qint64 positionMs, qint64 durationMs) const;
     Q_INVOKABLE void revealInFileManager(const QString &pathOrUrl) const;
+    Q_INVOKABLE bool isStreamAddress(const QUrl &address) const;
+    Q_INVOKABLE bool isRtspAddress(const QUrl &address) const;
+    Q_INVOKABLE bool hasPassword(const QUrl &address) const;
+    Q_INVOKABLE QString displayAddress(const QString &pathOrUrl) const;
 };
 
 #endif // PLAYBACKUTILS_H

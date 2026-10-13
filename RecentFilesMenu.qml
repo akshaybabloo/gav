@@ -12,7 +12,7 @@ Menu {
     signal openRequested(url url)
 
     function displayName(path) {
-        if (path.startsWith("http://") || path.startsWith("https://"))
+        if (PlaybackUtils.isStreamAddress(path))
             return path;
         return path.substring(Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) + 1);
     }

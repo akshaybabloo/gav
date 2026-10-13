@@ -1,5 +1,7 @@
 #include "playlistmodel.h"
 
+#include "streamaddress.h"
+
 #include <QDir>
 #include <QFileInfo>
 #include <QSet>
@@ -42,7 +44,11 @@ QString fallbackTitle(const QUrl &location) {
         return QFileInfo(location.toLocalFile()).fileName();
     }
     const QString name = location.fileName(QUrl::FullyDecoded);
-    return name.isEmpty() ? location.toString() : name;
+    return name.isEmpty() ? StreamAddress::displayAddress(location).toString() : name;
+}
+
+QString displayLocation(const QUrl &location) {
+    return location.isLocalFile() ? location.toLocalFile() : StreamAddress::displayAddress(location).toString();
 }
 
 }
@@ -85,6 +91,8 @@ QVariant PlaylistModel::data(const QModelIndex &index, int role) const {
         return entry.id == m_currentId;
     case QueuePositionRole:
         return int(m_queue.indexOf(entry.id)) + 1;
+    case DisplayLocationRole:
+        return displayLocation(entry.location);
     default:
         return {};
     }
@@ -94,7 +102,8 @@ QHash<int, QByteArray> PlaylistModel::roleNames() const {
     return {{EntryIdRole, "entryId"},     {LocationRole, "location"},       {TitleRole, "title"},
             {KindRole, "kind"},           {StreamStateRole, "streamState"}, {GroupRole, "group"},
             {LogoRole, "logo"},           {DurationMsRole, "durationMs"},   {AvailableRole, "available"},
-            {ReasonRole, "reason"},       {IsCurrentRole, "isCurrent"},     {QueuePositionRole, "queuePosition"}};
+            {ReasonRole, "reason"},       {IsCurrentRole, "isCurrent"},     {QueuePositionRole, "queuePosition"},
+            {DisplayLocationRole, "displayLocation"}};
 }
 
 int PlaylistModel::count() const { return int(m_entries.size()); }
@@ -172,7 +181,7 @@ void PlaylistModel::setCurrentId(int id) {
 
 bool PlaylistModel::makeEntry(const QVariantMap &map, Entry *entry) {
     const QUrl location = toUrl(map.contains(QStringLiteral("path")) ? map.value(QStringLiteral("path")) : map.value(QStringLiteral("location")));
-    if (!location.isValid() || !(location.isLocalFile() || isHttp(location))) {
+    if (!location.isValid() || !(location.isLocalFile() || StreamAddress::isStream(location))) {
         return false;
     }
     entry->location = location;
@@ -180,7 +189,7 @@ bool PlaylistModel::makeEntry(const QVariantMap &map, Entry *entry) {
     if (entry->title.isEmpty()) {
         entry->title = fallbackTitle(location);
     }
-    if (isHttp(location)) {
+    if (StreamAddress::isStream(location)) {
         entry->kind = Stream;
     } else {
         const QString suffix = QFileInfo(location.toLocalFile()).suffix().toLower();
@@ -480,6 +489,7 @@ int PlaylistModel::idAt(int row) const { return row >= 0 && row < m_entries.size
 QVariantMap PlaylistModel::toMap(const Entry &entry) const {
     return {{QStringLiteral("entryId"), entry.id},
             {QStringLiteral("path"), entry.location.toString()},
+            {QStringLiteral("displayPath"), displayLocation(entry.location)},
             {QStringLiteral("title"), entry.title},
             {QStringLiteral("kind"), entry.kind},
             {QStringLiteral("streamState"), entry.streamState},
@@ -503,6 +513,10 @@ QVariantList PlaylistModel::toVariantList() const {
         list.append(toMap(entry));
     }
     return list;
+}
+
+bool PlaylistModel::hasPasswords() const {
+    return std::any_of(m_entries.cbegin(), m_entries.cend(), [](const Entry &entry) { return StreamAddress::hasPassword(entry.location); });
 }
 
 QList<QUrl> PlaylistModel::locations() const {

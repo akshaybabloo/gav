@@ -27,9 +27,10 @@ ApplicationWindow {
     property bool restoringSession: false
     readonly property url sessionPlaylistUrl: StandardPaths.writableLocation(StandardPaths.AppDataLocation) + "/session.m3u8"
     readonly property bool playlistOverlay: mediaComponent.isVideoAndPlaying || loadingScreen.visible
-    readonly property bool playlistOverlayOpen: playlistOverlay && appSettings.playlistPanelOpen
+    readonly property bool playlistOverlayOpen: playlistOverlay && playlistPanelOpen
+    property bool playlistPanelOpen: false
     property int repeatMode: 0
-    readonly property bool dialogOpen: aboutDialog.opened || playbackErrorDialog.opened || updateDialog.opened || settingsDialog.opened || resumeDialog.opened || goToTimeDialog.opened || openUrlDialog.opened
+    readonly property bool dialogOpen: aboutDialog.opened || playbackErrorDialog.opened || updateDialog.opened || settingsDialog.opened || resumeDialog.opened || goToTimeDialog.opened || openUrlDialog.opened || savePasswordsDialog.opened || confirmPasswordsDialog.opened
     readonly property bool shortcutsEnabled: !textInputFocused && !dialogOpen && !playlistPanel.popupOpen
     property bool shouldAutoPlay: false
     readonly property bool textInputFocused: activeFocusItem instanceof TextInput || activeFocusItem instanceof TextEdit
@@ -45,7 +46,7 @@ ApplicationWindow {
         mainWindow.requestActivate();
     }
     function getMediaInfo(fileUrl) {
-        var path = fileUrl.toString();
+        var path = PlaybackUtils.displayAddress(fileUrl.toString());
         // On Windows, fileUrl can start with 'file:///'
         if (path.startsWith('file:///')) {
             path = path.substring(8);
@@ -82,7 +83,12 @@ ApplicationWindow {
                 "title": mediaInfo.name
             }]);
     }
+    function togglePlaylistPanel() {
+        if (playlistOverlay)
+            playlistPanelOpen = !playlistPanelOpen;
+    }
     function openAndPlay(url) {
+        playlistPanelOpen = false;
         if (isPlaylistUrl(url)) {
             PlaylistFiles.load(url, supportedMediaExtensions(), "open");
             return;
@@ -94,7 +100,7 @@ ApplicationWindow {
     }
     function streamName(name, url) {
         if (!name)
-            return url.toString();
+            return PlaybackUtils.displayAddress(url.toString());
         try {
             return decodeURIComponent(name);
         } catch (error) {
@@ -137,8 +143,7 @@ ApplicationWindow {
         return AppConstants.isPlaylistExtension(name.substring(name.lastIndexOf('.') + 1));
     }
     function isStreamUrl(url) {
-        var name = url.toString();
-        return name.startsWith("http://") || name.startsWith("https://");
+        return PlaybackUtils.isStreamAddress(url);
     }
     function supportedMediaExtensions() {
         return AppConstants.videoExtensions.concat(AppConstants.audioExtensions);
@@ -278,6 +283,7 @@ ApplicationWindow {
                 waiting = [];
                 if (mediaComponent.path === "" && !firstFileSet) {
                     firstFileSet = true;
+                    playlistPanelOpen = false;
                     selectPlaylistItem(at);
                 }
                 at++;
@@ -285,6 +291,7 @@ ApplicationWindow {
             }
             addToPlaylist(mediaInfo);
             if (!firstFileSet) {
+                playlistPanelOpen = false;
                 mediaComponent.path = mediaInfo.path;
                 mainWindow.title = appTitle + " - " + mediaInfo.name;
                 playList.currentRow = playList.count - 1;
@@ -381,6 +388,7 @@ ApplicationWindow {
                 continue;
             addToPlaylist(mediaInfo);
             if (startPlayback) {
+                playlistPanelOpen = false;
                 mediaComponent.path = mediaInfo.path;
                 mainWindow.title = appTitle + " - " + mediaInfo.name;
                 playList.currentRow = playList.count - 1;
@@ -450,13 +458,13 @@ ApplicationWindow {
         property bool checkUpdatesOnStartup: true
         property bool isDarkTheme: true
         property real playbackRate: 1.0
-        property bool playlistPanelOpen: false
         property int playlistPanelWidth: AppConstants.playlistPanelDefaultWidth
         property string preferredAudioLanguage: ""
         property string preferredSubtitleLanguage: ""
         property bool rememberPositions: false
         property bool rememberRecentFiles: false
         property bool restoreLastPlaylist: false
+        property string rtspTransport: "auto"
         property bool showChannelLogos: true
         property bool shuffle: false
         property real subtitleScale: 1.0
@@ -626,6 +634,26 @@ ApplicationWindow {
         actionText: qsTr("Remove from list")
 
         onActionTriggered: PlaybackHistory.removeRecent(missingPath)
+    }
+    CustomSnackbar {
+        id: streamSnackbar
+
+        property string address: ""
+        property string kind: ""
+
+        actionText: kind === "signIn" || kind === "signInNeeded" ? qsTr("Open URL") : (kind === "transport" ? qsTr("Settings") : "")
+
+        onActionTriggered: {
+            if (kind === "transport")
+                settingsDialog.openPlayback();
+            else
+                openUrlDialog.openWith(address);
+        }
+    }
+    Binding {
+        property: "rtspTransport"
+        target: mediaComponent.mediaPlayer
+        value: appSettings.rtspTransport
     }
     OpenUrlDialog {
         id: openUrlDialog
@@ -817,6 +845,13 @@ ApplicationWindow {
         function onErrorOccurred(errorString) {
             playList.setUnavailable(playList.currentId, errorString);
         }
+        function onRtspFailed(kind, message, address) {
+            playList.setUnavailable(playList.currentId, message);
+            streamSnackbar.kind = kind;
+            streamSnackbar.address = address;
+            streamSnackbar.message = message;
+            streamSnackbar.show();
+        }
         function onLiveChanged() {
             mainWindow.reportLoadedEntry();
         }
@@ -856,11 +891,13 @@ ApplicationWindow {
             var start = mainWindow.availableRowNear(tag === "replace" && loadedCurrent >= 0 ? loadedCurrent : loaded.first);
             if (start < loaded.first)
                 return;
-            if (tag === "replace" || tag === "open" || mediaComponent.path === "")
+            if (tag === "replace" || tag === "open" || mediaComponent.path === "") {
+                mainWindow.playlistPanelOpen = false;
                 mainWindow.selectPlaylistItem(start);
+            }
         }
         function onSaved(tag, ok) {
-            if (tag === "save") {
+            if (tag === "save" || tag === "save-with-passwords") {
                 captureSnackbar.message = ok ? qsTr("Playlist saved") : qsTr("Could not save playlist");
                 captureSnackbar.show();
             }
@@ -1149,7 +1186,7 @@ ApplicationWindow {
                     font.family: "monospace"
                     font.pixelSize: 11
                     opacity: 0.7
-                    text: mediaComponent.path
+                    text: PlaybackUtils.displayAddress(mediaComponent.path)
                 }
                 Text {
                     Layout.fillWidth: true
@@ -1399,6 +1436,7 @@ ApplicationWindow {
         rememberPositions: appSettings.rememberPositions
         rememberRecentFiles: appSettings.rememberRecentFiles
         restoreLastPlaylist: appSettings.restoreLastPlaylist
+        rtspTransport: appSettings.rtspTransport
         showChannelLogos: appSettings.showChannelLogos
 
         onCheckUpdatesOnStartupToggled: function (enabled) {
@@ -1422,6 +1460,9 @@ ApplicationWindow {
         }
         onRestoreLastPlaylistToggled: function (enabled) {
             appSettings.restoreLastPlaylist = enabled;
+        }
+        onRtspTransportSelected: function (transport) {
+            appSettings.rtspTransport = transport;
         }
         onShowChannelLogosToggled: function (enabled) {
             appSettings.showChannelLogos = enabled;
@@ -1470,7 +1511,98 @@ ApplicationWindow {
         nameFilters: [AppConstants.getPlaylistExtensionsFilter()]
         title: qsTr("Save Playlist")
 
-        onAccepted: PlaylistFiles.save(selectedFile, playList.toVariantList(), playList.currentRow, "save")
+        onAccepted: {
+            if (playList.hasPasswords()) {
+                savePasswordsDialog.file = selectedFile;
+                savePasswordsDialog.open();
+            } else {
+                PlaylistFiles.save(selectedFile, playList.toVariantList(), playList.currentRow, "save");
+            }
+        }
+    }
+    Dialog {
+        id: savePasswordsDialog
+
+        property url file
+
+        anchors.centerIn: parent
+        modal: true
+        parent: Overlay.overlay
+        title: qsTr("Save Playlist")
+        width: Math.min(480, mainWindow.width - 48)
+
+        footer: DialogButtonBox {
+            Button {
+                DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
+                flat: true
+                text: qsTr("Cancel")
+            }
+            Button {
+                DialogButtonBox.buttonRole: DialogButtonBox.ActionRole
+                flat: true
+                text: qsTr("Save without passwords")
+
+                onClicked: {
+                    savePasswordsDialog.close();
+                    PlaylistFiles.save(savePasswordsDialog.file, playList.toVariantList(), playList.currentRow, "save");
+                }
+            }
+            Button {
+                DialogButtonBox.buttonRole: DialogButtonBox.ActionRole
+                flat: true
+                text: qsTr("Save with passwords")
+
+                onClicked: {
+                    savePasswordsDialog.close();
+                    confirmPasswordsDialog.file = savePasswordsDialog.file;
+                    confirmPasswordsDialog.open();
+                }
+            }
+        }
+
+        Text {
+            color: Material.foreground
+            text: qsTr("This playlist contains passwords. Save them in the file?")
+            width: savePasswordsDialog.availableWidth
+            wrapMode: Text.WordWrap
+        }
+    }
+    Dialog {
+        id: confirmPasswordsDialog
+
+        property url file
+        readonly property string fileName: decodeURIComponent(file.toString().substring(file.toString().lastIndexOf("/") + 1))
+
+        anchors.centerIn: parent
+        modal: true
+        parent: Overlay.overlay
+        title: qsTr("Save Passwords")
+        width: Math.min(480, mainWindow.width - 48)
+
+        footer: DialogButtonBox {
+            Button {
+                DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
+                flat: true
+                text: qsTr("Save with passwords")
+            }
+            Button {
+                id: confirmPasswordsCancel
+
+                DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
+                flat: true
+                text: qsTr("Cancel")
+            }
+        }
+
+        Text {
+            color: Material.foreground
+            text: qsTr("The passwords will be written to %1 as plain text. Anyone who can read the file can use them. Save with passwords?").arg(confirmPasswordsDialog.fileName)
+            width: confirmPasswordsDialog.availableWidth
+            wrapMode: Text.WordWrap
+        }
+
+        onAccepted: PlaylistFiles.save(file, playList.toVariantList(), playList.currentRow, "save-with-passwords")
+        onOpened: confirmPasswordsCancel.forceActiveFocus()
     }
     FileDialog {
         id: fileDialog
@@ -1486,6 +1618,7 @@ ApplicationWindow {
             if (!mediaInfo)
                 return;
             addToPlaylist(mediaInfo);
+            mainWindow.playlistPanelOpen = false;
             mediaComponent.path = mediaInfo.path;
             mainWindow.title = appTitle + " - " + mediaInfo.name;
             playList.currentRow = playList.count - 1;
@@ -1639,7 +1772,7 @@ ApplicationWindow {
                 if (playlistPanel.visible && playlistView.searchText !== "")
                     playlistView.searchText = "";
                 else if (mainWindow.playlistOverlayOpen)
-                    appSettings.playlistPanelOpen = false;
+                    mainWindow.playlistPanelOpen = false;
                 else
                     mainWindow.visibility = Window.Windowed;
             }
@@ -1649,7 +1782,7 @@ ApplicationWindow {
             enabled: mainWindow.shortcutsEnabled
             sequence: "Ctrl+L"
 
-            onActivated: appSettings.playlistPanelOpen = !appSettings.playlistPanelOpen
+            onActivated: mainWindow.togglePlaylistPanel()
         }
         Shortcut {
             context: Qt.ApplicationShortcut
@@ -1658,7 +1791,7 @@ ApplicationWindow {
 
             onActivated: {
                 if (mainWindow.playlistOverlay)
-                    appSettings.playlistPanelOpen = true;
+                    mainWindow.playlistPanelOpen = true;
                 playlistPanel.focusSearch();
             }
         }
@@ -1801,7 +1934,7 @@ ApplicationWindow {
         visible: mainWindow.playlistOverlayOpen && !playlistPanel.narrow
         z: 60
 
-        onClicked: appSettings.playlistPanelOpen = false
+        onClicked: mainWindow.playlistPanelOpen = false
     }
     PlaylistPanel {
         id: playlistPanel
@@ -1817,11 +1950,11 @@ ApplicationWindow {
         playlistView: playlistView
         showLogos: appSettings.showChannelLogos
         shuffleEnabled: appSettings.shuffle
-        visible: overlay ? appSettings.playlistPanelOpen : true
+        visible: overlay ? mainWindow.playlistPanelOpen : true
         width: !overlay || narrow ? parent.width : Math.max(AppConstants.playlistPanelMinWidth, Math.min(appSettings.playlistPanelWidth, mainWindow.width * AppConstants.playlistPanelMaxFraction))
         z: overlay ? 60 : 0
 
-        onCloseRequested: appSettings.playlistPanelOpen = false
+        onCloseRequested: mainWindow.playlistPanelOpen = false
         onSaveRequested: savePlaylistDialog.open()
         onShowLogosToggled: function (enabled) {
             appSettings.showChannelLogos = enabled;
@@ -1897,7 +2030,7 @@ ApplicationWindow {
             hasPreviousTrack: mainWindow.hasPreviousItem
             playlistCount: playList.count
             playlistCurrentIndex: playList.currentRow
-            playlistOpen: appSettings.playlistPanelOpen
+            playlistOpen: mainWindow.playlistPanelOpen
             repeatMode: mainWindow.repeatMode
             videoOutput: mediaComponent.videoOutput
 
@@ -1919,7 +2052,7 @@ ApplicationWindow {
             }
             onGoToTimeRequested: goToTimeDialog.open()
             onNextTrack: mainWindow.nextItem()
-            onPlaylistToggleRequested: appSettings.playlistPanelOpen = !appSettings.playlistPanelOpen
+            onPlaylistToggleRequested: mainWindow.togglePlaylistPanel()
             onPreviousTrack: mainWindow.previousItem()
         }
     }

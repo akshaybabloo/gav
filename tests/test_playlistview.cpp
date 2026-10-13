@@ -679,3 +679,13 @@ TEST_F(PlaylistViewTest, FollowsMovesInTheSource) {
     view.setSearchText("o");
     EXPECT_EQ(shown(), QStringList({"Bravo News", "Echo", "foxtrot"}));
 }
+
+TEST_F(PlaylistViewTest, SearchDoesNotMatchCredentials) {
+    model.append({QVariantMap{{"path", "https://viewer:s3cr3t@example.org/"}}, QVariantMap{{"path", "file:///videos/other.mp4"}}});
+    view.setSearchText("s3cr3t");
+    EXPECT_TRUE(shown().isEmpty());
+    view.setSearchText("viewer");
+    EXPECT_TRUE(shown().isEmpty());
+    view.setSearchText("example.org");
+    EXPECT_EQ(shown(), QStringList({"https://example.org/"}));
+}

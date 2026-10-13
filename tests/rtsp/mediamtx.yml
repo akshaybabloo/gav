@@ -1,0 +1,43 @@
+logLevel: info
+logDestinations: [stdout]
+
+authMethod: internal
+authInternalUsers:
+- user: any
+  pass:
+  ips: []
+  permissions:
+  - action: publish
+    path:
+  - action: read
+    path: test
+- user: viewer
+  pass: s3cr3tpw
+  ips: []
+  permissions:
+  - action: read
+    path: cam
+
+api: false
+metrics: false
+pprof: false
+playback: false
+
+rtsp: true
+rtspTransports: [udp, tcp]
+rtspEncryption: "optional"
+rtspAddress: 127.0.0.1:8554
+rtspsAddress: 127.0.0.1:8322
+rtpAddress: 127.0.0.1:8000
+rtcpAddress: 127.0.0.1:8001
+rtspServerKey: server.key
+rtspServerCert: server.crt
+
+rtmp: false
+hls: false
+webrtc: false
+srt: false
+
+paths:
+  test:
+  cam:

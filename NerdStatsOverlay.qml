@@ -65,6 +65,13 @@ Rectangle {
             ]
         },
         {
+            title: qsTr("Stream"),
+            visible: () => root.player !== null && PlaybackUtils.isRtspAddress(root.player.displaySource),
+            rows: [
+                { label: qsTr("Transport"), value: () => root.transportText() }
+            ]
+        },
+        {
             title: qsTr("System"),
             visible: () => true,
             rows: [
@@ -78,6 +85,12 @@ Rectangle {
         }
     ]
 
+    function transportText() {
+        if (!player || player.transportInUse === "")
+            return "";
+        const secure = player.displaySource.toString().toLowerCase().startsWith("rtsps:");
+        return secure && player.rtspTransport !== "tcp" ? qsTr("%1 (secure stream)").arg(player.transportInUse) : player.transportInUse;
+    }
     function mediaValue(key) {
         const info = player ? player.mediaInfo : null;
         return info && info[key] !== undefined ? info[key] : "";
@@ -168,7 +181,7 @@ Rectangle {
         return lines.join("\n");
     }
     function recordSample() {
-        const source = player ? player.source.toString() : "";
+        const source = player ? PlaybackUtils.displayAddress(player.source.toString()) : "";
         recording.push({
             time: (Date.now() - recordingStartedAt) / 1000,
             file: source === "" ? "" : decodeURIComponent(source.substring(source.lastIndexOf("/") + 1)),

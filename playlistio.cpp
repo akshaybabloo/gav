@@ -1,5 +1,7 @@
 #include "playlistio.h"
 
+#include "streamaddress.h"
+
 #include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
@@ -17,6 +19,7 @@
 
 namespace {
 
+const QLatin1String saveWithPasswordsTag("save-with-passwords");
 const QLatin1String extinfPrefix("#EXTINF:");
 const QLatin1String extgrpPrefix("#EXTGRP:");
 const QLatin1String currentPrefix("#GAV-CURRENT:");
@@ -215,14 +218,14 @@ PlaylistReadResult parseLines(const QByteArray &data, const QString &baseDirecto
         QString localPath;
         if (remoteBase.isValid()) {
             const QUrl url = hasUrlScheme(line) ? QUrl(line) : remoteBase.resolved(QUrl(line));
-            if (!url.isValid() || !isHttpUrl(url)) {
+            if (!url.isValid() || !StreamAddress::isStream(url)) {
                 ++result.skippedUnsupported;
                 continue;
             }
             entry.location = url;
         } else if (hasUrlScheme(line)) {
             const QUrl url(line);
-            if (isHttpUrl(url)) {
+            if (StreamAddress::isStream(url)) {
                 entry.location = url;
             } else if (url.scheme().toLower() == QLatin1String("file")) {
                 localPath = url.toLocalFile();
@@ -305,7 +308,7 @@ PlaylistReadResult read(const QString &path, const QStringList &supportedExtensi
     return parse(file.readAll(), QFileInfo(path).absolutePath(), supportedExtensions);
 }
 
-QByteArray serialise(const PlaylistDocument &document) {
+QByteArray serialise(const PlaylistDocument &document, bool keepCredentials) {
     QString text = QStringLiteral("#EXTM3U\n");
     if (document.currentIndex >= 0) {
         text += currentPrefix + QString::number(document.currentIndex) + QLatin1Char('\n');
@@ -317,13 +320,13 @@ QByteArray serialise(const PlaylistDocument &document) {
         attributes.replace(QLatin1Char('\n'), QLatin1Char(' '));
         text += extinfPrefix + QString::number(entry.durationSec) + (attributes.isEmpty() ? QString() : QLatin1Char(' ') + attributes) +
                 QLatin1Char(',') + title + QLatin1Char('\n');
-        text += (entry.location.isLocalFile() ? QDir::toNativeSeparators(entry.location.toLocalFile()) : entry.location.toString()) +
-                QLatin1Char('\n');
+        const QUrl address = keepCredentials ? entry.location : StreamAddress::displayAddress(entry.location);
+        text += (entry.location.isLocalFile() ? QDir::toNativeSeparators(entry.location.toLocalFile()) : address.toString()) + QLatin1Char('\n');
     }
     return text.toUtf8();
 }
 
-bool write(const QString &path, const PlaylistDocument &document, QString *error) {
+bool write(const QString &path, const PlaylistDocument &document, QString *error, bool keepCredentials) {
     QDir().mkpath(QFileInfo(path).absolutePath());
     QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly)) {
@@ -332,7 +335,7 @@ bool write(const QString &path, const PlaylistDocument &document, QString *error
         }
         return false;
     }
-    file.write(serialise(document));
+    file.write(serialise(document, keepCredentials));
     if (!file.commit()) {
         if (error) {
             *error = file.errorString();
@@ -455,7 +458,8 @@ void PlaylistFiles::fetch(const QUrl &url, const QString &tag) {
 void PlaylistFiles::save(const QUrl &url, const QVariantList &items, int currentIndex, const QString &tag) {
     const QString path = url.isLocalFile() ? url.toLocalFile() : url.toString();
     const PlaylistDocument document = fromVariant(items, currentIndex);
-    QtConcurrent::run(&m_writer, [path, document] { return PlaylistIO::write(path, document); }).then(this, [this, tag](bool ok) {
+    const bool keepCredentials = tag == saveWithPasswordsTag;
+    QtConcurrent::run(&m_writer, [path, document, keepCredentials] { return PlaylistIO::write(path, document, nullptr, keepCredentials); }).then(this, [this, tag](bool ok) {
         emit saved(tag, ok);
     });
 }

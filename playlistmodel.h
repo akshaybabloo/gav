@@ -43,6 +43,7 @@ public:
         ReasonRole,
         IsCurrentRole,
         QueuePositionRole,
+        DisplayLocationRole,
     };
 
     struct Entry {
@@ -93,6 +94,7 @@ public:
     Q_INVOKABLE QVariantMap entryAt(int row) const;
     Q_INVOKABLE QVariantList toVariantList() const;
     Q_INVOKABLE QList<QUrl> locations() const;
+    Q_INVOKABLE bool hasPasswords() const;
 
 signals:
     void countChanged();

@@ -13,7 +13,7 @@ Item {
     property bool isVideo: customMediaPlayer.hasVideo
     property bool isVideoAndPlaying: isVideo && isPlaying
     property bool mediaLoaded: customMediaPlayer.mediaLoaded
-    readonly property bool openingStream: customMediaPlayer.mediaStatus === MediaPlayer.LoadingMedia && /^https?:/i.test(path)
+    readonly property bool openingStream: customMediaPlayer.mediaStatus === MediaPlayer.LoadingMedia && PlaybackUtils.isStreamAddress(path)
     property alias mediaPlayer: customMediaPlayer
     required property string path
     property alias videoOutput: videoOutput
@@ -326,7 +326,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 color: AppConstants.overlayTextColor
                 font.pixelSize: 16
-                text: openingStream ? qsTr("Opening stream…") : qsTr("Buffering…")
+                text: customMediaPlayer.reconnecting ? qsTr("Reconnecting…") : (openingStream ? qsTr("Opening stream…") : qsTr("Buffering…"))
             }
         }
     }

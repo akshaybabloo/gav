@@ -52,7 +52,7 @@ Window {
         anchors.centerIn: parent
         height: 36
         running: visible
-        visible: miniPlayerWindow.mediaPlayer.buffering || (miniPlayerWindow.mediaPlayer.mediaStatus === MediaPlayer.LoadingMedia && /^https?:/i.test(miniPlayerWindow.mediaPlayer.source.toString()))
+        visible: miniPlayerWindow.mediaPlayer.buffering || (miniPlayerWindow.mediaPlayer.mediaStatus === MediaPlayer.LoadingMedia && PlaybackUtils.isStreamAddress(miniPlayerWindow.mediaPlayer.source))
         width: 36
         z: 3
     }

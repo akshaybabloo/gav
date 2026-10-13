@@ -112,9 +112,11 @@ Stored in the existing QML `Settings`.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `playlistPanelOpen` | boolean | `false` | Whether the panel is open while a video is showing. |
 | `playlistPanelWidth` | integer | `360` | Panel width in pixels. Clamped to 280 … 60 % of the window on use. |
 | `showChannelLogos` | boolean | `true` | Whether logo images may be downloaded (FR-012). |
+
+Whether the panel is open beside a video is not stored. It is a property of the main window,
+`false` at start and whenever a file or stream is opened.
 
 ## Logo cache
 

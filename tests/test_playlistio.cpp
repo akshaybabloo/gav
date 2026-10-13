@@ -3,6 +3,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QSignalSpy>
 #include <QTemporaryDir>
 
 class PlaylistIOTest : public ::testing::Test {
@@ -43,6 +44,45 @@ TEST_F(PlaylistIOTest, RoundTripsHundredEntries) {
     }
     EXPECT_EQ(result.unavailable, 0);
     EXPECT_EQ(result.document.currentIndex, -1);
+}
+
+TEST_F(PlaylistIOTest, WritesAddressesWithoutCredentials) {
+    PlaylistDocument document;
+    document.entries.append({QUrl("https://viewer:s3cr3t@example.org/cam.m3u8"), "Camera", -1});
+    document.entries.append({QUrl("https://example.org/live.m3u8"), "Radio", -1});
+    const QByteArray data = PlaylistIO::serialise(document);
+    EXPECT_FALSE(data.contains("s3cr3t"));
+    EXPECT_FALSE(data.contains("viewer"));
+    EXPECT_TRUE(data.contains("#EXTINF:-1,Camera\nhttps://example.org/cam.m3u8\n"));
+    EXPECT_TRUE(data.contains("#EXTINF:-1,Radio\nhttps://example.org/live.m3u8\n"));
+}
+
+TEST_F(PlaylistIOTest, WritesCredentialsOnlyWhenToldTo) {
+    PlaylistDocument document;
+    document.entries.append({QUrl("rtsp://viewer:s3cr3t@192.168.1.20:554/stream1"), "Camera", -1});
+    EXPECT_TRUE(PlaylistIO::serialise(document, true).contains("#EXTINF:-1,Camera\nrtsp://viewer:s3cr3t@192.168.1.20:554/stream1\n"));
+    EXPECT_TRUE(PlaylistIO::serialise(document, false).contains("#EXTINF:-1,Camera\nrtsp://192.168.1.20:554/stream1\n"));
+    EXPECT_FALSE(PlaylistIO::serialise(document).contains("s3cr3t"));
+}
+
+TEST_F(PlaylistIOTest, OnlyTheConfirmedSaveTagKeepsCredentials) {
+    const QVariantList items{QVariantMap{{"path", "rtsp://viewer:s3cr3t@192.168.1.20:554/stream1"}, {"title", "Camera"}}};
+    const auto saved = [this, &items](const QString &tag) {
+        PlaylistFiles files;
+        QSignalSpy spy(&files, &PlaylistFiles::saved);
+        const QString path = QDir(tempDir.path()).filePath(tag + ".m3u8");
+        files.save(QUrl::fromLocalFile(path), items, 0, tag);
+        EXPECT_TRUE(spy.wait(5000));
+        QFile file(path);
+        EXPECT_TRUE(file.open(QIODevice::ReadOnly));
+        return file.readAll();
+    };
+    EXPECT_TRUE(saved("save-with-passwords").contains("rtsp://viewer:s3cr3t@192.168.1.20:554/stream1"));
+    for (const QString &tag : {QStringLiteral("save"), QStringLiteral("session"), QStringLiteral("anything-else")}) {
+        const QByteArray data = saved(tag);
+        EXPECT_FALSE(data.contains("s3cr3t")) << tag.toStdString();
+        EXPECT_TRUE(data.contains("rtsp://192.168.1.20:554/stream1")) << tag.toStdString();
+    }
 }
 
 TEST_F(PlaylistIOTest, WritesExtendedHeaderWithoutBom) {
@@ -91,9 +131,45 @@ TEST_F(PlaylistIOTest, AcceptsFileAndHttpUrls) {
     EXPECT_EQ(result.document.entries[2].location, QUrl("http://example.org/x.mp4"));
 }
 
+TEST_F(PlaylistIOTest, KeepsRtspEntriesWithTheirAttributes) {
+    const QByteArray data = "#EXTM3U\n"
+                            "#EXTINF:-1 tvg-logo=\"https://example.org/door.png\" group-title=\"Cameras\",Front door\n"
+                            "rtsp://viewer:s3cr3t@192.168.1.20:554/stream1\n"
+                            "#EXTINF:-1 tvg-logo=\"rtsp://192.168.1.20/logo\",Garage\n"
+                            "rtsps://cam.local:8322/live\n";
+    const PlaylistReadResult result = parse(data);
+    ASSERT_EQ(result.document.entries.size(), 2);
+    EXPECT_EQ(result.skippedUnsupported, 0);
+    EXPECT_EQ(result.document.entries[0].location, QUrl("rtsp://viewer:s3cr3t@192.168.1.20:554/stream1"));
+    EXPECT_EQ(result.document.entries[0].title, "Front door");
+    EXPECT_EQ(result.document.entries[0].group, "Cameras");
+    EXPECT_EQ(result.document.entries[0].logo, QUrl("https://example.org/door.png"));
+    EXPECT_EQ(result.document.entries[1].location, QUrl("rtsps://cam.local:8322/live"));
+    EXPECT_EQ(result.document.entries[1].title, "Garage");
+    EXPECT_TRUE(result.document.entries[1].logo.isEmpty());
+}
+
+TEST_F(PlaylistIOTest, LeavesOtherStreamKindsOut) {
+    const PlaylistReadResult result = parse("rtmp://example.org/a\nmmsh://example.org/b\nsrt://example.org:9000\nrtsp://cam.local/live\n");
+    ASSERT_EQ(result.document.entries.size(), 1);
+    EXPECT_EQ(result.document.entries[0].location, QUrl("rtsp://cam.local/live"));
+    EXPECT_EQ(result.skippedUnsupported, 3);
+}
+
+TEST_F(PlaylistIOTest, RemotePlaylistKeepsRtspEntries) {
+    const QByteArray data = "#EXTM3U\n#EXTINF:-1,Camera\nrtsp://cam.example/live\n#EXTINF:-1,Relative\nchannels/one.m3u8\nrtmp://example.org/x\n";
+    const PlaylistReadResult result = PlaylistIO::parseRemote(data, QUrl("https://example.org/list.m3u"), QUrl("https://example.org/list.m3u"));
+    ASSERT_TRUE(result.ok);
+    ASSERT_EQ(result.document.entries.size(), 2);
+    EXPECT_EQ(result.document.entries[0].location, QUrl("rtsp://cam.example/live"));
+    EXPECT_EQ(result.document.entries[0].title, "Camera");
+    EXPECT_EQ(result.document.entries[1].location, QUrl("https://example.org/channels/one.m3u8"));
+    EXPECT_EQ(result.skippedUnsupported, 1);
+}
+
 TEST_F(PlaylistIOTest, CountsUnsupportedSchemesAndExtensions) {
     touch("notes.txt");
-    const PlaylistReadResult result = parse("ftp://example.org/a.mp4\nrtsp://example.org/live\nnotes.txt\n");
+    const PlaylistReadResult result = parse("ftp://example.org/a.mp4\nrtmp://example.org/live\nnotes.txt\n");
     EXPECT_TRUE(result.document.entries.isEmpty());
     EXPECT_EQ(result.skippedUnsupported, 3);
     EXPECT_EQ(result.unavailable, 0);
@@ -232,7 +308,7 @@ TEST_F(PlaylistIOTest, RemotePlaylistResolvesRelativeEntriesAndSkipsLocalOnes) {
                             "/shared/three.mp4\r\n"
                             "C:/Videos/four.mp4\r\n"
                             "C:\\Videos\\five.mp4\r\n" +
-                            QUrl::fromLocalFile(local).toString().toUtf8() + "\r\nrtsp://example.org/six\r\n";
+                            QUrl::fromLocalFile(local).toString().toUtf8() + "\r\nrtmp://example.org/six\r\n";
     const PlaylistReadResult result =
         PlaylistIO::parseRemote(data, QUrl("https://example.org/lists/index.m3u"), QUrl("https://cdn.example.org/lists/index.m3u"));
     ASSERT_TRUE(result.ok);

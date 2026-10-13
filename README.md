@@ -42,7 +42,7 @@ Or open a file from the menu, or drag and drop files onto the window.
 ### Playlists
 
 - Open and save playlists (`.m3u`, `.m3u8`) from the File menu, or drop one onto the window. Saving keeps each entry's title, duration, group and other `#EXTINF` attributes, in playlist order.
-- With nothing playing, or audio only, the playlist fills the window. While a video plays, the playlist button on the control bar or `Ctrl+L` opens it as a panel over the right side of the picture. Drag the panel's left edge to resize it; click the picture or press `Esc` to close it.
+- With nothing playing, or audio only, the playlist fills the window. While a video plays, the playlist button on the control bar or `Ctrl+L` opens it as a panel over the right side of the picture. Each newly opened file or stream starts with the panel closed; it stays open while you move between entries. Drag the panel's left edge to resize it; click the picture or press `Esc` to close it.
 - Each row shows the entry's title, its path or address, and whether it is a video, an audio file or a stream, with its duration (or "Live") and its group when the playlist gives one (`group-title`, `#EXTGRP`). Entries whose file is missing or that failed to play are marked "Unavailable" with the reason and are skipped by next and previous.
 - `Ctrl+F` searches the playlist by title and group. The buttons next to the search field filter it to local files or streams, sort it by title or duration, and group it under the playlist's group headings, which can be collapsed. Next, previous and shuffle follow what is shown. None of this changes the order the playlist is saved in.
 - Click selects a row (`Ctrl` and `Shift` select several) and double-click or `Enter` plays it. Right-click, or the `Menu` key, offers Play, Play next, Remove, and Show in file manager or Copy address. Entries queued with "Play next" play before normal order resumes.
@@ -54,8 +54,12 @@ Or open a file from the menu, or drag and drop files onto the window.
 ### Streams
 
 - File > Open URL (`Ctrl+N`) plays an `http://` or `https://` address: a video or audio file, an HLS stream (`.m3u8`) or a remote playlist (`.m3u`).
+- It also plays `rtsp://` and `rtsps://` addresses, such as IP cameras, as live streams. They can be given on the command line and in playlists too.
+- Settings > Playback > RTSP transport chooses how an RTSP stream is carried. Automatic tries UDP first and switches to TCP when nothing arrives; TCP and UDP use that one only. Stats for nerds shows the transport in use.
+- An RTSP stream that drops is reconnected up to three times over about 30 seconds.
 - For HLS streams that offer several qualities, the quality button on the control bar lists every video quality and audio format. Auto picks one from a short download-speed check.
 - On-demand HLS streams list their subtitle tracks in the subtitle menu.
+- A user name and password inside an address (`rtsp://user:password@…`) are used to sign in and nowhere else: GAV leaves them out of what it shows, logs and remembers. Saving a playlist writes them only after you confirm twice. An address given on the command line is still visible to other programs in the system's process list.
 
 ### Keyboard shortcuts
 
