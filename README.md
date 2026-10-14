@@ -57,6 +57,7 @@ Or open a file from the menu, or drag and drop files onto the window.
 - It also plays `rtsp://` and `rtsps://` addresses, such as IP cameras, as live streams. They can be given on the command line and in playlists too.
 - Settings > Playback > RTSP transport chooses how an RTSP stream is carried. Automatic tries UDP first and switches to TCP when nothing arrives; TCP and UDP use that one only. Stats for nerds shows the transport in use.
 - An RTSP stream that drops is reconnected up to three times over about 30 seconds.
+- Stopping an RTSP stream closes GAV's connection at once. A source that carries the stream over UDP may keep its side open until its own timeout, usually about a minute, so a camera that limits viewers can refuse a new connection during that time.
 - For HLS streams that offer several qualities, the quality button on the control bar lists every video quality and audio format. Auto picks one from a short download-speed check.
 - On-demand HLS streams list their subtitle tracks in the subtitle menu.
 - A user name and password inside an address (`rtsp://user:password@…`) are used to sign in and nowhere else: GAV leaves them out of what it shows, logs and remembers. Saving a playlist writes them only after you confirm twice. An address given on the command line is still visible to other programs in the system's process list.

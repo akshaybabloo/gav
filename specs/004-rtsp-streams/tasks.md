@@ -225,6 +225,7 @@ the loading behaviour.
 - [X] T049 [P] Update `README.md` (Streams section: RTSP addresses, the transport setting, that credentials in an address are not shown or saved, and that an address on the command line is visible in the process list) and `CLAUDE.md` (the two new units, `CustomMediaPlayer`'s part, `tests/rtsp/`).
 - [ ] T050 Run the whole of [quickstart.md](./quickstart.md): the 30-minute run (Q1.15, SC-006), the package checks QP.1–QP.3 on Linux, and QR.1–QR.3. Record the results in the pull request description, and say plainly which of Windows, macOS and a real camera were not run.
 - [X] T051 Run `just format` and `just lint` and resolve what they report in the files this feature changed. Done for what this feature added: the new C++ files are formatted with clang-format 23.1.0, and `just lint-cpp` reports nothing on any line this feature added (156 findings remain in older code, down from 161). The repository-wide reformat and the older findings belong to the lint feature's own steps, so `just format` was not run over files that are not yet in the project style.
+- [X] T052 Enable the Stop button in `MediaControlsComponent.qml` while a source is loading, so that an RTSP stream that is still connecting can be cancelled with it (contract "While connecting"). Found on 2026-10-14: the button followed the player's state, which is "stopped" until the source answers.
 
 ---
 
@@ -240,7 +241,7 @@ which tasks belong together.
 | 2 | Play RTSP | T011–T022, T043, T045–T047 | Step 1 |
 | 3 | Transport setting | T028–T034 | Step 2 |
 | 4 | Reconnecting | T023–T027 | Step 2 |
-| 5 | Playlists and wrap-up | T044, T048–T051 | Step 2; T050 needs steps 3 and 4 |
+| 5 | Playlists and wrap-up | T044, T048–T052 | Step 2; T050 needs steps 3 and 4 |
 
 No build writes a password to a file without the user's consent: from step 1 the playlist writer
 leaves credentials out (T039), and the only way to keep them, the twice-confirmed save
@@ -348,6 +349,10 @@ screen. What was confirmed that way:
 - a playlist file with RTSP entries loads them with titles and groups, leaves `rtmp://` out, and
   plays them
 - a 10-minute continuous run with no loss or reconnect
+- Stop (run on 2026-10-14): while playing over TCP and over UDP, while reconnecting, and while
+  connecting to a host that does not answer; each leaves the player stopped with nothing loaded
+  and no later attempt or message. The Stop button is enabled while connecting and disabled
+  with nothing opened
 
 Not run, and still needed from a person:
 
@@ -367,5 +372,6 @@ Not run, and still needed from a person:
 - [P] tasks touch different files and do not wait on unfinished tasks
 - The numbers in [research.md](./research.md) were measured on Linux x64 with Qt's stock plugin; Windows and macOS are first exercised by CI and by the package checks
 - If Qt's wording of the open-failure message changes, only the sign-in message is affected; the wrong-password row of the quickstart (Q3.7) is the check
+- Known limit: closing a stream does not send `TEARDOWN`, so a source carrying it over UDP keeps the session until its own timeout (60 seconds with MediaMTX); see research R14
 - UDP silently dropped by a real network was not reproduced; `tests/rtsp/silent_server.py` stands in for it
 - Commit after each task or logical group, on a branch, never on `main`
