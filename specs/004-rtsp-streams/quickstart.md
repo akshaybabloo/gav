@@ -78,6 +78,8 @@ Addresses used below:
 | Q1.16 | Publish to `test` with `-vn` (no picture) and play *open* | Sound plays; shown as live; no failure message |
 | Q1.17 | Publish to `test` with `-an` (no sound) and play *open* | Picture plays; shown as live |
 | Q1.18 | Play *open* in the mini player; stop the publisher for 5 seconds and start it again. Repeat with the main window minimised | The stream comes back in both cases |
+| Q1.19 | Play *open* and press Stop. Repeat while "Reconnecting…" shows | The player is stopped at once with nothing loaded; no further attempt is made and no message appears later. Over TCP the server log shows the session destroyed at once; over UDP it shows it timing out about a minute later (known limit, research R14) |
+| Q1.20 | Open URL, enter `rtsp://10.255.255.1/x` (a host that does not answer); press Stop while the buffering indicator shows | The Stop button is enabled; pressing it ends the attempt at once, and no message appears later |
 
 ## Story 2: choose TCP or UDP
 

@@ -295,7 +295,7 @@ Item {
                         ToolTip.text: qsTr("Stop")
                         ToolTip.timeout: AppConstants.tooltipTimeout
                         ToolTip.visible: hovered
-                        enabled: player.playbackState !== MediaPlayer.StoppedState
+                        enabled: root.player.playbackState !== MediaPlayer.StoppedState || root.player.mediaStatus === MediaPlayer.LoadingMedia
                         font.family: materialSymbolsOutlined.name
                         font.weight: Font.Light
                         hoverEnabled: true

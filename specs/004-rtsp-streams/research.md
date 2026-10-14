@@ -324,3 +324,36 @@ client's point of view.
   not measured and is not asked for. Left for a later change.
 - **Other schemes** (`rtmp`, `mmsh`, `srt`): out of scope by the spec. They would be one line
   each in R8 plus their own testing.
+
+## R14. What closing a stream tells the source (FR-004, FR-027a)
+
+**Measured** on 2026-10-14, Linux x64, Qt 6.12.0 stock plugin, MediaMTX 1.21.2, by pressing
+Stop on a playing stream and reading the server's log:
+
+| Carried over | GAV's side | The source's side |
+|---|---|---|
+| TCP | Connection closed at once | Session destroyed in the same second ("not in use") |
+| UDP | Connection closed at once | Session kept for 60 seconds, then "session timed out" |
+
+In neither case did the source log a session "torn down" by the client: no `TEARDOWN` request
+arrives.
+
+**Cause**: Qt's FFmpeg backend sets its cancel flag before it releases the playback engine
+(`QFFmpegMediaPlayer::setMedia` and the destructor). The flag is what FFmpeg's interrupt
+callback reads, so when the engine then closes the input, FFmpeg's write of `TEARDOWN` is
+abandoned and the socket is simply closed.
+
+**Decision**: accept it and record it as a known limit. The source's own timeout bounds it.
+
+**Alternatives considered**
+
+- GAV sending `TEARDOWN` itself: it needs the session id, which only FFmpeg holds.
+- A patch to the plugin that CI builds (beside the two `support/qtmultimedia-*.patch` files):
+  it would not reach development builds, which use Qt's stock plugin, and the cancel flag is
+  also what unblocks a read on a dead connection, so closing without it can hold the window for
+  the length of the network timeout. Left for a later change if a camera with a session limit
+  makes it matter.
+
+**Also found**: the Stop button was enabled only when the player reported a state other than
+"stopped", and while connecting to a source that has not answered it reports "stopped". The
+button is now also enabled while a source is loading, for every kind of source.

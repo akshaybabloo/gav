@@ -44,6 +44,13 @@ the session's TCP memory.
 Closing the stream or opening something else ends the current attempt at once and cancels any
 that would follow.
 
+**Known limit**: closing a stream closes GAV's connection but does not send the source an RTSP
+`TEARDOWN` request. A source carrying the stream over TCP sees the connection close and ends
+the session at once. A source carrying it over UDP keeps the session, and goes on sending,
+until its own session timeout (60 seconds with MediaMTX). This applies to Stop, to opening
+something else, to quitting, and to an attempt GAV gives up on while the source is still
+there, such as the UDP attempt of Automatic. See research R14.
+
 **Longest time to a failure message**: 15 seconds with Automatic, 10 seconds with a forced
 transport.
 
@@ -53,7 +60,8 @@ The buffering indicator is shown from the open until the first picture, whatever
 player reports: it says "loaded" and "playing" when no media has arrived, and the interface
 must not show that as a playing stream. The entry is the current one in the playlist. The
 controls that work for a live stream are available; pressing stop or choosing another entry
-cancels.
+cancels. The Stop button is enabled for the whole of the connection, including the time before
+the source has answered, when the underlying player still reports "stopped".
 
 ## Live
 
