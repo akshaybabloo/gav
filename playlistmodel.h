@@ -44,6 +44,7 @@ public:
         IsCurrentRole,
         QueuePositionRole,
         DisplayLocationRole,
+        TilePositionRole,
     };
 
     struct Entry {
@@ -95,6 +96,7 @@ public:
     Q_INVOKABLE QVariantList toVariantList() const;
     Q_INVOKABLE QList<QUrl> locations() const;
     Q_INVOKABLE bool hasPasswords() const;
+    Q_INVOKABLE void setTileEntries(const QList<int> &ids);
 
 signals:
     void countChanged();
@@ -119,6 +121,7 @@ private:
     QList<Entry> m_entries;
     QList<Removed> m_undoStep;
     QList<int> m_queue;
+    QList<int> m_tileEntries;
     QStringList m_audioExtensions;
     int m_nextId = 1;
     int m_currentId = -1;

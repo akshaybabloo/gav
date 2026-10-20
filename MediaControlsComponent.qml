@@ -26,7 +26,9 @@ Item {
     required property int playlistCount
     property bool playlistOpen: false
     required property int playlistCurrentIndex
-    property int repeatMode: 0  // 0=none, 1=once, 2=loop, 3=range
+    property var media: null
+    readonly property int repeatMode: media ? media.repeatMode : 0
+    property bool splitView: false
     property int rewindMultiplier: 1
     required property var videoOutput
 
@@ -95,11 +97,6 @@ Item {
         }
     }
     Connections {
-        function onDurationChanged() {
-            if (repeatMode === 3 && player.duration > 0 && seekBar.rangeSlider) {
-                seekBar.rangeSlider.setValues(0, player.duration);
-            }
-        }
         function onPlaybackRateChanged() {
             if (isFastForwarding)
                 return;
@@ -114,27 +111,8 @@ Item {
             if (status === MediaPlayer.EndOfMedia) {
                 stopFastForwarding();
                 stopFastRewinding();
-                if (repeatMode === 1) {
-                    player.position = 0;
-                    player.play();
-                    repeatMode = 0;
-                } else if (repeatMode === 2) {
-                    player.position = 0;
-                    player.play();
-                } else if (repeatMode === 3 && seekBar.rangeSlider) {
-                    player.position = seekBar.rangeSlider.first.value;
-                    player.play();
-                } else {
+                if (root.repeatMode === 0)
                     seekBar.resetPreview();
-                    if (!player.statsEnabled && hasNextTrack) {
-                        nextTrack();
-                    }
-                }
-            }
-        }
-        function onPositionChanged() {
-            if (repeatMode === 3 && seekBar.rangeSlider && seekBar.rangeSlider.second.value > seekBar.rangeSlider.first.value && player.position >= seekBar.rangeSlider.second.value) {
-                player.position = seekBar.rangeSlider.first.value;
             }
         }
 
@@ -167,6 +145,7 @@ Item {
                 id: seekBar
 
                 Layout.fillWidth: true
+                media: root.media
                 mediaLoaded: root.mediaLoaded
                 player: root.player
                 repeatMode: root.repeatMode
@@ -295,7 +274,7 @@ Item {
                         ToolTip.text: qsTr("Stop")
                         ToolTip.timeout: AppConstants.tooltipTimeout
                         ToolTip.visible: hovered
-                        enabled: root.player.playbackState !== MediaPlayer.StoppedState || root.player.mediaStatus === MediaPlayer.LoadingMedia
+                        enabled: root.player.playbackState !== MediaPlayer.StoppedState || root.player.mediaStatus === MediaPlayer.LoadingMedia || root.splitView
                         font.family: materialSymbolsOutlined.name
                         font.weight: Font.Light
                         hoverEnabled: true
@@ -303,11 +282,13 @@ Item {
                         text: "\ue047"
 
                         onClicked: {
-                            player.stop();
-                            seekBar.resetPreview();
                             stopFastForwarding();
                             stopFastRewinding();
-                            repeatMode = 0;
+                            seekBar.resetPreview();
+                            if (root.media)
+                                root.media.stop();
+                            else
+                                root.player.stop();
                         }
                     }
                     Button {
@@ -466,10 +447,11 @@ Item {
                         }
 
                         onClicked: {
-                            repeatMode = (repeatMode + 1) % (player.isLive ? 3 : 4);
-                            if (repeatMode === 3 && player.duration > 0 && seekBar.rangeSlider) {
-                                seekBar.rangeSlider.setValues(0, player.duration);
-                            }
+                            if (!root.media)
+                                return;
+                            root.media.repeatMode = (root.repeatMode + 1) % (root.player.isLive ? 3 : 4);
+                            if (root.media.repeatMode === 3 && root.player.duration > 0)
+                                root.media.startRange();
                         }
 
                         ToolTip {
@@ -717,10 +699,10 @@ Item {
                         Material.foreground: miniPlayerActive ? Material.accent : undefined
                         Material.roundedScale: Material.NotRounded
                         ToolTip.delay: AppConstants.tooltipDelay
-                        ToolTip.text: miniPlayerActive ? qsTr("Mini player is active") : qsTr("Open mini player")
+                        ToolTip.text: root.miniPlayerActive ? qsTr("Mini player is active") : (root.splitView ? qsTr("Not available in a split view") : qsTr("Open mini player"))
                         ToolTip.timeout: AppConstants.tooltipTimeout
                         ToolTip.visible: hovered
-                        enabled: mediaLoaded && !miniPlayerActive
+                        enabled: root.mediaLoaded && !root.miniPlayerActive && !root.splitView
                         font.family: materialSymbolsOutlined.name
                         font.pixelSize: 22
                         hoverEnabled: true

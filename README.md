@@ -79,6 +79,15 @@ Or open a file from the menu, or drag and drop files onto the window.
 - "Show channel logos" (Settings → Playback, or the playlist's "more" menu) shows the image a playlist gives for an entry (`tvg-logo`). It is on by default; turn it off and nothing is downloaded. While it is on, logos are fetched only for the rows on screen, from `http` and `https` addresses, and kept in a 20 MB cache that "Clear history" empties.
 - "Restore last playlist on startup" in Settings reopens the previous session's playlist. It is off by default, as are "Resume where I left off" and "Remember recent files".
 
+### Split view
+
+- Select two to four entries in the playlist, right-click and choose "Play in split view" to play them side by side: two next to each other, three or four in a 2×2 grid. With one video already playing, "Play in split view" on another entry puts it beside the one playing.
+- One video is selected, marked with a border in the accent colour. Only it is heard, and the control bar, the keyboard and the media keys act on it. Click a video, or press `1`–`4`, to select another. Each video keeps its own position, speed, tracks, subtitles, repeat and picture settings.
+- Double-click a video to fill the window with it (the other files pause; cameras and other live streams keep playing); double-click again for full screen, and once more to go back to the grid. `Esc` leaves full screen, then goes back to the grid. `1`–`4` switch the video filling the window.
+- Opening a file or address, or playing a playlist entry, replaces the selected video. Drop a file onto a video to replace it, or onto an empty cell to add it. Next and previous change the selected video and skip entries already showing.
+- Stop closes the selected video; View > End split view keeps only the selected one. A video that ends or fails keeps its place until it is closed or replaced.
+- Several RTSP cameras open one after another, so four cameras on a local network take a few seconds to all start. The mini player and the resume prompt are not available in a split view, and a split view is not restored at the next start.
+
 ### Streams
 
 - File > Open URL (`Ctrl+N`) plays an `http://` or `https://` address: a video or audio file, an HLS stream (`.m3u8`) or a remote playlist (`.m3u`).

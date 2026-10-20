@@ -124,6 +124,31 @@ TEST_F(PlaylistViewTest, NextAndPreviousWalkTheList) {
     EXPECT_EQ(view.previousRow(), 1);
 }
 
+TEST_F(PlaylistViewTest, NextAndPreviousCanSkipGivenEntries) {
+    model.append(files(5));
+    const QList<int> inTiles{model.idAt(1), model.idAt(2), model.idAt(4)};
+    model.setCurrentRow(0);
+    EXPECT_EQ(view.nextRowExcluding(inTiles, false), 3);
+    EXPECT_EQ(view.nextRowExcluding({}, false), 1);
+    model.setCurrentRow(3);
+    EXPECT_EQ(view.nextRowExcluding(inTiles, false), -1);
+    EXPECT_EQ(view.nextRowExcluding(inTiles, true), 0);
+    EXPECT_EQ(view.previousRowExcluding(inTiles), 0);
+    model.setCurrentRow(0);
+    EXPECT_EQ(view.previousRowExcluding(inTiles), -1);
+}
+
+TEST_F(PlaylistViewTest, SkippingFollowsTheViewOrder) {
+    model.append(mixed());
+    view.setSearchText("o");
+    const int current = 0;
+    model.setCurrentRow(current);
+    const int plainNext = view.nextRow(false);
+    ASSERT_GE(plainNext, 0);
+    EXPECT_NE(view.nextRowExcluding({model.idAt(plainNext)}, false), plainNext);
+    EXPECT_EQ(view.nextRowExcluding({}, false), plainNext);
+}
+
 TEST_F(PlaylistViewTest, SkipsUnavailableEntries) {
     model.append(files(1));
     model.append({missing("gone-1.mp4"), missing("gone-2.mp4")});

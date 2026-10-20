@@ -77,7 +77,7 @@ Outside a split view, double-click toggles full screen as it does today.
   "Camera 2: The stream was lost."
 - RTSP opens happen one at a time across all tiles. Each uses its own transport choice (the
   setting and the session's memory of that source, which all tiles share) and gets its own
-  failure kind. When a file or HTTP open overlapped a camera's open, that camera reports a
+  failure kind. When an HTTP open overlapped a camera's open, that camera reports a
   failure with the general message, never the other source's reason.
 - No resume prompt appears in a split view; positions are saved as usual.
 - The mini player is unavailable while more than one tile plays.

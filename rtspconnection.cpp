@@ -5,6 +5,7 @@
 #include <QMutex>
 #include <QMutexLocker>
 #include <QRegularExpression>
+#include <QSet>
 
 #include <algorithm>
 #include <utility>
@@ -14,6 +15,11 @@ namespace {
 QMutex openFailureMutex;
 QString openFailureDescription;
 
+QSet<QString> &needsTcp() {
+    static QSet<QString> sources;
+    return sources;
+}
+
 } // namespace
 
 RtspConnection::Step RtspConnection::open(const QUrl &address, Setting setting, qint64 nowMs) {
@@ -21,7 +27,7 @@ RtspConnection::Step RtspConnection::open(const QUrl &address, Setting setting, 
     m_sourceKey = StreamAddress::sourceKey(address);
     const bool secure = StreamAddress::isSecureRtsp(address);
     m_forced = !secure && setting != Setting::Automatic;
-    if (secure || setting == Setting::Tcp || (setting == Setting::Automatic && m_needsTcp.contains(m_sourceKey))) {
+    if (secure || setting == Setting::Tcp || (setting == Setting::Automatic && needsTcp().contains(m_sourceKey))) {
         m_attempts = {Transport::Tcp};
     } else if (setting == Setting::Udp) {
         m_attempts = {Transport::Udp};
@@ -38,7 +44,7 @@ RtspConnection::Step RtspConnection::firstPicture() {
     if (m_state == State::Connecting) {
         m_transportInUse = m_attempts[m_attempt];
         if (m_fallsBack && m_transportInUse == Transport::Tcp) {
-            m_needsTcp.insert(m_sourceKey);
+            needsTcp().insert(m_sourceKey);
         }
         m_state = State::Playing;
     } else if (m_state == State::Reconnecting && m_reconnectAttemptRunning) {
@@ -100,6 +106,12 @@ RtspConnection::Step RtspConnection::timePassed(qint64 nowMs) {
     return {Step::Kind::Open, m_transportInUse, networkTimeoutMs};
 }
 
+void RtspConnection::attemptStarted(qint64 nowMs) {
+    if (opening()) {
+        m_attemptStartMs = nowMs;
+    }
+}
+
 void RtspConnection::close() {
     m_state = State::Idle;
     m_attempts.clear();
@@ -110,7 +122,9 @@ void RtspConnection::close() {
     m_reopenOnPlay = false;
 }
 
-void RtspConnection::forgetTransports() { m_needsTcp.clear(); }
+void RtspConnection::forgetTransports() { needsTcp().clear(); }
+
+void RtspConnection::resetTransportMemory() { needsTcp().clear(); }
 
 RtspConnection::State RtspConnection::state() const { return m_state; }
 

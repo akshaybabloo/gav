@@ -40,6 +40,18 @@ ffmpeg -re -f lavfi -i testsrc=size=640x360:rate=25 -f lavfi -i sine=frequency=4
 - Publish to `rtsp://127.0.0.1:8554/cam` in the same way for the path that needs a sign-in.
 - Add `-vn` before `-f rtsp` for a stream without picture, or `-an` for one without sound.
 
+For the split view's camera checks (`specs/005-split-view/quickstart.md`), publish to `wall1` to
+`wall4` with the time drawn on the picture, so a live picture can be told from a paused one:
+
+```text
+for i in 1 2 3 4; do
+  ffmpeg -re -f lavfi -i testsrc=size=640x360:rate=25 -f lavfi -i sine=frequency=$((300+i*100)) \
+    -vf "drawtext=text='wall$i %{localtime\:%T}':x=20:y=20:fontsize=36:fontcolor=white:box=1:boxcolor=black" \
+    -c:v libx264 -preset ultrafast -tune zerolatency -g 25 -pix_fmt yuv420p -c:a aac \
+    -f rtsp -rtsp_transport tcp rtsp://127.0.0.1:8554/wall$i &
+done
+```
+
 ## Addresses
 
 | What | Address |
@@ -47,6 +59,7 @@ ffmpeg -re -f lavfi -i testsrc=size=640x360:rate=25 -f lavfi -i sine=frequency=4
 | Open stream | `rtsp://127.0.0.1:8554/test` |
 | The same, secure | `rtsps://127.0.0.1:8322/test` |
 | Needs a sign-in | `rtsp://viewer:s3cr3tpw@127.0.0.1:8554/cam` |
+| Four open streams for the split view | `rtsp://127.0.0.1:8554/wall1` to `wall4` |
 | Sends no media | `rtsp://127.0.0.1:8555/s` |
 
 ## One transport only

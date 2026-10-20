@@ -637,7 +637,18 @@ bool PlaylistView::available(int viewRow) const {
     return entry && entry->availability != PlaylistModel::Unavailable;
 }
 
-int PlaylistView::nextRow(bool repeat) const {
+int PlaylistView::nextRow(bool repeat) const { return nextRowExcluding({}, repeat); }
+
+int PlaylistView::previousRow() const { return previousRowExcluding({}); }
+
+bool PlaylistView::playable(int viewRow, const QList<int> &excluded) const {
+    if (!available(viewRow)) {
+        return false;
+    }
+    return excluded.isEmpty() || !excluded.contains(m_source->idAt(sourceRowFor(viewRow)));
+}
+
+int PlaylistView::nextRowExcluding(const QList<int> &ids, bool repeat) const {
     const int count = int(m_rows.size());
     if (!m_source || count == 0) {
         return -1;
@@ -665,14 +676,14 @@ int PlaylistView::nextRow(bool repeat) const {
             }
             row -= count;
         }
-        if (available(row)) {
+        if (playable(row, ids)) {
             return m_rows[row].sourceRow;
         }
     }
     return -1;
 }
 
-int PlaylistView::previousRow() const {
+int PlaylistView::previousRowExcluding(const QList<int> &ids) const {
     const int count = int(m_rows.size());
     if (!m_source || count == 0) {
         return -1;
@@ -689,7 +700,7 @@ int PlaylistView::previousRow() const {
         }
     }
     for (int row = start; row >= 0; --row) {
-        if (available(row)) {
+        if (playable(row, ids)) {
             return m_rows[row].sourceRow;
         }
     }

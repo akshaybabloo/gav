@@ -55,7 +55,8 @@ The state of the video area. One instance in the window.
 
 ## Tile (QML, one per slot)
 
-The existing `MediaComponent`, in a `Loader` per slot, with what it gains:
+The existing `MediaComponent`, four of them for the whole session (research R6), with what it
+gains:
 
 | Field | Meaning |
 |---|---|
@@ -75,7 +76,7 @@ use `entryId` (research R2).
 |---|---|---|
 | `holder` | The connection whose attempt is opening, or none | Set when an attempt is let through; cleared when Qt reports that open loaded or failed, or when the attempt is cancelled (close, replace). |
 | `waiting` | Connections waiting, in arrival order | The first waiting one is let through when the gate clears. A cancelled one leaves the queue. |
-| `otherOpens` | Non-RTSP opens in flight | Raised when a player sets a non-RTSP source, lowered when Qt reports it loaded or failed. |
+| `otherOpens` | HTTP and HTTPS opens in flight | Raised when a player sets an HTTP or HTTPS source, lowered when Qt reports it loaded or failed. Local files are not counted (research R4). |
 | `overlapped` | Whether `otherOpens` was above 0 at any time during the holder's open | Reset when a new holder is let through. |
 
 An RTSP attempt sets the transport variable and the source only once it holds the gate (research

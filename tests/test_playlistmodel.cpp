@@ -33,6 +33,42 @@ QStringList titles(const PlaylistModel &model) {
 
 }
 
+TEST(PlaylistModelTest, TilePositionsFollowTheGivenOrder) {
+    PlaylistModel model;
+    model.append(files(5));
+    const QModelIndex first = model.index(0);
+    QSignalSpy changed(&model, &QAbstractItemModel::dataChanged);
+    model.setTileEntries({model.idAt(3), model.idAt(1)});
+    EXPECT_EQ(model.data(model.index(3), PlaylistModel::TilePositionRole).toInt(), 1);
+    EXPECT_EQ(model.data(model.index(1), PlaylistModel::TilePositionRole).toInt(), 2);
+    EXPECT_EQ(model.data(first, PlaylistModel::TilePositionRole).toInt(), 0);
+    EXPECT_EQ(changed.count(), 2);
+
+    changed.clear();
+    model.setTileEntries({model.idAt(3), model.idAt(1)});
+    EXPECT_EQ(changed.count(), 0);
+
+    model.setTileEntries({model.idAt(3), model.idAt(4)});
+    EXPECT_EQ(changed.count(), 2);
+    EXPECT_EQ(model.data(model.index(1), PlaylistModel::TilePositionRole).toInt(), 0);
+    EXPECT_EQ(model.data(model.index(4), PlaylistModel::TilePositionRole).toInt(), 2);
+
+    model.setTileEntries({});
+    EXPECT_EQ(model.data(model.index(3), PlaylistModel::TilePositionRole).toInt(), 0);
+    EXPECT_EQ(model.roleNames().value(PlaylistModel::TilePositionRole), QByteArray("tilePosition"));
+}
+
+TEST(PlaylistModelTest, TilePositionsSurviveRemovalAndMoves) {
+    PlaylistModel model;
+    model.append(files(4));
+    const int tile = model.idAt(2);
+    model.setTileEntries({tile});
+    model.remove({model.idAt(0)});
+    EXPECT_EQ(model.data(model.index(model.rowForId(tile)), PlaylistModel::TilePositionRole).toInt(), 1);
+    model.move({tile}, 0);
+    EXPECT_EQ(model.data(model.index(0), PlaylistModel::TilePositionRole).toInt(), 1);
+}
+
 TEST(PlaylistModelTest, AppendInsertsOneBatch) {
     PlaylistModel model;
     QAbstractItemModelTester tester(&model, QAbstractItemModelTester::FailureReportingMode::Fatal);

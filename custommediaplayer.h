@@ -35,6 +35,7 @@ class CustomMediaPlayer : public QQuickItem {
   Q_PROPERTY(qreal playbackRate READ playbackRate WRITE setPlaybackRate NOTIFY playbackRateChanged)
   Q_PROPERTY(qreal fps READ fps NOTIFY fpsChanged)
   Q_PROPERTY(bool statsEnabled READ statsEnabled WRITE setStatsEnabled NOTIFY statsEnabledChanged)
+  Q_PROPERTY(bool stopAtEnd READ stopAtEnd WRITE setStopAtEnd NOTIFY stopAtEndChanged)
   Q_PROPERTY(QVariantMap mediaInfo READ mediaInfo NOTIFY mediaInfoChanged)
   Q_PROPERTY(QVariantMap frameInfo READ frameInfo NOTIFY frameInfoChanged)
   Q_PROPERTY(SubtitleController *subtitles READ subtitles CONSTANT)
@@ -106,6 +107,8 @@ public:
 
   bool statsEnabled() const;
   void setStatsEnabled(bool enabled);
+  bool stopAtEnd() const;
+  void setStopAtEnd(bool stop);
 
   QVariantMap mediaInfo() const;
   QVariantMap frameInfo() const;
@@ -155,6 +158,7 @@ signals:
   void playbackRateChanged();
   void fpsChanged();
   void statsEnabledChanged();
+  void stopAtEndChanged();
   void mediaInfoChanged();
   void frameInfoChanged();
   void videoVisibilityChanged(bool visible);
@@ -198,6 +202,12 @@ private:
   double frameDurationUs() const;
   void clearPendingStep();
   void onStreamLoadTimeout();
+  QString previewOwner() const;
+  void beginOtherOpen();
+  void endOtherOpen();
+  void releaseRtspGate();
+  void onRtspGateAdmitted(int id);
+  void armRtspTimer();
   void checkForStall();
   void setBuffering(bool buffering);
   void onQualityResolved(const StreamQuality::Playback &playback);
@@ -237,6 +247,7 @@ private:
   QElapsedTimer m_fpsElapsed;
 
   bool m_statsEnabled = false;
+  bool m_stopAtEnd = true;
   QVariantMap m_mediaInfo;
   QVariantMap m_frameInfo;
   QAudioBufferOutput *m_audioBufferOutput = nullptr;
@@ -278,6 +289,10 @@ private:
   bool m_rtspBusy = false;
   bool m_rtspConnecting = false;
   bool m_reconnecting = false;
+  bool m_waitingForGate = false;
+  RtspConnection::Step m_gateStep;
+  bool m_otherOpenPending = false;
+  int m_playerId = 0;
   QList<HlsSubtitle> m_streamSubtitles;
   QBuffer *m_manifest = nullptr;
 };

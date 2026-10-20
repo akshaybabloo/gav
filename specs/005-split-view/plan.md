@@ -16,9 +16,9 @@ by dropping files onto it.
 
 - One player per tile, all in the main process, as the single video is today. Four 1080p videos
   played together with no dropped frames in a measurement on this machine (R1).
-- The grid has four fixed slots, each a `MediaComponent` in a `Loader`. A tile's player lives in
-  its slot for as long as its video is in the grid, so the layout can change without restarting
-  anything. Slot 0 is the single view, unchanged (R6).
+- The grid has four fixed slots, each a `MediaComponent` that exists for the whole session. A
+  tile's player lives in its slot for as long as its video is in the grid, so the layout can
+  change without restarting anything. With one video, the other three are hidden and idle (R6).
 - A new C++ unit, `TileGrid`, holds the slots, their order, the selection, focus, and the rules
   for every gesture, and computes the cells. It has no playback code and is unit-tested (R6, R8).
 - The window's one `mediaComponent` becomes `activeMedia`, the selected tile. Handlers that react

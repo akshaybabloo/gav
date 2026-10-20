@@ -1,5 +1,7 @@
 #include "previewimageprovider.h"
 
+#include <algorithm>
+
 PreviewImageProvider *PreviewImageProvider::s_instance = nullptr;
 
 PreviewImageProvider::PreviewImageProvider()
@@ -39,27 +41,36 @@ QImage PreviewImageProvider::requestImage(const QString &id, QSize *size, const 
     return image;
 }
 
-void PreviewImageProvider::storeImage(const QString &id, const QImage &image) {
-    QMutexLocker locker(&m_mutex);
-    m_images.insert(id, image);
-    
-    // Cleanup old images? 
-    // For this simple usage where we overwrite often or use unique IDs, 
-    // we might want to clear if the map gets too big, or if we are reusing IDs.
-    // Let's implement a simple size cap: if > 10 images, remove oldest?
-    // But QMap isn't ordered by insertion.
-    // Since we are likely using one ID per player or one ID that changes, 
-    // let's rely on CustomMediaPlayer reusing the ID or generating new ones.
-    // If CustomMediaPlayer reuses "preview" ID it won't force refresh in QML unless URL changes.
-    // So CustomMediaPlayer will use "preview_UNIQUE". 
-    // We should clear the map periodically or just clear it here if it's too big.
-    if (m_images.size() > 20) {
-        m_images.clear();
-        m_images.insert(id, image); // Keep the new one
-    }
+namespace {
+
+constexpr int maxImagesPerOwner = 20;
+
+QString ownerPrefix(const QString &owner) { return owner + QLatin1Char('_'); }
+
+QString ownerOf(const QString &id) { return id.section(QLatin1Char('_'), 0, 0); }
+
+void removeOwner(QMap<QString, QImage> &images, const QString &owner) {
+    const QString prefix = ownerPrefix(owner);
+    images.removeIf([&prefix](const QMap<QString, QImage>::iterator &it) { return it.key().startsWith(prefix); });
 }
 
-void PreviewImageProvider::clearImages() {
+} // namespace
+
+QString PreviewImageProvider::imageId(const QString &owner, qint64 stamp) {
+    return ownerPrefix(owner) + QStringLiteral("preview_%1").arg(stamp);
+}
+
+void PreviewImageProvider::storeImage(const QString &id, const QImage &image) {
     QMutexLocker locker(&m_mutex);
-    m_images.clear();
+    const QString prefix = ownerPrefix(ownerOf(id));
+    const auto owned = std::count_if(m_images.keyBegin(), m_images.keyEnd(), [&prefix](const QString &key) { return key.startsWith(prefix); });
+    if (owned >= maxImagesPerOwner) {
+        removeOwner(m_images, ownerOf(id));
+    }
+    m_images.insert(id, image);
+}
+
+void PreviewImageProvider::clearImages(const QString &owner) {
+    QMutexLocker locker(&m_mutex);
+    removeOwner(m_images, owner);
 }

@@ -69,7 +69,9 @@ code paths for playing a video, which FR-031 would then have to prove equal twic
 
 **Decision**: repeat mode, A-B points and the end-of-media handling move into `MediaComponent`,
 so each tile repeats on its own; the control bar shows and changes the selected tile's values.
-Moving on at the end happens only with one tile. Each tile's `AudioOutput` takes the window's
+Moving on at the end happens only with one tile. The player also stops itself at the end of a
+file, which clears its source; a new `stopAtEnd` property is turned off while a split view shows,
+so a tile that ends keeps its last picture and its place (FR-024). Each tile's `AudioOutput` takes the window's
 volume and is muted unless it is the selected tile (R7).
 
 ## R4. RTSP state shared by the whole process (FR-027, SC-005)
@@ -95,10 +97,13 @@ Feature 004 was built for one player. Three parts do not hold with several:
   the source loaded or failed. This makes both the variable and the failure note belong to one
   open at a time. Files and HTTP sources do not use the gate.
 - Other sources write to the same failure note, because Qt's warning is the same for every
-  source. The gate therefore also counts non-RTSP opens in flight. If one of them overlapped the
-  holder's open, the holder treats a noted failure as "other" instead of sign-in or not found. A
-  camera can then show the general message instead of the specific one, but never another
-  source's reason.
+  source. The gate therefore also counts HTTP and HTTPS opens in flight. If one of them overlapped
+  the holder's open, the holder treats a noted failure as "other" instead of sign-in or not found.
+  A camera can then show the general message instead of the specific one, but never another
+  source's reason. Local files are not counted: their failure text never carries an HTTP status,
+  so at worst a local file failing at the same moment turns a camera's specific reason into the
+  general one. Counting them made a camera opened beside local files lose its sign-in reason on
+  the first attempt and try TCP needlessly (measured 2026-10-21).
 - The TCP memory becomes one store for the process, read and written by every
   `RtspConnection`; changing the setting clears it (as `forgetTransports` does now).
 - Both are plain C++ with no playback code and are unit-tested.
@@ -129,10 +134,10 @@ images. Closing one tile then no longer removes the selected tile's seek-bar pre
 ## R6. Layout and tiles that keep playing while the grid changes (FR-003, FR-004, FR-005)
 
 A tile's player must not restart when the layout changes (two to three videos, a close, a
-focus). The grid therefore has four fixed **slots**, each holding one `MediaComponent` in a
-`Loader` that is active only while the slot has a video. A slot keeps its player for as long as
-its video is in the split view; only the slot's **position** on screen changes. Slot 0 is the
-single view's player, so a single video uses one player exactly as today.
+focus). The grid therefore has four fixed **slots**, each holding one `MediaComponent` that
+exists for the whole session. A slot keeps its player for as long as its video is in the split
+view; only the slot's **position** on screen changes. With one video, the selected slot fills the
+area and the others are hidden and idle, so a single video uses one player exactly as today.
 
 Cells: one video → the whole area; two → left and right halves; three or four → 2×2, filled left
 to right, top to bottom, the fourth cell empty with three. Each `VideoOutput` already keeps the
@@ -140,11 +145,16 @@ picture's shape inside its item.
 
 **Decision**: a C++ unit `TileGrid` holds the slots, their order, the selected and focused slot
 and the rules for adding, replacing, closing, selecting and focusing, and computes each slot's
-cell for a given area size. QML places the four `Loader`s from it.
+cell for a given area size. QML places the four tiles from it, and the window's `activeMedia` is
+the selected slot's tile.
 
-**Alternatives considered**: a `Repeater` over a model of videos (closing a tile would shift the
-model and recreate the players after it); building tiles with `createObject` (lifetime handled
-by hand, harder to test).
+**Alternatives considered**: a `Loader` per slot, active only while the slot has a video (planned
+first; dropped in implementation because `activeMedia` would be null whenever the selected slot is
+empty, and the window binds more than a hundred properties through it); a `Repeater` over a model
+of videos (closing a tile would shift the model and recreate the players after it, and its items
+do not exist yet when the window's bindings are first evaluated); building tiles with
+`createObject` (lifetime handled by hand, harder to test). An idle tile is a player with no
+source: no decoder, no audio stream.
 
 ## R7. Moving the sound (FR-009, FR-012, SC-002)
 

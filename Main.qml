@@ -11,8 +11,9 @@ import gavqml
 ApplicationWindow {
     id: mainWindow
 
+    readonly property MediaComponent activeMedia: tiles[videoGrid.selectedSlot]
     readonly property string appTitle: qsTr("GAV Player")
-    property bool controlsVisibleAlias: mediaComponent.controlsAreVisible
+    property bool controlsVisibleAlias: videoGrid.splitView ? tiles.some(tile => tile.visible && tile.controlsAreVisible) : activeMedia.controlsAreVisible
     property bool isDarkTheme: true
     property bool mediaControlsContainsMouse: false
     property var pendingStartupUrls: []
@@ -20,25 +21,27 @@ ApplicationWindow {
     property int addedWhileNarrowed: 0
     property var droppedPlaylists: []
     property int hiddenWhileNarrowed: 0
-    property int loadedEntryId: -1
-    property string loadedEntrySource: ""
+    property bool muted: false
     readonly property bool hasNextItem: playList.queueLength > 0 || (appSettings.shuffle ? shuffleOrder.remaining > 0 : playlistView.canGoNext)
     readonly property bool hasPreviousItem: appSettings.shuffle ? shuffleOrder.canGoBack : playlistView.canGoPrevious
     property bool restoringSession: false
     readonly property url sessionPlaylistUrl: StandardPaths.writableLocation(StandardPaths.AppDataLocation) + "/session.m3u8"
-    readonly property bool playlistOverlay: mediaComponent.isVideoAndPlaying || loadingScreen.visible
+    readonly property bool playlistOverlay: videoGrid.splitView || activeMedia.isVideoAndPlaying || loadingScreen.visible
     readonly property bool playlistOverlayOpen: playlistOverlay && playlistPanelOpen
     property bool playlistPanelOpen: false
-    property int repeatMode: 0
+    readonly property string rtspTransport: appSettings.rtspTransport
     readonly property bool dialogOpen: aboutDialog.opened || playbackErrorDialog.opened || updateDialog.opened || settingsDialog.opened || resumeDialog.opened || goToTimeDialog.opened || openUrlDialog.opened || savePasswordsDialog.opened || confirmPasswordsDialog.opened
     readonly property bool shortcutsEnabled: !textInputFocused && !dialogOpen && !playlistPanel.popupOpen
     property bool shouldAutoPlay: false
+    property bool syncingCurrent: false
     readonly property bool textInputFocused: activeFocusItem instanceof TextInput || activeFocusItem instanceof TextEdit
+    readonly property var tiles: [tile0, tile1, tile2, tile3]
+    property real volume: AppConstants.defaultVolume
 
     function exitMiniPlayer() {
         if (!miniPlayerWindow.visible)
             return;
-        mediaComponent.mediaPlayer.videoOutput = mediaComponent.videoOutput;
+        activeMedia.mediaPlayer.videoOutput = activeMedia.videoOutput;
         miniPlayerWindow.visible = false;
         mainWindow.show();
         mainWindow.showNormal();
@@ -111,22 +114,21 @@ ApplicationWindow {
         if (miniPlayerWindow.visible)
             miniPlayerWindow.showOsd(text);
         else
-            mediaComponent.showOsd(text);
+            activeMedia.showOsd(text);
     }
     function toggleFullScreen() {
         mainWindow.visibility = mainWindow.visibility === Window.FullScreen ? Window.Windowed : Window.FullScreen;
     }
     function changeVolume(delta) {
-        var output = mediaComponent.audioOutput;
-        output.volume = Math.max(0, Math.min(1, output.volume + delta));
+        volume = Math.max(0, Math.min(1, volume + delta));
         if (miniPlayerWindow.visible)
-            miniPlayerWindow.showOsd(qsTr("Volume: %1%").arg(Math.round(output.volume * 100)));
+            miniPlayerWindow.showOsd(qsTr("Volume: %1%").arg(Math.round(volume * 100)));
         else
-            mediaComponent.showVolume();
+            activeMedia.showVolume();
     }
     function changeSpeed(direction) {
         var speeds = AppConstants.playbackSpeeds;
-        var player = mediaComponent.mediaPlayer;
+        var player = activeMedia.mediaPlayer;
         var index = 0;
         for (var i = 1; i < speeds.length; i++) {
             if (Math.abs(speeds[i] - player.playbackRate) < Math.abs(speeds[index] - player.playbackRate))
@@ -151,29 +153,220 @@ ApplicationWindow {
     function selectPlaylistItem(index) {
         if (index < 0 || index >= playList.count)
             return;
-        if (playList.currentRow === index) {
-            var item = playList.entryAt(index);
-            mediaComponent.path = item.path;
-            mainWindow.title = appTitle + " - " + item.title;
-            mediaComponent.mediaPlayer.play();
-        } else {
+        if (playList.currentRow === index)
+            playEntry(playList.idAt(index), true);
+        else
             playList.currentRow = index;
-        }
+    }
+    function tileEntryIds() {
+        var ids = [];
+        for (var position = 1; position <= videoGrid.count; position++)
+            ids.push(videoGrid.entryIds[videoGrid.slotAtPosition(position)]);
+        return ids;
+    }
+    function otherTileEntryIds() {
+        var ids = tileEntryIds();
+        return videoGrid.splitView ? ids.filter(id => id !== playList.currentId) : [];
     }
     function nextItem() {
+        var skip = otherTileEntryIds();
         var queued = playList.takeQueued();
-        if (queued >= 0)
+        while (queued >= 0 && skip.indexOf(playList.idAt(queued)) >= 0)
+            queued = playList.takeQueued();
+        if (queued >= 0) {
             selectPlaylistItem(queued);
-        else if (appSettings.shuffle)
-            selectPlaylistItem(playList.rowForId(shuffleOrder.next(false)));
-        else
-            selectPlaylistItem(playlistView.nextRow(false));
+        } else if (appSettings.shuffle) {
+            var next = shuffleOrder.next(false);
+            for (var tries = 0; next >= 0 && skip.indexOf(next) >= 0 && tries < playList.count; tries++)
+                next = shuffleOrder.next(false);
+            selectPlaylistItem(playList.rowForId(next));
+        } else {
+            selectPlaylistItem(playlistView.nextRowExcluding(skip, false));
+        }
     }
     function previousItem() {
-        if (appSettings.shuffle)
-            selectPlaylistItem(playList.rowForId(shuffleOrder.previous()));
-        else
-            selectPlaylistItem(playlistView.previousRow());
+        var skip = otherTileEntryIds();
+        if (appSettings.shuffle) {
+            var previous = shuffleOrder.previous();
+            for (var tries = 0; previous >= 0 && skip.indexOf(previous) >= 0 && tries < playList.count; tries++)
+                previous = shuffleOrder.previous();
+            selectPlaylistItem(playList.rowForId(previous));
+        } else {
+            selectPlaylistItem(playlistView.previousRowExcluding(skip));
+        }
+    }
+    function playEntry(entryId, play) {
+        var result = videoGrid.open(entryId);
+        if (result.refused)
+            return;
+        if (result.load.length > 0) {
+            loadTile(result.load[0], entryId, play);
+        } else if (play) {
+            var slot = videoGrid.slotOf(entryId);
+            if (slot >= 0)
+                tiles[slot].mediaPlayer.play();
+        }
+    }
+    function loadTile(slot, entryId, play) {
+        var row = playList.rowForId(entryId);
+        if (row < 0)
+            return;
+        var item = playList.entryAt(row);
+        var tile = tiles[slot];
+        tile.failure = "";
+        tile.entryId = entryId;
+        tile.title = item.title;
+        tile.path = item.path;
+        if (play)
+            tile.mediaPlayer.play();
+    }
+    function playInSplitView(ids) {
+        var result = videoGrid.count === 0 ? videoGrid.start(ids) : videoGrid.add(ids);
+        if (result.refused) {
+            if (videoGrid.resultingCount(ids) > 4)
+                showSplitViewFull();
+            return;
+        }
+        resumeTiles(result.resume);
+        for (var i = 0; i < result.load.length; i++)
+            loadTile(result.load[i], videoGrid.entryIds[result.load[i]], true);
+    }
+    function showSplitViewFull() {
+        captureSnackbar.message = qsTr("A split view holds up to four videos");
+        captureSnackbar.show();
+    }
+    function endSplitView() {
+        var result = videoGrid.end();
+        for (var i = 0; i < result.closed.length; i++)
+            resetTile(tiles[result.closed[i]]);
+        resumeTiles(result.resume);
+    }
+    function resetTile(tile) {
+        tile.failure = "";
+        if (tile.mediaPlayer.source.toString() !== "")
+            tile.mediaPlayer.stop();
+        tile.path = "";
+        tile.entryId = -1;
+        tile.title = "";
+    }
+    function resumeTiles(slots) {
+        for (var i = 0; i < slots.length; i++)
+            tiles[slots[i]].mediaPlayer.play();
+    }
+    function playingFiles() {
+        var slots = [];
+        for (var slot = 0; slot < tiles.length; slot++) {
+            var player = tiles[slot].mediaPlayer;
+            if (player.playbackState === MediaPlayer.PlayingState && !player.isLive)
+                slots.push(slot);
+        }
+        return slots;
+    }
+    function applyFocusResult(result) {
+        var i;
+        for (i = 0; result.pause && i < result.pause.length; i++)
+            tiles[result.pause[i]].mediaPlayer.pause();
+        if (result.resume)
+            resumeTiles(result.resume);
+        if (result.enterFullScreen)
+            mainWindow.visibility = Window.FullScreen;
+        else if (result.leaveFullScreen)
+            mainWindow.visibility = Window.Windowed;
+    }
+    function stopTile(tile) {
+        if (tile.mediaPlayer.source.toString() !== "") {
+            tile.mediaPlayer.stop();
+            return;
+        }
+        tile.failure = "";
+        tileStopped(tile);
+    }
+    function tileStopped(tile) {
+        if (tile.failure !== "" && videoGrid.positionOf(tile.slot) > 0)
+            return;
+        if (tile.selected)
+            pendingSubtitleUrls = [];
+        var result = videoGrid.close(tile.slot);
+        resetTile(tile);
+        resumeTiles(result.resume);
+    }
+    function tileLoaded(tile) {
+        reportLoadedEntry(tile);
+        tile.mediaPlayer.playbackRate = appSettings.playbackRate;
+        if (appSettings.rememberRecentFiles)
+            PlaybackHistory.recordOpened(tile.mediaPlayer.source.toString());
+        if (!tile.selected)
+            return;
+        if (!videoGrid.splitView && promptResumeIfSaved(tile))
+            shouldAutoPlay = false;
+        var subtitleUrls = pendingSubtitleUrls;
+        pendingSubtitleUrls = [];
+        for (var i = 0; i < subtitleUrls.length; i++)
+            loadSubtitleUrl(subtitleUrls[i]);
+        if (shouldAutoPlay) {
+            tile.mediaPlayer.play();
+            shouldAutoPlay = false;
+        }
+    }
+    function tileEnded(tile) {
+        if (!videoGrid.splitView && !tile.mediaPlayer.statsEnabled && hasNextItem)
+            nextItem();
+    }
+    function tileClicked(tile) {
+        if (videoGrid.splitView && !videoGrid.focused)
+            videoGrid.select(tile.slot);
+    }
+    function tileDoubleClicked(tile) {
+        if (!videoGrid.splitView) {
+            toggleFullScreen();
+            return;
+        }
+        applyFocusResult(videoGrid.doubleClick(tile.slot, mainWindow.visibility === Window.FullScreen, playingFiles()));
+    }
+    function failureText(tile, message) {
+        return videoGrid.splitView && tile.title !== "" ? qsTr("%1: %2").arg(tile.title).arg(message) : message;
+    }
+    function tileFailed(tile, errorString) {
+        playList.setUnavailable(tile.entryId, errorString);
+        if (videoGrid.splitView)
+            tile.failure = errorString;
+        playbackErrorDialog.failedTitle = videoGrid.splitView ? tile.title : "";
+        playbackErrorDialog.failedPath = tile.path;
+        playbackErrorDialog.failedError = errorString;
+        playbackErrorDialog.open();
+    }
+    function tileRtspFailed(tile, kind, message, address) {
+        playList.setUnavailable(tile.entryId, message);
+        if (videoGrid.splitView)
+            tile.failure = message;
+        streamSnackbar.kind = kind;
+        streamSnackbar.address = address;
+        streamSnackbar.message = failureText(tile, message);
+        streamSnackbar.show();
+    }
+    function tileCheckpoint(source, position, duration) {
+        if (appSettings.rememberPositions)
+            PlaybackHistory.recordPosition(source.toString(), position, duration);
+    }
+    function closeRemovedTiles() {
+        if (!videoGrid.splitView)
+            return;
+        for (var slot = 0; slot < tiles.length; slot++) {
+            var id = videoGrid.entryIds[slot];
+            if (id >= 0 && playList.rowForId(id) < 0) {
+                var result = videoGrid.entryRemoved(id);
+                resetTile(tiles[slot]);
+                resumeTiles(result.resume);
+            }
+        }
+    }
+    function syncCurrentToSelection() {
+        var id = videoGrid.entryIds[videoGrid.selectedSlot];
+        if (id < 0 || id === playList.currentId)
+            return;
+        syncingCurrent = true;
+        playList.currentRow = playList.rowForId(id);
+        syncingCurrent = false;
     }
     function applyLoadedPlaylist(tag, result) {
         if (!result.ok) {
@@ -281,7 +474,7 @@ ApplicationWindow {
                         "before": playList.idAt(at)
                     });
                 waiting = [];
-                if (mediaComponent.path === "" && !firstFileSet) {
+                if (videoGrid.count === 0 && !firstFileSet) {
                     firstFileSet = true;
                     playlistPanelOpen = false;
                     selectPlaylistItem(at);
@@ -292,8 +485,6 @@ ApplicationWindow {
             addToPlaylist(mediaInfo);
             if (!firstFileSet) {
                 playlistPanelOpen = false;
-                mediaComponent.path = mediaInfo.path;
-                mainWindow.title = appTitle + " - " + mediaInfo.name;
                 playList.currentRow = playList.count - 1;
                 firstFileSet = true;
             }
@@ -316,6 +507,40 @@ ApplicationWindow {
                 loadSubtitleUrl(subtitleUrls[j]);
         }
     }
+    function handleGridDrop(urls, x, y) {
+        var slot = videoGrid.slotAt(x, y, tileArea.width, tileArea.height);
+        var ids = [];
+        var subtitleUrls = [];
+        for (var i = 0; i < urls.length; i++) {
+            if (isSubtitleUrl(urls[i])) {
+                subtitleUrls.push(urls[i]);
+                continue;
+            }
+            if (isPlaylistUrl(urls[i])) {
+                PlaylistFiles.load(urls[i], supportedMediaExtensions(), "append");
+                continue;
+            }
+            var mediaInfo = getMediaInfo(urls[i]);
+            if (mediaInfo)
+                ids.push(playList.idAt(addToPlaylist(mediaInfo)));
+        }
+        if (slot >= 0 && ids.length > 0) {
+            var replaced = videoGrid.replace(slot, ids[0]);
+            if (replaced.load && replaced.load.length > 0)
+                loadTile(slot, ids[0], true);
+            ids = ids.slice(1);
+        }
+        var fitting = ids.slice(0, Math.max(0, 4 - videoGrid.count));
+        if (fitting.length > 0)
+            playInSplitView(fitting);
+        if (ids.length > fitting.length)
+            showSplitViewFull();
+        var target = slot >= 0 ? tiles[slot] : activeMedia;
+        for (var j = 0; j < subtitleUrls.length; j++) {
+            if (target.mediaLoaded && target.mediaPlayer.hasVideo)
+                target.mediaPlayer.subtitles.loadFile(subtitleUrls[j]);
+        }
+    }
     function reportRemoved(message, undoable) {
         playlistSnackbar.undoable = undoable;
         playlistSnackbar.message = message;
@@ -329,13 +554,13 @@ ApplicationWindow {
         addedWhileNarrowed = 0;
         hiddenWhileNarrowed = 0;
     }
-    function reportLoadedEntry() {
-        var player = mediaComponent.mediaPlayer;
-        if (player.mediaLoaded && loadedEntrySource === player.source.toString())
-            playList.setLoaded(loadedEntryId, player.duration, player.isLive);
+    function reportLoadedEntry(tile) {
+        var player = tile.mediaPlayer;
+        if (player.mediaLoaded && tile.entryId >= 0)
+            playList.setLoaded(tile.entryId, player.duration, player.isLive);
     }
-    function promptResumeIfSaved() {
-        var player = mediaComponent.mediaPlayer;
+    function promptResumeIfSaved(tile) {
+        var player = tile.mediaPlayer;
         var source = player.source.toString();
         if (!appSettings.rememberPositions || source === "" || isStreamUrl(source))
             return false;
@@ -365,19 +590,19 @@ ApplicationWindow {
     function loadSubtitleUrl(url) {
         if (!isSubtitleUrl(url))
             return false;
-        if (!mediaComponent.mediaPlayer.mediaLoaded || !mediaComponent.mediaPlayer.hasVideo) {
+        if (!activeMedia.mediaPlayer.mediaLoaded || !activeMedia.mediaPlayer.hasVideo) {
             captureSnackbar.message = qsTr("Open a video before loading subtitles");
             captureSnackbar.show();
             return true;
         }
-        if (!mediaComponent.mediaPlayer.subtitles.loadFile(url)) {
+        if (!activeMedia.mediaPlayer.subtitles.loadFile(url)) {
             captureSnackbar.message = qsTr("Could not load subtitle file");
             captureSnackbar.show();
         }
         return true;
     }
     function openUrls(urls) {
-        var startPlayback = mediaComponent.path === "";
+        var startPlayback = videoGrid.count === 0 || videoGrid.splitView;
         for (var i = 0; i < urls.length; i++) {
             if (isPlaylistUrl(urls[i])) {
                 PlaylistFiles.load(urls[i], supportedMediaExtensions(), "append");
@@ -389,8 +614,6 @@ ApplicationWindow {
             addToPlaylist(mediaInfo);
             if (startPlayback) {
                 playlistPanelOpen = false;
-                mediaComponent.path = mediaInfo.path;
-                mainWindow.title = appTitle + " - " + mediaInfo.name;
                 playList.currentRow = playList.count - 1;
                 shouldAutoPlay = true;
                 startPlayback = false;
@@ -404,7 +627,7 @@ ApplicationWindow {
     height: Screen.height * 0.75
     minimumHeight: 480
     minimumWidth: 640
-    title: appTitle
+    title: activeMedia.path !== "" && activeMedia.title !== "" ? appTitle + " - " + activeMedia.title : appTitle
     visible: true
     width: Screen.width * 0.7
 
@@ -426,19 +649,19 @@ ApplicationWindow {
 
     onPlaylistOverlayOpenChanged: {
         if (playlistOverlayOpen)
-            mediaComponent.controlsAreVisible = true;
+            activeMedia.controlsAreVisible = true;
     }
+    onVolumeChanged: appSettings.volume = volume
 
     Component.onCompleted: {
         isDarkTheme = appSettings.isDarkTheme;
         MediaSession.initialise(mainWindow);
-        if (mediaComponent.audioOutput)
-            mediaComponent.audioOutput.volume = appSettings.volume;
-        if (mediaComponent.mediaPlayer) {
-            mediaComponent.mediaPlayer.playbackRate = appSettings.playbackRate;
-            mediaComponent.mediaPlayer.preferredAudioLanguage = appSettings.preferredAudioLanguage;
-            mediaComponent.mediaPlayer.subtitles.preferredLanguage = appSettings.preferredSubtitleLanguage;
-            mediaComponent.mediaPlayer.subtitles.scale = appSettings.subtitleScale;
+        volume = appSettings.volume;
+        for (var i = 0; i < tiles.length; i++) {
+            tiles[i].mediaPlayer.playbackRate = appSettings.playbackRate;
+            tiles[i].mediaPlayer.preferredAudioLanguage = appSettings.preferredAudioLanguage;
+            tiles[i].mediaPlayer.subtitles.preferredLanguage = appSettings.preferredSubtitleLanguage;
+            tiles[i].mediaPlayer.subtitles.scale = appSettings.subtitleScale;
         }
         if (appSettings.checkUpdatesOnStartup && !BuildInfo.isDebugBuild) {
             updateDialog.manualCheck = false;
@@ -486,6 +709,7 @@ ApplicationWindow {
         enabled: opacity > 0
         height: 40
         opacity: isFullScreen ? (controlsVisibleAlias ? 1 : 0) : 1
+        splitView: videoGrid.splitView
         targetWindow: mainWindow
         windowTitle: mainWindow.title
         z: 100
@@ -501,6 +725,7 @@ ApplicationWindow {
             updateDialog.manualCheck = true;
             updates.checkUpdates();
         }
+        onEndSplitViewRequested: mainWindow.endSplitView()
         onExitRequested: Qt.quit()
         onOpenFileRequested: fileDialog.open()
         onOpenPlaylistRequested: openPlaylistDialog.open()
@@ -650,11 +875,6 @@ ApplicationWindow {
                 openUrlDialog.openWith(address);
         }
     }
-    Binding {
-        property: "rtspTransport"
-        target: mediaComponent.mediaPlayer
-        value: appSettings.rtspTransport
-    }
     OpenUrlDialog {
         id: openUrlDialog
 
@@ -665,49 +885,48 @@ ApplicationWindow {
     Binding {
         property: "hasMedia"
         target: MediaSession
-        value: mediaComponent.mediaLoaded
+        value: mainWindow.activeMedia.mediaLoaded
     }
     Binding {
         property: "hasVideo"
         target: MediaSession
-        value: mediaComponent.mediaPlayer.hasVideo
+        value: mainWindow.activeMedia.mediaPlayer.hasVideo
     }
     Binding {
         property: "playbackStatus"
         target: MediaSession
-        value: !mediaComponent.mediaLoaded ? "Stopped" : (mediaComponent.mediaPlayer.playbackState === MediaPlayer.PlayingState ? "Playing" : (mediaComponent.mediaPlayer.playbackState === MediaPlayer.PausedState ? "Paused" : "Stopped"))
+        value: !mainWindow.activeMedia.mediaLoaded ? "Stopped" : (mainWindow.activeMedia.mediaPlayer.playbackState === MediaPlayer.PlayingState ? "Playing" : (mainWindow.activeMedia.mediaPlayer.playbackState === MediaPlayer.PausedState ? "Paused" : "Stopped"))
     }
     Binding {
         property: "title"
         target: MediaSession
         value: {
-            if (!mediaComponent.mediaLoaded)
+            if (!mainWindow.activeMedia.mediaLoaded)
                 return "";
-            if (mediaComponent.mediaPlayer.mediaTitle !== "")
-                return mediaComponent.mediaPlayer.mediaTitle;
-            var index = playList.currentRow;
-            return index >= 0 ? playList.entryAt(index).title : "";
+            if (mainWindow.activeMedia.mediaPlayer.mediaTitle !== "")
+                return mainWindow.activeMedia.mediaPlayer.mediaTitle;
+            return mainWindow.activeMedia.title;
         }
     }
     Binding {
         property: "artist"
         target: MediaSession
-        value: mediaComponent.mediaLoaded ? mediaComponent.mediaPlayer.mediaArtist : ""
+        value: mainWindow.activeMedia.mediaLoaded ? mainWindow.activeMedia.mediaPlayer.mediaArtist : ""
     }
     Binding {
         property: "album"
         target: MediaSession
-        value: mediaComponent.mediaLoaded ? mediaComponent.mediaPlayer.mediaAlbum : ""
+        value: mainWindow.activeMedia.mediaLoaded ? mainWindow.activeMedia.mediaPlayer.mediaAlbum : ""
     }
     Binding {
         property: "durationMs"
         target: MediaSession
-        value: mediaComponent.mediaPlayer.isLive ? 0 : mediaComponent.mediaPlayer.duration
+        value: mainWindow.activeMedia.mediaPlayer.isLive ? 0 : mainWindow.activeMedia.mediaPlayer.duration
     }
     Binding {
         property: "positionMs"
         target: MediaSession
-        value: mediaComponent.mediaPlayer.position
+        value: mainWindow.activeMedia.mediaPlayer.position
     }
     Binding {
         property: "canGoNext"
@@ -722,24 +941,24 @@ ApplicationWindow {
     Binding {
         property: "canSeek"
         target: MediaSession
-        value: mediaComponent.mediaPlayer.seekable && !mediaComponent.mediaPlayer.isLive
+        value: mainWindow.activeMedia.mediaPlayer.seekable && !mainWindow.activeMedia.mediaPlayer.isLive
     }
     Binding {
         property: "volume"
         target: MediaSession
-        value: mediaComponent.audioOutput.volume
+        value: mainWindow.volume
     }
     Binding {
         property: "rate"
         target: MediaSession
-        value: mediaComponent.mediaPlayer.playbackRate
+        value: mainWindow.activeMedia.mediaPlayer.playbackRate
     }
     Connections {
         function onNowPlayingChanged() {
-            MediaSession.setArtwork(mediaComponent.mediaPlayer.coverArt);
+            MediaSession.setArtwork(mainWindow.activeMedia.mediaPlayer.coverArt);
         }
 
-        target: mediaComponent.mediaPlayer
+        target: mainWindow.activeMedia.mediaPlayer
     }
     Connections {
         function onNextRequested() {
@@ -749,16 +968,16 @@ ApplicationWindow {
             mainWindow.openAndPlay(url);
         }
         function onPauseRequested() {
-            mediaComponent.mediaPlayer.pause();
+            mainWindow.activeMedia.mediaPlayer.pause();
         }
         function onPlayPauseRequested() {
-            if (mediaComponent.mediaPlayer.playbackState === MediaPlayer.PlayingState)
-                mediaComponent.mediaPlayer.pause();
+            if (mainWindow.activeMedia.mediaPlayer.playbackState === MediaPlayer.PlayingState)
+                mainWindow.activeMedia.mediaPlayer.pause();
             else
-                mediaComponent.mediaPlayer.play();
+                mainWindow.activeMedia.mediaPlayer.play();
         }
         function onPlayRequested() {
-            mediaComponent.mediaPlayer.play();
+            mainWindow.activeMedia.mediaPlayer.play();
         }
         function onPreviousRequested() {
             mainWindow.previousItem();
@@ -777,10 +996,10 @@ ApplicationWindow {
             }
         }
         function onSeekRequested(positionMs) {
-            mediaComponent.mediaPlayer.position = positionMs;
+            mainWindow.activeMedia.mediaPlayer.position = positionMs;
         }
         function onStopRequested() {
-            mediaComponent.mediaPlayer.stop();
+            mainWindow.activeMedia.stop();
         }
 
         target: MediaSession
@@ -789,18 +1008,18 @@ ApplicationWindow {
         id: goToTimeDialog
 
         parent: miniPlayerWindow.visible ? miniPlayerWindow.contentItem : mainWindow.contentItem
-        player: mediaComponent.mediaPlayer
+        player: mainWindow.activeMedia.mediaPlayer
     }
     ResumeDialog {
         id: resumeDialog
 
         parent: miniPlayerWindow.visible ? miniPlayerWindow.contentItem : mainWindow.contentItem
 
-        onResumeChosen: mediaComponent.mediaPlayer.play()
+        onResumeChosen: mainWindow.activeMedia.mediaPlayer.play()
         onStartOverChosen: {
-            PlaybackHistory.removePosition(mediaComponent.mediaPlayer.source.toString());
-            mediaComponent.mediaPlayer.position = 0;
-            mediaComponent.mediaPlayer.play();
+            PlaybackHistory.removePosition(mainWindow.activeMedia.mediaPlayer.source.toString());
+            mainWindow.activeMedia.mediaPlayer.position = 0;
+            mainWindow.activeMedia.mediaPlayer.play();
         }
     }
     ShuffleOrder {
@@ -836,31 +1055,22 @@ ApplicationWindow {
                 resumeDialog.close();
         }
 
-        target: mediaComponent
+        target: mainWindow.activeMedia
     }
     Connections {
-        function onDurationChanged() {
-            mainWindow.reportLoadedEntry();
-        }
-        function onErrorOccurred(errorString) {
-            playList.setUnavailable(playList.currentId, errorString);
-        }
-        function onRtspFailed(kind, message, address) {
-            playList.setUnavailable(playList.currentId, message);
-            streamSnackbar.kind = kind;
-            streamSnackbar.address = address;
-            streamSnackbar.message = message;
-            streamSnackbar.show();
-        }
-        function onLiveChanged() {
-            mainWindow.reportLoadedEntry();
-        }
-        function onPositionCheckpoint(source, position, duration) {
-            if (appSettings.rememberPositions)
-                PlaybackHistory.recordPosition(source.toString(), position, duration);
+        function onChanged() {
+            playList.setTileEntries(videoGrid.splitView ? mainWindow.tileEntryIds() : []);
+            mainWindow.syncCurrentToSelection();
         }
 
-        target: mediaComponent.mediaPlayer
+        target: videoGrid
+    }
+    Connections {
+        function onCountChanged() {
+            Qt.callLater(mainWindow.closeRemovedTiles);
+        }
+
+        target: playList
     }
     Connections {
         function onLoaded(tag, result) {
@@ -891,7 +1101,7 @@ ApplicationWindow {
             var start = mainWindow.availableRowNear(tag === "replace" && loadedCurrent >= 0 ? loadedCurrent : loaded.first);
             if (start < loaded.first)
                 return;
-            if (tag === "replace" || tag === "open" || mediaComponent.path === "") {
+            if (tag === "replace" || tag === "open" || videoGrid.count === 0) {
                 mainWindow.playlistPanelOpen = false;
                 mainWindow.selectPlaylistItem(start);
             }
@@ -907,7 +1117,8 @@ ApplicationWindow {
     }
     Connections {
         function onAboutToQuit() {
-            mediaComponent.mediaPlayer.checkpoint();
+            for (var i = 0; i < mainWindow.tiles.length; i++)
+                mainWindow.tiles[i].mediaPlayer.checkpoint();
             mainWindow.saveSession();
         }
 
@@ -919,10 +1130,10 @@ ApplicationWindow {
             subtitleSnackbar.show();
         }
         function onScaleChanged() {
-            appSettings.subtitleScale = mediaComponent.mediaPlayer.subtitles.scale;
+            appSettings.subtitleScale = mainWindow.activeMedia.mediaPlayer.subtitles.scale;
         }
 
-        target: mediaComponent.mediaPlayer.subtitles
+        target: mainWindow.activeMedia.mediaPlayer.subtitles
     }
     Connections {
         function onFrameCaptured(success, path) {
@@ -934,7 +1145,7 @@ ApplicationWindow {
             captureSnackbar.show();
         }
 
-        target: mediaComponent.mediaPlayer
+        target: mainWindow.activeMedia.mediaPlayer
     }
     Connections {
         function onUrlsPending() {
@@ -1080,6 +1291,10 @@ ApplicationWindow {
     Dialog {
         id: playbackErrorDialog
 
+        property string failedError: ""
+        property string failedPath: ""
+        property string failedTitle: ""
+
         anchors.centerIn: parent
         bottomPadding: 20
         leftPadding: 24
@@ -1160,7 +1375,7 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     color: Material.foreground
                     font.pixelSize: 14
-                    text: qsTr("Unable to play this file.")
+                    text: playbackErrorDialog.failedTitle !== "" ? qsTr("Unable to play %1.").arg(playbackErrorDialog.failedTitle) : qsTr("Unable to play this file.")
                     wrapMode: Text.WordWrap
                 }
                 Text {
@@ -1186,15 +1401,15 @@ ApplicationWindow {
                     font.family: "monospace"
                     font.pixelSize: 11
                     opacity: 0.7
-                    text: PlaybackUtils.displayAddress(mediaComponent.path)
+                    text: PlaybackUtils.displayAddress(playbackErrorDialog.failedPath)
                 }
                 Text {
                     Layout.fillWidth: true
                     color: Material.color(Material.Red)
                     font.pixelSize: 11
                     opacity: 0.85
-                    text: (mediaComponent.mediaPlayer && mediaComponent.mediaPlayer.errorString) || ""
-                    visible: mediaComponent.mediaPlayer && mediaComponent.mediaPlayer.errorString !== ""
+                    text: playbackErrorDialog.failedError
+                    visible: playbackErrorDialog.failedError !== ""
                     wrapMode: Text.WordWrap
                 }
             }
@@ -1429,10 +1644,10 @@ ApplicationWindow {
     SettingsDialog {
         id: settingsDialog
 
-        audioOutput: mediaComponent.audioOutput
+        audioOutput: mainWindow.activeMedia.audioOutput
         checkUpdatesOnStartup: appSettings.checkUpdatesOnStartup
         isDarkTheme: mainWindow.isDarkTheme
-        mediaPlayer: mediaComponent.mediaPlayer
+        mediaPlayer: mainWindow.activeMedia.mediaPlayer
         rememberPositions: appSettings.rememberPositions
         rememberRecentFiles: appSettings.rememberRecentFiles
         restoreLastPlaylist: appSettings.restoreLastPlaylist
@@ -1469,29 +1684,28 @@ ApplicationWindow {
         }
         onPreferredAudioLanguageEdited: function (language) {
             appSettings.preferredAudioLanguage = language;
-            mediaComponent.mediaPlayer.preferredAudioLanguage = language;
+            for (var i = 0; i < mainWindow.tiles.length; i++)
+                mainWindow.tiles[i].mediaPlayer.preferredAudioLanguage = language;
         }
         onPreferredSubtitleLanguageEdited: function (language) {
             appSettings.preferredSubtitleLanguage = language;
-            mediaComponent.mediaPlayer.subtitles.preferredLanguage = language;
+            for (var i = 0; i < mainWindow.tiles.length; i++)
+                mainWindow.tiles[i].mediaPlayer.subtitles.preferredLanguage = language;
         }
         onThemeToggled: function (isDark) {
             mainWindow.isDarkTheme = isDark;
             appSettings.isDarkTheme = isDark;
         }
     }
-    Connections {
-        function onVolumeChanged() {
-            appSettings.volume = mediaComponent.audioOutput.volume;
-        }
-
-        target: mediaComponent.audioOutput
-    }
     DropArea {
         anchors.fill: parent
 
         onDropped: function (drop) {
-            if (drop.urls && drop.urls.length > 0)
+            if (!drop.urls || drop.urls.length === 0)
+                return;
+            if (videoGrid.splitView)
+                mainWindow.handleGridDrop(drop.urls, drop.x - tileArea.x, drop.y - tileArea.y);
+            else
                 mainWindow.handleDroppedUrls(drop.urls, -1);
         }
     }
@@ -1619,46 +1833,55 @@ ApplicationWindow {
                 return;
             addToPlaylist(mediaInfo);
             mainWindow.playlistPanelOpen = false;
-            mediaComponent.path = mediaInfo.path;
-            mainWindow.title = appTitle + " - " + mediaInfo.name;
             playList.currentRow = playList.count - 1;
         }
     }
-    MediaComponent {
-        id: mediaComponent
+    TileGrid {
+        id: videoGrid
+    }
+    Item {
+        id: tileArea
 
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: mainWindow.visibility === Window.FullScreen ? parent.top : titleBar.bottom
-        focus: true
-        path: ""
 
-        onFullscreenToggleRequested: mainWindow.toggleFullScreen()
-        onMediaLoadedChanged: {
-            if (mediaLoaded) {
-                mainWindow.loadedEntryId = playList.currentId;
-                mainWindow.loadedEntrySource = mediaPlayer.source.toString();
-                mainWindow.reportLoadedEntry();
-                mediaPlayer.playbackRate = appSettings.playbackRate;
-                if (appSettings.rememberRecentFiles)
-                    PlaybackHistory.recordOpened(mediaPlayer.source.toString());
-                if (mainWindow.promptResumeIfSaved())
-                    shouldAutoPlay = false;
-                var subtitleUrls = mainWindow.pendingSubtitleUrls;
-                mainWindow.pendingSubtitleUrls = [];
-                for (var i = 0; i < subtitleUrls.length; i++)
-                    mainWindow.loadSubtitleUrl(subtitleUrls[i]);
-                if (shouldAutoPlay) {
-                    mediaPlayer.play();
-                    shouldAutoPlay = false;
-                }
-            }
+        MediaComponent {
+            id: tile0
+
+            focus: selected
+            grid: videoGrid
+            host: mainWindow
+            path: ""
+            slot: 0
         }
-        onStopped: {
-            mainWindow.pendingSubtitleUrls = [];
-            mediaComponent.path = "";
-            mainWindow.title = appTitle;
+        MediaComponent {
+            id: tile1
+
+            focus: selected
+            grid: videoGrid
+            host: mainWindow
+            path: ""
+            slot: 1
+        }
+        MediaComponent {
+            id: tile2
+
+            focus: selected
+            grid: videoGrid
+            host: mainWindow
+            path: ""
+            slot: 2
+        }
+        MediaComponent {
+            id: tile3
+
+            focus: selected
+            grid: videoGrid
+            host: mainWindow
+            path: ""
+            slot: 3
         }
 
         Shortcut {
@@ -1668,12 +1891,12 @@ ApplicationWindow {
 
             onActivated: {
                 // Play/Pause
-                if (mediaComponent.path === "" && playList.currentRow >= 0) {
+                if (mainWindow.activeMedia.path === "" && playList.currentRow >= 0) {
                     mainWindow.selectPlaylistItem(playList.currentRow);
-                } else if (mediaComponent.mediaPlayer.playbackState === MediaPlayer.PlayingState) {
-                    mediaComponent.mediaPlayer.pause();
+                } else if (mainWindow.activeMedia.mediaPlayer.playbackState === MediaPlayer.PlayingState) {
+                    mainWindow.activeMedia.mediaPlayer.pause();
                 } else {
-                    mediaComponent.mediaPlayer.play();
+                    mainWindow.activeMedia.mediaPlayer.play();
                 }
             }
         }
@@ -1684,7 +1907,7 @@ ApplicationWindow {
 
             onActivated: {
                 // Seek backward
-                mediaComponent.mediaPlayer.position = Math.max(0, mediaComponent.mediaPlayer.position - AppConstants.seekStep);
+                mainWindow.activeMedia.mediaPlayer.position = Math.max(0, mainWindow.activeMedia.mediaPlayer.position - AppConstants.seekStep);
             }
         }
         Shortcut {
@@ -1694,43 +1917,43 @@ ApplicationWindow {
 
             onActivated: {
                 // Seek forward
-                mediaComponent.mediaPlayer.position = Math.min(mediaComponent.mediaPlayer.duration, mediaComponent.mediaPlayer.position + AppConstants.seekStep);
+                mainWindow.activeMedia.mediaPlayer.position = Math.min(mainWindow.activeMedia.mediaPlayer.duration, mainWindow.activeMedia.mediaPlayer.position + AppConstants.seekStep);
             }
         }
         Shortcut {
             context: Qt.ApplicationShortcut
-            enabled: mainWindow.shortcutsEnabled && (mediaComponent.isVideo || nerdStats.visible)
+            enabled: mainWindow.shortcutsEnabled && (mainWindow.activeMedia.isVideo || nerdStats.visible)
             sequence: "I"
 
             onActivated: nerdStats.visible = !nerdStats.visible
         }
         Shortcut {
             context: Qt.ApplicationShortcut
-            enabled: mainWindow.shortcutsEnabled && mediaComponent.isVideo && mediaComponent.mediaPlayer.subtitles.tracks.length > 0
+            enabled: mainWindow.shortcutsEnabled && mainWindow.activeMedia.isVideo && mainWindow.activeMedia.mediaPlayer.subtitles.tracks.length > 0
             sequence: "V"
 
-            onActivated: mainWindow.showOsd(qsTr("Subtitles: ") + mediaComponent.mediaPlayer.subtitles.cycleTrack())
+            onActivated: mainWindow.showOsd(qsTr("Subtitles: ") + mainWindow.activeMedia.mediaPlayer.subtitles.cycleTrack())
         }
         Shortcut {
             context: Qt.ApplicationShortcut
-            enabled: mainWindow.shortcutsEnabled && mediaComponent.mediaPlayer.audioTracks.length > 1
+            enabled: mainWindow.shortcutsEnabled && mainWindow.activeMedia.mediaPlayer.audioTracks.length > 1
             sequence: "B"
 
-            onActivated: mainWindow.showOsd(qsTr("Audio: ") + mediaComponent.mediaPlayer.cycleAudioTrack())
+            onActivated: mainWindow.showOsd(qsTr("Audio: ") + mainWindow.activeMedia.mediaPlayer.cycleAudioTrack())
         }
         Shortcut {
             context: Qt.ApplicationShortcut
-            enabled: mainWindow.shortcutsEnabled && mediaComponent.mediaPlayer.subtitles.activeTrackId !== ""
+            enabled: mainWindow.shortcutsEnabled && mainWindow.activeMedia.mediaPlayer.subtitles.activeTrackId !== ""
             sequence: "G"
 
-            onActivated: mainWindow.showOsd(qsTr("Subtitle delay: ") + AppConstants.formatDelay(mediaComponent.mediaPlayer.subtitles.adjustDelay(-AppConstants.subtitleDelayStep)))
+            onActivated: mainWindow.showOsd(qsTr("Subtitle delay: ") + AppConstants.formatDelay(mainWindow.activeMedia.mediaPlayer.subtitles.adjustDelay(-AppConstants.subtitleDelayStep)))
         }
         Shortcut {
             context: Qt.ApplicationShortcut
-            enabled: mainWindow.shortcutsEnabled && mediaComponent.mediaPlayer.subtitles.activeTrackId !== ""
+            enabled: mainWindow.shortcutsEnabled && mainWindow.activeMedia.mediaPlayer.subtitles.activeTrackId !== ""
             sequence: "H"
 
-            onActivated: mainWindow.showOsd(qsTr("Subtitle delay: ") + AppConstants.formatDelay(mediaComponent.mediaPlayer.subtitles.adjustDelay(AppConstants.subtitleDelayStep)))
+            onActivated: mainWindow.showOsd(qsTr("Subtitle delay: ") + AppConstants.formatDelay(mainWindow.activeMedia.mediaPlayer.subtitles.adjustDelay(AppConstants.subtitleDelayStep)))
         }
         Shortcut {
             context: Qt.ApplicationShortcut
@@ -1752,20 +1975,20 @@ ApplicationWindow {
             sequence: "M"
 
             onActivated: {
-                mediaComponent.audioOutput.muted = !mediaComponent.audioOutput.muted;
-                mainWindow.showOsd(mediaComponent.audioOutput.muted ? qsTr("Muted") : qsTr("Unmuted"));
+                mainWindow.activeMedia.audioOutput.muted = !mainWindow.activeMedia.audioOutput.muted;
+                mainWindow.showOsd(mainWindow.activeMedia.audioOutput.muted ? qsTr("Muted") : qsTr("Unmuted"));
             }
         }
         Shortcut {
             context: Qt.ApplicationShortcut
-            enabled: mainWindow.shortcutsEnabled && mediaComponent.isVideo && !miniPlayerWindow.visible
+            enabled: mainWindow.shortcutsEnabled && mainWindow.activeMedia.isVideo && !miniPlayerWindow.visible
             sequence: "F"
 
             onActivated: mainWindow.toggleFullScreen()
         }
         Shortcut {
             context: Qt.ApplicationShortcut
-            enabled: mainWindow.shortcutsEnabled && (mainWindow.playlistOverlayOpen || mainWindow.visibility === Window.FullScreen || (playlistPanel.visible && playlistView.searchText !== ""))
+            enabled: mainWindow.shortcutsEnabled && (mainWindow.playlistOverlayOpen || mainWindow.visibility === Window.FullScreen || videoGrid.focused || (playlistPanel.visible && playlistView.searchText !== ""))
             sequence: "Esc"
 
             onActivated: {
@@ -1773,9 +1996,39 @@ ApplicationWindow {
                     playlistView.searchText = "";
                 else if (mainWindow.playlistOverlayOpen)
                     mainWindow.playlistPanelOpen = false;
+                else if (videoGrid.focused)
+                    mainWindow.applyFocusResult(videoGrid.escape(mainWindow.visibility === Window.FullScreen));
                 else
                     mainWindow.visibility = Window.Windowed;
             }
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: mainWindow.shortcutsEnabled && videoGrid.splitView
+            sequence: "1"
+
+            onActivated: mainWindow.applyFocusResult(videoGrid.pressPosition(1, mainWindow.playingFiles()))
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: mainWindow.shortcutsEnabled && videoGrid.splitView
+            sequence: "2"
+
+            onActivated: mainWindow.applyFocusResult(videoGrid.pressPosition(2, mainWindow.playingFiles()))
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: mainWindow.shortcutsEnabled && videoGrid.splitView
+            sequence: "3"
+
+            onActivated: mainWindow.applyFocusResult(videoGrid.pressPosition(3, mainWindow.playingFiles()))
+        }
+        Shortcut {
+            context: Qt.ApplicationShortcut
+            enabled: mainWindow.shortcutsEnabled && videoGrid.splitView
+            sequence: "4"
+
+            onActivated: mainWindow.applyFocusResult(videoGrid.pressPosition(4, mainWindow.playingFiles()))
         }
         Shortcut {
             context: Qt.ApplicationShortcut
@@ -1797,57 +2050,57 @@ ApplicationWindow {
         }
         Shortcut {
             context: Qt.ApplicationShortcut
-            enabled: mainWindow.shortcutsEnabled && mediaComponent.mediaLoaded
+            enabled: mainWindow.shortcutsEnabled && mainWindow.activeMedia.mediaLoaded
             sequence: "["
 
             onActivated: mainWindow.changeSpeed(-1)
         }
         Shortcut {
             context: Qt.ApplicationShortcut
-            enabled: mainWindow.shortcutsEnabled && mediaComponent.mediaLoaded
+            enabled: mainWindow.shortcutsEnabled && mainWindow.activeMedia.mediaLoaded
             sequence: "]"
 
             onActivated: mainWindow.changeSpeed(1)
         }
         Shortcut {
             context: Qt.ApplicationShortcut
-            enabled: mainWindow.shortcutsEnabled && mediaComponent.mediaLoaded
+            enabled: mainWindow.shortcutsEnabled && mainWindow.activeMedia.mediaLoaded
             sequence: "="
 
             onActivated: mainWindow.changeSpeed(0)
         }
         Shortcut {
             context: Qt.ApplicationShortcut
-            enabled: mainWindow.shortcutsEnabled && mediaComponent.isVideo && mediaComponent.mediaLoaded
+            enabled: mainWindow.shortcutsEnabled && mainWindow.activeMedia.isVideo && mainWindow.activeMedia.mediaLoaded
             sequence: "E"
 
-            onActivated: mediaComponent.mediaPlayer.stepFrame(1)
+            onActivated: mainWindow.activeMedia.mediaPlayer.stepFrame(1)
         }
         Shortcut {
             context: Qt.ApplicationShortcut
-            enabled: mainWindow.shortcutsEnabled && mediaComponent.isVideo && mediaComponent.mediaLoaded
+            enabled: mainWindow.shortcutsEnabled && mainWindow.activeMedia.isVideo && mainWindow.activeMedia.mediaLoaded
             sequence: "Shift+E"
 
-            onActivated: mediaComponent.mediaPlayer.stepFrame(-1)
+            onActivated: mainWindow.activeMedia.mediaPlayer.stepFrame(-1)
         }
         Shortcut {
             context: Qt.ApplicationShortcut
-            enabled: mainWindow.shortcutsEnabled && mediaComponent.mediaPlayer.chapters.length > 0
+            enabled: mainWindow.shortcutsEnabled && mainWindow.activeMedia.mediaPlayer.chapters.length > 0
             sequence: "Shift+N"
 
             onActivated: {
-                var title = mediaComponent.mediaPlayer.nextChapter();
+                var title = mainWindow.activeMedia.mediaPlayer.nextChapter();
                 if (title !== "")
                     mainWindow.showOsd(qsTr("Chapter: ") + title);
             }
         }
         Shortcut {
             context: Qt.ApplicationShortcut
-            enabled: mainWindow.shortcutsEnabled && mediaComponent.mediaPlayer.chapters.length > 0
+            enabled: mainWindow.shortcutsEnabled && mainWindow.activeMedia.mediaPlayer.chapters.length > 0
             sequence: "Shift+P"
 
             onActivated: {
-                var title = mediaComponent.mediaPlayer.previousChapter();
+                var title = mainWindow.activeMedia.mediaPlayer.previousChapter();
                 if (title !== "")
                     mainWindow.showOsd(qsTr("Chapter: ") + title);
             }
@@ -1868,7 +2121,7 @@ ApplicationWindow {
         }
         Shortcut {
             context: Qt.ApplicationShortcut
-            enabled: !mainWindow.dialogOpen && mediaComponent.mediaLoaded
+            enabled: !mainWindow.dialogOpen && mainWindow.activeMedia.mediaLoaded
             sequence: "Ctrl+T"
 
             onActivated: goToTimeDialog.open()
@@ -1906,7 +2159,7 @@ ApplicationWindow {
         anchors.right: parent.right
         anchors.top: mainWindow.visibility === Window.FullScreen ? parent.top : titleBar.bottom
         color: Material.background
-        visible: mediaComponent.path !== "" && !mediaComponent.mediaLoaded && !mediaComponent.hasError
+        visible: !videoGrid.splitView && mainWindow.activeMedia.path !== "" && !mainWindow.activeMedia.mediaLoaded && !mainWindow.activeMedia.hasError
         z: 50
 
         ColumnLayout {
@@ -1950,6 +2203,7 @@ ApplicationWindow {
         playlistView: playlistView
         showLogos: appSettings.showChannelLogos
         shuffleEnabled: appSettings.shuffle
+        tileGrid: videoGrid
         visible: overlay ? mainWindow.playlistPanelOpen : true
         width: !overlay || narrow ? parent.width : Math.max(AppConstants.playlistPanelMinWidth, Math.min(appSettings.playlistPanelWidth, mainWindow.width * AppConstants.playlistPanelMaxFraction))
         z: overlay ? 60 : 0
@@ -1966,16 +2220,17 @@ ApplicationWindow {
         onItemSelected: function (path, name) {
             if (appSettings.shuffle)
                 shuffleOrder.setCurrent(playList.currentId);
+            if (mainWindow.syncingCurrent)
+                return;
             if (mainWindow.restoringSession) {
-                if (!mainWindow.isStreamUrl(path)) {
-                    mediaComponent.path = path;
-                    mainWindow.title = appTitle + " - " + name;
-                }
+                if (!mainWindow.isStreamUrl(path))
+                    mainWindow.playEntry(playList.currentId, false);
                 return;
             }
-            mediaComponent.path = path;
-            mainWindow.title = appTitle + " - " + name;
-            mediaComponent.mediaPlayer.play();
+            mainWindow.playEntry(playList.currentId, true);
+        }
+        onSplitViewRequested: function (ids) {
+            mainWindow.playInSplitView(ids);
         }
         onShuffleToggled: function (enabled) {
             appSettings.shuffle = enabled;
@@ -2006,11 +2261,11 @@ ApplicationWindow {
         anchors.margins: 20
         z: 90
         
-        audioOutput: mediaComponent.audioOutput
-        hasVideo: mediaComponent.isVideo
-        maximumHeight: mediaComponent.height - 40
-        player: mediaComponent.mediaPlayer
-        videoOutput: mediaComponent.videoOutput
+        audioOutput: mainWindow.activeMedia.audioOutput
+        hasVideo: mainWindow.activeMedia.isVideo
+        maximumHeight: tileArea.height - 40
+        player: mainWindow.activeMedia.mediaPlayer
+        videoOutput: mainWindow.activeMedia.videoOutput
     }
     
     Component {
@@ -2019,31 +2274,33 @@ ApplicationWindow {
         MediaControlsComponent {
             id: controlBar
 
-            audioOutput: mediaComponent.audioOutput
+            audioOutput: mainWindow.activeMedia.audioOutput
             collageTarget: collage
             implicitHeight: 90
-            mediaLoaded: mediaComponent.mediaLoaded
+            mediaLoaded: mainWindow.activeMedia.mediaLoaded
             miniPlayerActive: miniPlayerWindow.visible
             nerdStatsActive: nerdStats.visible
-            player: mediaComponent.mediaPlayer
+            player: mainWindow.activeMedia.mediaPlayer
             hasNextTrack: mainWindow.hasNextItem
             hasPreviousTrack: mainWindow.hasPreviousItem
             playlistCount: playList.count
+            media: mainWindow.activeMedia
             playlistCurrentIndex: playList.currentRow
+            splitView: videoGrid.splitView
             playlistOpen: mainWindow.playlistPanelOpen
-            repeatMode: mainWindow.repeatMode
-            videoOutput: mediaComponent.videoOutput
+            videoOutput: mainWindow.activeMedia.videoOutput
 
             onContainsMouseChanged: mainWindow.mediaControlsContainsMouse = containsMouse
-            onRepeatModeChanged: mainWindow.repeatMode = repeatMode
             onNerdStatsToggleRequested: nerdStats.visible = !nerdStats.visible
             onMiniPlayerRequested: {
+                if (videoGrid.splitView)
+                    return;
                 var px = mainWindow.x + mainWindow.width - miniPlayerWindow.width - 20;
                 var py = mainWindow.y + mainWindow.height - miniPlayerWindow.height - 60;
                 miniPlayerWindow.x = Math.max(0, Math.min(px, Screen.width - miniPlayerWindow.width));
                 miniPlayerWindow.y = Math.max(0, Math.min(py, Screen.height - miniPlayerWindow.height));
                 miniPlayerWindow.visible = true;
-                mediaComponent.mediaPlayer.videoOutput = miniPlayerWindow.miniVideoOutput;
+                mainWindow.activeMedia.mediaPlayer.videoOutput = miniPlayerWindow.miniVideoOutput;
                 mainWindow.hide();
             }
             onChapterJumped: function (title) {
@@ -2059,8 +2316,8 @@ ApplicationWindow {
     MiniPlayerWindow {
         id: miniPlayerWindow
 
-        audioOutput: mediaComponent.audioOutput
-        mediaPlayer: mediaComponent.mediaPlayer
+        audioOutput: mainWindow.activeMedia.audioOutput
+        mediaPlayer: mainWindow.activeMedia.mediaPlayer
 
         onCloseRequested: Qt.quit()
         onRestoreRequested: mainWindow.exitMiniPlayer()

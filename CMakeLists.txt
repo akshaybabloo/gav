@@ -213,6 +213,8 @@ qt_add_qml_module(appgav
         SOURCES hlsmaster.h hlsmaster.cpp
         SOURCES streamaddress.h streamaddress.cpp
         SOURCES rtspconnection.h rtspconnection.cpp
+        SOURCES rtspopengate.h rtspopengate.cpp
+        SOURCES tilegrid.h tilegrid.cpp
         SOURCES credentialfiltersink.h
         SOURCES streamquality.h streamquality.cpp
         SOURCES mediasession.h mediasession.cpp
@@ -313,6 +315,9 @@ if (BUILD_TESTS)
             tests/test_streamaddress.cpp
             tests/test_rtspconnection.cpp
             tests/test_rtspsupport.cpp
+            tests/test_rtspopengate.cpp
+            tests/test_tilegrid.cpp
+            tests/test_previewimageprovider.cpp
             collage.cpp
             collage.h
             playbackutils.cpp
@@ -343,6 +348,12 @@ if (BUILD_TESTS)
             streamaddress.h
             rtspconnection.cpp
             rtspconnection.h
+            rtspopengate.cpp
+            rtspopengate.h
+            tilegrid.cpp
+            tilegrid.h
+            previewimageprovider.cpp
+            previewimageprovider.h
             credentialfiltersink.h
     )
 

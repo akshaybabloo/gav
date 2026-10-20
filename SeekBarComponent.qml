@@ -9,12 +9,32 @@ import gavqml
 RowLayout {
     id: root
 
+    property var media: null
     required property var player
     required property bool mediaLoaded
     required property int repeatMode
     property alias rangeSlider: internalRangeSlider
 
     signal goToTimeRequested
+
+    function syncRange() {
+        if (media)
+            internalRangeSlider.setValues(media.rangeStart, media.rangeEnd);
+    }
+
+    onMediaChanged: syncRange()
+    Component.onCompleted: syncRange()
+
+    Connections {
+        function onRangeEndChanged() {
+            root.syncRange();
+        }
+        function onRangeStartChanged() {
+            root.syncRange();
+        }
+
+        target: root.media
+    }
 
     function markerNear(positionMs, toleranceMs) {
         var chapters = player.chapters;
@@ -353,7 +373,15 @@ RowLayout {
         visible: repeatMode === 3 && !player.isLive
 
         // Only the start handle seeks; the end handle just defines the loop boundary
-        first.onMoved: player.position = first.value
+        first.onMoved: {
+            if (root.media)
+                root.media.rangeStart = first.value;
+            root.player.position = first.value;
+        }
+        second.onMoved: {
+            if (root.media)
+                root.media.rangeEnd = second.value;
+        }
     }
 
     function resetPreview() {

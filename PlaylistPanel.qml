@@ -16,11 +16,13 @@ Item {
     readonly property bool popupOpen: clearConfirmDialog.visible || moreMenu.visible || filterMenu.visible || sortMenu.visible || entryList.menuOpen
     property bool showLogos: false
     property bool shuffleEnabled: false
+    property TileGrid tileGrid: null
 
     signal closeRequested
     signal entriesRemoved(int count)
     signal itemSelected(string path, string name)
     signal playEntryRequested(int sourceRow)
+    signal splitViewRequested(var ids)
     signal removeDuplicatesRequested
     signal saveRequested
     signal showLogosToggled(bool enabled)
@@ -415,6 +417,7 @@ Item {
                 playList: root.playList
                 playlistView: root.playlistView
                 showLogos: root.showLogos
+                tileGrid: root.tileGrid
                 visible: root.playlistView.matchCount > 0
 
                 onEntriesRemoved: function (count) {
@@ -427,6 +430,9 @@ Item {
                     root.playEntryRequested(sourceRow);
                 }
                 onSearchRequested: root.focusSearch()
+                onSplitViewRequested: function (ids) {
+                    root.splitViewRequested(ids);
+                }
                 onUrlsDropped: function (urls, sourceRow) {
                     root.urlsDropped(urls, sourceRow);
                 }

@@ -1,14 +1,28 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Controls.Material
 import QtQuick.Effects
 import QtMultimedia
 import gavqml
 
 Item {
+    id: root
+
     property alias audioOutput: audioOutput
+    readonly property rect cell: {
+        const width = parent ? parent.width : 0;
+        const height = parent ? parent.height : 0;
+        if (!grid)
+            return Qt.rect(0, 0, width, height);
+        return grid.revision >= 0 ? grid.cellFor(slot, width, height) : Qt.rect(0, 0, 0, 0);
+    }
     property bool controlsAreVisible: true
+    property int entryId: -1
     property string errorPath: ""
+    property string failure: ""
+    property TileGrid grid: null
     property bool hasError: errorPath !== "" && errorPath === path
+    property var host: null
     property bool isPlaying: false
     property bool isVideo: customMediaPlayer.hasVideo
     property bool isVideoAndPlaying: isVideo && isPlaying
@@ -16,11 +30,30 @@ Item {
     readonly property bool openingStream: customMediaPlayer.mediaStatus === MediaPlayer.LoadingMedia && PlaybackUtils.isStreamAddress(path)
     property alias mediaPlayer: customMediaPlayer
     required property string path
+    readonly property int position: grid && grid.revision >= 0 ? grid.positionOf(slot) : 1
+    property real rangeEnd: 0
+    property real rangeStart: 0
+    property int repeatMode: 0
+    readonly property bool selected: !grid || grid.selectedSlot === slot
+    property int slot: 0
+    readonly property bool splitView: grid !== null && grid.splitView
+    property string title: ""
     property alias videoOutput: videoOutput
 
     signal stopped
     signal fullscreenToggleRequested
+    signal endedWithoutRepeat
 
+    function stop() {
+        if (host)
+            host.stopTile(root);
+        else
+            customMediaPlayer.stop();
+    }
+    function startRange() {
+        rangeStart = 0;
+        rangeEnd = customMediaPlayer.duration;
+    }
     function showVolume() {
         volumeColumn.visible = true;
         volumeDisplayTimer.restart();
@@ -32,21 +65,121 @@ Item {
     }
 
     onPathChanged: {
-        if (path === "")
+        failure = "";
+        if (path === "") {
             errorPath = "";
+            repeatMode = 0;
+            rangeStart = 0;
+            rangeEnd = 0;
+        }
     }
 
+    Accessible.name: splitView ? qsTr("Video %1: %2").arg(position).arg(title) : title
+    Accessible.role: Accessible.Pane
+    Accessible.selected: splitView && selected
+    height: cell.height
+    visible: cell.width > 0
+    width: cell.width
+    x: cell.x
+    y: cell.y
+
+    onMediaLoadedChanged: {
+        if (mediaLoaded && host)
+            host.tileLoaded(root);
+    }
+    onStopped: {
+        if (host)
+            host.tileStopped(root);
+    }
+    onEndedWithoutRepeat: {
+        if (host)
+            host.tileEnded(root);
+    }
+    onFullscreenToggleRequested: {
+        if (host)
+            host.tileDoubleClicked(root);
+    }
+
+    Binding {
+        property: "volume"
+        target: audioOutput
+        value: root.host ? root.host.volume : AppConstants.defaultVolume
+        when: root.host !== null
+    }
+    Binding {
+        property: "muted"
+        target: audioOutput
+        value: !root.selected || (root.host !== null && root.host.muted)
+        when: root.host !== null
+    }
+    Connections {
+        function onMutedChanged() {
+            if (root.selected && root.host && root.host.muted !== audioOutput.muted)
+                root.host.muted = audioOutput.muted;
+        }
+        function onVolumeChanged() {
+            if (root.selected && root.host && Math.abs(root.host.volume - audioOutput.volume) > 0.001)
+                root.host.volume = audioOutput.volume;
+        }
+
+        target: audioOutput
+    }
+    Connections {
+        function onDurationChanged() {
+            if (root.repeatMode === 3 && customMediaPlayer.duration > 0)
+                root.startRange();
+            if (root.host)
+                root.host.reportLoadedEntry(root);
+        }
+        function onLiveChanged() {
+            if (root.host)
+                root.host.reportLoadedEntry(root);
+        }
+        function onMediaStatusChanged(status) {
+            if (status !== MediaPlayer.EndOfMedia)
+                return;
+            if (root.repeatMode === 1) {
+                customMediaPlayer.position = 0;
+                customMediaPlayer.play();
+                root.repeatMode = 0;
+            } else if (root.repeatMode === 2) {
+                customMediaPlayer.position = 0;
+                customMediaPlayer.play();
+            } else if (root.repeatMode === 3) {
+                customMediaPlayer.position = root.rangeStart;
+                customMediaPlayer.play();
+            } else {
+                root.endedWithoutRepeat();
+            }
+        }
+        function onPositionChanged() {
+            if (root.repeatMode === 3 && root.rangeEnd > root.rangeStart && customMediaPlayer.position >= root.rangeEnd)
+                customMediaPlayer.position = root.rangeStart;
+        }
+        function onPositionCheckpoint(source, position, duration) {
+            if (root.host)
+                root.host.tileCheckpoint(source, position, duration);
+        }
+        function onRtspFailed(kind, message, address) {
+            if (root.host)
+                root.host.tileRtspFailed(root, kind, message, address);
+        }
+
+        target: customMediaPlayer
+    }
     CustomMediaPlayer {
         id: customMediaPlayer
 
         audioOutput: audioOutput
+        rtspTransport: root.host ? root.host.rtspTransport : "auto"
         source: path
+        stopAtEnd: !root.splitView
         videoOutput: videoOutput
 
         onErrorOccurred: function (errorString) {
-            console.log("MediaPlayer error:", errorString);
             errorPath = path;
-            playbackErrorDialog.open();
+            if (root.host)
+                root.host.tileFailed(root, errorString);
         }
         onPlaybackStateChanged: function (state) {
             if (state === MediaPlayer.PlayingState) {
@@ -330,6 +463,35 @@ Item {
             }
         }
     }
+    Rectangle {
+        anchors.centerIn: parent
+        color: Qt.rgba(0, 0, 0, 0.6)
+        height: failureText.implicitHeight + 20
+        radius: 10
+        visible: root.splitView && root.failure !== ""
+        width: Math.min(parent.width - 24, failureText.implicitWidth + 32)
+        z: 90
+
+        Text {
+            id: failureText
+
+            anchors.centerIn: parent
+            color: AppConstants.overlayTextColor
+            font.pixelSize: 14
+            horizontalAlignment: Text.AlignHCenter
+            text: root.failure
+            width: Math.min(implicitWidth, root.width - 56)
+            wrapMode: Text.WordWrap
+        }
+    }
+    Rectangle {
+        anchors.fill: parent
+        border.color: Material.accent
+        border.width: 2
+        color: "transparent"
+        visible: root.splitView && root.selected && !(root.grid && root.grid.focused)
+        z: 95
+    }
     MouseArea {
         id: mouseArea
 
@@ -381,6 +543,8 @@ Item {
             }
         }
         onPressed: function (mouse) {
+            if (root.host)
+                root.host.tileClicked(root);
             if (videoOutput.zoomLevel > 1.0) {
                 isDragging = true;
                 dragStartPos = Qt.point(mouseX, mouseY);
@@ -416,11 +580,12 @@ Item {
                 videoOutput.zoomLevel = newZoom;
 
                 // Regular Scroll = Volume
-            } else if (wheel.angleDelta.y > 0 && videoOutput.visible && isActive) {
-                audioOutput.volume = Math.min(audioOutput.volume + AppConstants.volumeStep, 1.0);
-                showVolume();
-            } else if (wheel.angleDelta.y < 0 && videoOutput.visible && isActive) {
-                audioOutput.volume = Math.max(audioOutput.volume - AppConstants.volumeStep, 0.0);
+            } else if (wheel.angleDelta.y !== 0 && videoOutput.visible && isActive) {
+                const volume = Math.max(0.0, Math.min(1.0, audioOutput.volume + (wheel.angleDelta.y > 0 ? AppConstants.volumeStep : -AppConstants.volumeStep)));
+                if (root.host)
+                    root.host.volume = volume;
+                else
+                    audioOutput.volume = volume;
                 showVolume();
             }
         }
