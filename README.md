@@ -1,12 +1,38 @@
-# GAV
-
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/images/logo-bw.png" width="30%">
-  <source media="(prefers-color-scheme: light)" srcset="assets/images/logo.png" width="30%">
-  <img alt="GAV" src="assets/images/logo.png" width="30%">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/images/logo-bw.png" width="10%">
+  <source media="(prefers-color-scheme: light)" srcset="assets/images/logo.png" width="10%">
+  <img alt="GAV" src="assets/images/logo.png" width="10%">
 </picture>
 
 GAV is a simple audio and video player, backed by FFmpeg and Qt6.
+
+## Installation
+
+Download GAV for your platform from the [latest release](https://github.com/akshaybabloo/gav/releases/latest):
+
+- Windows (x64): installer (`.exe`) or `.zip`
+- macOS (Apple silicon): `.dmg` or `.tar.gz`
+- Linux (x86_64 and aarch64): `.AppImage`, `.deb`, `.rpm` or `.tar.gz`
+
+On Linux, GAV also needs the xcb cursor library:
+
+For Debian-based distributions:
+
+```bash
+sudo apt update && sudo apt install -y libxcb-cursor0
+```
+
+For Red Hat-based distributions:
+
+```bash
+sudo dnf install xcb-util-cursor
+```
+
+For Arch-based distributions:
+
+```bash
+sudo pacman -S xcb-util-cursor
+```
 
 ## Usage
 
@@ -31,6 +57,8 @@ gav --collage <folder>
 ```
 
 Or open a file from the menu, or drag and drop files onto the window.
+
+## Features
 
 ### Subtitles
 
@@ -79,40 +107,48 @@ Supported video formats: mp4, avi, mkv, mov, wmv, flv, webm, m4v, mpg
 
 ## Build
 
-> [!NOTE]
-> Requires CMake 4.0 or higher.
+### Requirements
 
-## Requirements
-
-- Qt6 with QtMultimedia module
+- Qt 6.12 with the QtMultimedia module
 - CMake 4.0 or higher
 - vcpkg
-- Ninja (optional, but recommended)
+- Ninja
+- [just](https://just.systems/) (optional, runs the commands below)
 - Visual Studio 2022 or higher / GCC 10 or higher / Clang 10 or higher (depending on your platform)
 
-### Building with vcpkg and Ninja
+### Building
 
-Intsall your vcpk in user folder and run the following code:
+Install vcpkg in your home folder (`~/vcpkg`) and Qt in `~/Qt/6.12.0/<compiler>`, then run:
+
+| Command | What it does |
+|---|---|
+| `just build` | Configures `build-cli/` on first use and builds GAV |
+| `just run <args>` | Builds and runs GAV, passing the arguments on, e.g. `just run video.mkv` |
+| `just test` | Builds and runs the unit tests |
+| `just clean` | Removes the build directory |
+
+vcpkg installs the other dependencies during the first configure. The environment variables `VCPKG_ROOT`, `QT_ROOT`, `GAV_BUILD_DIR` and `GAV_BUILD_TYPE` (default `Debug`) override the defaults. Run `just configure` again after changing them.
+
+Without just, configure and build with CMake directly:
 
 ```bash
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=$QT/lib/cmake/Qt6/qt.toolchain.cmake -S .
-cd build
-ninja
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake \
+  -DCMAKE_PREFIX_PATH=$HOME/Qt/6.12.0/gcc_64
+cmake --build build --target appgav
 ```
 
-Add `-DCMAKE_BUILD_TYPE=Release` to the cmake command for a release build.
-
-This should install any required dependencies automatically and build the project.
+Replace `gcc_64` with `macos` or `msvc2022_64` on macOS and Windows.
 
 ### Formatting and linting
 
-The style and the lint rules are in `.clang-format`, `.clang-tidy`, `.qmlformat.ini` and `.qmllint.ini`. The commands are [just](https://just.systems/) recipes and use the `build-cli/` directory:
+The style and the lint rules are in `.clang-format`, `.clang-tidy`, `.qmlformat.ini` and `.qmllint.ini`. The commands are just recipes and use the `build-cli/` directory:
 
 | Command | What it does |
 |---|---|
 | `just format` | Formats the C++ and QML sources in place |
 | `just format-check` | Lists the files `just format` would change, without changing them |
-| `just lint` | Builds the project, then runs clang-tidy and qmllint and reports each finding |
+| `just lint` | Builds the project, runs clang-tidy and qmllint and reports each finding, then checks the lint suppression markers |
 
 `just format-cpp`, `just format-qml`, `just lint-cpp` and `just lint-qml` do the same for one language.
 
