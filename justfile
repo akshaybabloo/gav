@@ -27,12 +27,12 @@ configure:
 # Build the gav application
 build:
     @{{ configure_if_needed }}
-    cmake --build {{ build_dir }} --target appgav
+    ninja -C {{ build_dir }} appgav
 
 # Build and run the unit tests; extra arguments go to ctest, e.g. `just test -R ShuffleOrder`
 test *args:
     @{{ configure_if_needed }}
-    cmake --build {{ build_dir }} --target gav_tests
+    ninja -C {{ build_dir }} gav_tests
     ctest --test-dir {{ build_dir }} --output-on-failure {{ args }}
 
 # Build and run gav; extra arguments go to gav, e.g. `just run --verbose video.mkv`
@@ -42,37 +42,37 @@ run *args: build
 # Format the C++ and QML sources in place
 format:
     @{{ configure_if_needed }}
-    cmake --build {{ build_dir }} --target format
+    ninja -C {{ build_dir }} format
 
 # Format the C++ sources in place
 format-cpp:
     @{{ configure_if_needed }}
-    cmake --build {{ build_dir }} --target format-cpp
+    ninja -C {{ build_dir }} format-cpp
 
 # Format the QML sources in place
 format-qml:
     @{{ configure_if_needed }}
-    cmake --build {{ build_dir }} --target format-qml
+    ninja -C {{ build_dir }} format-qml
 
 # Report the files `just format` would change, without changing them
 format-check:
     @{{ configure_if_needed }}
-    cmake --build {{ build_dir }} --target format-check
+    ninja -C {{ build_dir }} format-check
 
 # Build, then run clang-tidy and qmllint and check the suppression markers
 lint:
     @{{ configure_if_needed }}
-    cmake --build {{ build_dir }} --target lint
+    ninja -C {{ build_dir }} lint
 
 # Build, then run clang-tidy over the C++ sources
 lint-cpp:
     @{{ configure_if_needed }}
-    cmake --build {{ build_dir }} --target lint-cpp
+    ninja -C {{ build_dir }} lint-cpp
 
 # Build, then run qmllint over the QML module
 lint-qml:
     @{{ configure_if_needed }}
-    cmake --build {{ build_dir }} --target lint-qml
+    ninja -C {{ build_dir }} lint-qml
 
 # Remove the build directory
 clean:
