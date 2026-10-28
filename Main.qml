@@ -30,7 +30,7 @@ ApplicationWindow {
     readonly property bool playlistOverlayOpen: playlistOverlay && playlistPanelOpen
     property bool playlistPanelOpen: false
     readonly property string rtspTransport: appSettings.rtspTransport
-    readonly property bool dialogOpen: aboutDialog.opened || playbackErrorDialog.opened || updateDialog.opened || settingsDialog.opened || resumeDialog.opened || goToTimeDialog.opened || openUrlDialog.opened || savePasswordsDialog.opened || confirmPasswordsDialog.opened
+    readonly property bool dialogOpen: aboutDialog.opened || playbackErrorDialog.opened || updateDialog.opened || settingsDialog.opened || resumeDialog.opened || dropChoiceDialog.opened || goToTimeDialog.opened || openUrlDialog.opened || savePasswordsDialog.opened || confirmPasswordsDialog.opened
     readonly property bool shortcutsEnabled: !textInputFocused && !dialogOpen && !playlistPanel.popupOpen
     property bool shouldAutoPlay: false
     property bool syncingCurrent: false
@@ -583,6 +583,13 @@ ApplicationWindow {
         else
             PlaylistFiles.remove(sessionPlaylistUrl);
     }
+    function hasMediaUrl(urls) {
+        for (var i = 0; i < urls.length; i++) {
+            if (!isSubtitleUrl(urls[i]) && !isPlaylistUrl(urls[i]))
+                return true;
+        }
+        return false;
+    }
     function isSubtitleUrl(url) {
         var name = url.toString();
         return AppConstants.isSubtitleExtension(name.substring(name.lastIndexOf('.') + 1));
@@ -1020,6 +1027,18 @@ ApplicationWindow {
             PlaybackHistory.removePosition(mainWindow.activeMedia.mediaPlayer.source.toString());
             mainWindow.activeMedia.mediaPlayer.position = 0;
             mainWindow.activeMedia.mediaPlayer.play();
+        }
+    }
+    DropChoiceDialog {
+        id: dropChoiceDialog
+
+        parent: mainWindow.contentItem
+
+        onReplaceChosen: function (urls) {
+            mainWindow.handleDroppedUrls(urls, -1);
+        }
+        onSplitViewChosen: function (urls) {
+            mainWindow.handleGridDrop(urls, -1, -1);
         }
     }
     ShuffleOrder {
@@ -1703,10 +1722,14 @@ ApplicationWindow {
         onDropped: function (drop) {
             if (!drop.urls || drop.urls.length === 0)
                 return;
-            if (videoGrid.splitView)
+            if (videoGrid.splitView) {
                 mainWindow.handleGridDrop(drop.urls, drop.x - tileArea.x, drop.y - tileArea.y);
-            else
+            } else if (videoGrid.count === 1 && !miniPlayerWindow.visible && mainWindow.hasMediaUrl(drop.urls)) {
+                dropChoiceDialog.urls = drop.urls;
+                dropChoiceDialog.open();
+            } else {
                 mainWindow.handleDroppedUrls(drop.urls, -1);
+            }
         }
     }
     FileDialog {

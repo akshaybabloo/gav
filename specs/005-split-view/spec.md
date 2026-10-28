@@ -187,7 +187,10 @@ select a tile and press Stop, and confirm that the tile closes and the grid rear
    tile's video.
 7. **Given** a split view of fewer than four videos, **When** the user drops a file onto empty
    space in the video area, **Then** it joins the grid as in scenario 1.
-8. **Given** a split view, **When** the user presses next or previous, **Then** only the selected
+8. **Given** one video playing, **When** the user drops a video file onto it, **Then** GAV asks
+   whether to play it in a split view or replace the playing video; Play in split view adds it
+   beside the playing video, Replace replaces it, and Cancel changes nothing.
+9. **Given** a split view, **When** the user presses next or previous, **Then** only the selected
    tile changes, to the next or previous playlist entry that is not already in the grid.
 
 ---
@@ -258,7 +261,9 @@ select a tile and press Stop, and confirm that the tile closes and the grid rear
   the playlist) MUST replace the selected tile's video, in the same place. Dropping a file onto a
   tile MUST replace that tile's video; dropping it onto empty space in the video area MUST add a
   tile (FR-002 applies). An entry already in the grid MUST NOT be opened a second time: its tile
-  becomes selected instead.
+  becomes selected instead. With one video playing, dropping a media file onto the video area
+  MUST ask whether to play it in a split view or replace the playing video, every time; Cancel
+  MUST change nothing. A drop of only subtitle or playlist files MUST NOT ask.
 
 **Sound and selection**
 
@@ -330,7 +335,8 @@ select a tile and press Stop, and confirm that the tile closes and the grid rear
 
 **Unchanged**
 
-- **FR-031**: With one video playing, GAV MUST behave exactly as before this feature.
+- **FR-031**: With one video playing, GAV MUST behave exactly as before this feature, except for
+  the drop question in FR-007.
 - **FR-032**: Opening a split view MUST NOT make any network request beyond those each of its
   sources makes when played alone, and closing a tile or the split view MUST end that tile's
   requests (Constitution I).

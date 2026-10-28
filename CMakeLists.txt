@@ -178,6 +178,7 @@ set(GAV_QML_FILES
         PlaylistPanel.qml
         PlaylistRow.qml
         ResumeDialog.qml
+        DropChoiceDialog.qml
         RecentFilesMenu.qml
         GoToTimeDialog.qml
         OpenUrlDialog.qml

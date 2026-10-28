@@ -83,6 +83,7 @@ How to check that the feature works. Behaviour is specified in
 | Q4.6 | Select tile 1; press next, then previous | Tile 1 moves to the next playlist entry that is not in a tile, then back |
 | Q4.7 | Remove tile 3's entry from the playlist | Tile 3 closes and the rest move up |
 | Q4.8 | Close GAV in a split view and start it again with session restore on | The playlist is restored; no split view |
+| Q4.9 | Play clip 1 alone; drop clip 2 onto it; choose Play in split view. Again with Replace, and with Cancel. Then drop only a subtitle file | Split view: both side by side, clip 1 still heard. Replace: clip 2 plays alone. Cancel: nothing changes. Subtitle file: no question, it loads as before |
 
 ## Cameras and failures
 

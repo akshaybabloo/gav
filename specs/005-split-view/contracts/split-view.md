@@ -12,7 +12,7 @@ can rely on from `TileGrid`. Covers FR-001 to FR-032 and SC-001 to SC-007.
 | View menu, "End split view" | Not shown | Not shown | Keeps the selected video in the single view; the others stop |
 | Stop (control bar, media keys) | As today | As today | Closes the selected tile |
 | File > Open, Open URL, command line, starting GAV again, Play in the playlist | As today | As today | Replaces the selected tile's video; an entry already in a tile selects that tile |
-| Drop a file onto a tile | As today | As today | Replaces that tile's video |
+| Drop a file onto a tile | As today | Asks "Play in split view?": Play in split view adds it beside the playing video, Replace replaces it, Cancel does nothing | Replaces that tile's video |
 | Drop a file onto an empty cell (two or three videos) | — | — | Adds a tile |
 | Next, previous | As today | As today | Replace the selected tile's video with the next or previous entry not in a tile (queue, then shuffle or view order) |
 
@@ -27,6 +27,7 @@ The menu item texts:
 | Its tooltip when unavailable for being more than four | "A split view holds up to four videos" |
 | View menu | "End split view" |
 | Message when a drop or an open would make a fifth | "A split view holds up to four videos" |
+| Dialog when a file is dropped onto a single playing video | Title "Play in split view?", text "Play the dropped video beside the one playing, or replace it?", buttons "Cancel", "Replace", "Play in split view" (the default) |
 
 ## Layout
 
