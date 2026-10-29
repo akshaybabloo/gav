@@ -467,6 +467,28 @@ TEST(TileGridTest, AddWhileFocusedReturnsToTheGrid) {
     EXPECT_EQ(grid.selectedSlot(), 1);
 }
 
+TEST(TileGridTest, OpenOfAnEntryInAnotherTileWhileFocusedReturnsToTheGrid) {
+    TileGrid grid;
+    grid.start({1, 2, 3});
+    grid.doubleClick(0, false, {1, 2});
+    const QVariantMap result = grid.open(2);
+    EXPECT_EQ(list(result, "load"), none);
+    EXPECT_EQ(list(result, "resume"), QList<int>({1, 2}));
+    EXPECT_TRUE(flag(result, "leaveFullScreen"));
+    EXPECT_FALSE(grid.focused());
+    EXPECT_EQ(grid.selectedSlot(), 1);
+}
+
+TEST(TileGridTest, OpenOfTheFocusedEntryKeepsTheFocus) {
+    TileGrid grid;
+    grid.start({1, 2});
+    grid.doubleClick(0, false, {1});
+    const QVariantMap result = grid.open(1);
+    EXPECT_FALSE(result.contains(QStringLiteral("resume")));
+    EXPECT_FALSE(flag(result, "leaveFullScreen"));
+    EXPECT_EQ(grid.focusedSlot(), 0);
+}
+
 TEST(TileGridTest, EndWhileFocusedKeepsTheFocusedVideo) {
     TileGrid grid;
     grid.start({1, 2, 3});

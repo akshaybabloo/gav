@@ -199,6 +199,7 @@ ApplicationWindow {
         var result = videoGrid.open(entryId);
         if (result.refused)
             return;
+        applyFocusResult(result);
         if (result.load.length > 0) {
             loadTile(result.load[0], entryId, play);
         } else if (play) {
@@ -270,15 +271,15 @@ ApplicationWindow {
             resumeTiles(result.resume);
         if (result.enterFullScreen)
             mainWindow.visibility = Window.FullScreen;
-        else if (result.leaveFullScreen)
+        else if (result.leaveFullScreen && mainWindow.visibility === Window.FullScreen)
             mainWindow.visibility = Window.Windowed;
     }
     function stopTile(tile) {
+        tile.failure = "";
         if (tile.mediaPlayer.source.toString() !== "") {
             tile.mediaPlayer.stop();
             return;
         }
-        tile.failure = "";
         tileStopped(tile);
     }
     function tileStopped(tile) {

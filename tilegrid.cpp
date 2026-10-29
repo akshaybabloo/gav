@@ -176,8 +176,14 @@ QVariantMap TileGrid::replace(int slot, int entryId) {
     }
     const int existing = slotOf(entryId);
     if (existing >= 0) {
-        select(existing);
-        return {{QStringLiteral("load"), slotList({})}};
+        QVariantMap result{{QStringLiteral("load"), slotList({})}};
+        if (m_focused >= 0 && existing != m_focused) {
+            result.insert(QStringLiteral("resume"), slotList(leaveFocus()));
+            result.insert(QStringLiteral("leaveFullScreen"), true);
+        }
+        m_selected = existing;
+        notifyChanged();
+        return result;
     }
     m_entries[slot] = entryId;
     notifyChanged();

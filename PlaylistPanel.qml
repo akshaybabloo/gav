@@ -92,6 +92,15 @@ Item {
         anchors.fill: parent
         color: Material.background
     }
+    // Keeps clicks, double-clicks and the wheel on empty parts of the panel from reaching the tile below
+    MouseArea {
+        acceptedButtons: Qt.AllButtons
+        anchors.fill: parent
+
+        onWheel: function (wheel) {
+            wheel.accepted = true;
+        }
+    }
     Dialog {
         id: clearConfirmDialog
 
