@@ -11,6 +11,14 @@ authInternalUsers:
     path:
   - action: read
     path: test
+  - action: read
+    path: wall1
+  - action: read
+    path: wall2
+  - action: read
+    path: wall3
+  - action: read
+    path: wall4
 - user: viewer
   pass: s3cr3tpw
   ips: []
@@ -41,3 +49,7 @@ srt: false
 paths:
   test:
   cam:
+  wall1:
+  wall2:
+  wall3:
+  wall4:

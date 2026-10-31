@@ -39,6 +39,7 @@ Item {
     property bool showLogo: false
     required property int sourceRow
     required property int streamState
+    required property int tilePosition
     required property string title
 
     signal activated(int modifiers)
@@ -50,7 +51,7 @@ Item {
     signal reorderMoved(real position)
     signal reorderStarted
 
-    Accessible.name: title + ", " + detail + (isCurrent ? ", " + qsTr("playing") : "") + (queuePosition > 0 ? ", " + qsTr("queued %1").arg(queuePosition) : "") + (selected ? ", " + qsTr("selected") : "")
+    Accessible.name: title + ", " + detail + (isCurrent ? ", " + qsTr("playing") : "") + (queuePosition > 0 ? ", " + qsTr("queued %1").arg(queuePosition) : "") + (tilePosition > 0 ? ", " + qsTr("split view position %1").arg(tilePosition) : "") + (selected ? ", " + qsTr("selected") : "")
     Accessible.role: Accessible.ListItem
     clip: true
     implicitHeight: AppConstants.playlistRowHeight
@@ -178,6 +179,23 @@ Item {
                 font.bold: true
                 font.pixelSize: 12
                 text: root.queuePosition
+            }
+        }
+        Rectangle {
+            Layout.preferredHeight: 22
+            Layout.preferredWidth: 22
+            border.color: Material.accent
+            border.width: 2
+            color: "transparent"
+            radius: 4
+            visible: root.tilePosition > 0
+
+            Text {
+                anchors.centerIn: parent
+                color: Material.accent
+                font.bold: true
+                font.pixelSize: 12
+                text: root.tilePosition
             }
         }
         Text {

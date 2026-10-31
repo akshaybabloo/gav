@@ -2,7 +2,6 @@
 #define RTSPCONNECTION_H
 
 #include <QList>
-#include <QSet>
 #include <QString>
 #include <QUrl>
 
@@ -35,8 +34,10 @@ public:
     Step ended(bool hadDuration, qint64 nowMs, bool paused = false);
     Step lost(qint64 nowMs, bool paused = false);
     Step timePassed(qint64 nowMs);
+    void attemptStarted(qint64 nowMs);
     void close();
     void forgetTransports();
+    static void resetTransportMemory();
 
     State state() const;
     Transport transportInUse() const;
@@ -68,7 +69,6 @@ private:
     bool m_forced = false;
     bool m_fallsBack = false;
     Transport m_transportInUse = Transport::None;
-    QSet<QString> m_needsTcp;
 
     qint64 m_lossMs = 0;
     int m_reconnectAttempt = 0;

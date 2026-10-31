@@ -93,6 +93,8 @@ QVariant PlaylistModel::data(const QModelIndex &index, int role) const {
         return int(m_queue.indexOf(entry.id)) + 1;
     case DisplayLocationRole:
         return displayLocation(entry.location);
+    case TilePositionRole:
+        return int(m_tileEntries.indexOf(entry.id)) + 1;
     default:
         return {};
     }
@@ -103,7 +105,7 @@ QHash<int, QByteArray> PlaylistModel::roleNames() const {
             {KindRole, "kind"},           {StreamStateRole, "streamState"}, {GroupRole, "group"},
             {LogoRole, "logo"},           {DurationMsRole, "durationMs"},   {AvailableRole, "available"},
             {ReasonRole, "reason"},       {IsCurrentRole, "isCurrent"},     {QueuePositionRole, "queuePosition"},
-            {DisplayLocationRole, "displayLocation"}};
+            {DisplayLocationRole, "displayLocation"}, {TilePositionRole, "tilePosition"}};
 }
 
 int PlaylistModel::count() const { return int(m_entries.size()); }
@@ -125,6 +127,22 @@ void PlaylistModel::setUndoStep(const QList<Removed> &step) {
     m_undoStep = step;
     if (could != canUndoRemove()) {
         emit undoChanged();
+    }
+}
+
+void PlaylistModel::setTileEntries(const QList<int> &ids) {
+    if (ids == m_tileEntries) {
+        return;
+    }
+    const QList<int> previous = m_tileEntries;
+    m_tileEntries = ids;
+    QSet<int> affected(previous.cbegin(), previous.cend());
+    affected.unite(QSet<int>(ids.cbegin(), ids.cend()));
+    for (const int id : affected) {
+        const int row = rowForId(id);
+        if (row >= 0 && previous.indexOf(id) != ids.indexOf(id)) {
+            emit dataChanged(index(row), index(row), {TilePositionRole});
+        }
     }
 }
 

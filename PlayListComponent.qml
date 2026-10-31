@@ -16,11 +16,13 @@ Item {
     required property PlaylistModel playList
     required property PlaylistView playlistView
     property bool showLogos: false
+    property TileGrid tileGrid: null
 
     signal entriesRemoved(int count)
     signal itemSelected(string path, string name)
     signal playEntryRequested(int sourceRow)
     signal searchRequested
+    signal splitViewRequested(var ids)
     signal urlsDropped(var urls, int sourceRow)
 
     function activateRow(viewRow) {
@@ -187,6 +189,18 @@ Item {
             visible: rowMenu.single
 
             onTriggered: root.playEntryRequested(root.playList.rowForId(rowMenu.entryId))
+        }
+        MenuItem {
+            id: splitViewItem
+
+            readonly property bool tooMany: root.tileGrid !== null && root.tileGrid.resultingCount(rowMenu.ids) > 4
+
+            ToolTip.text: qsTr("A split view holds up to four videos")
+            ToolTip.visible: tooMany && hovered
+            enabled: root.tileGrid !== null && root.tileGrid.canAdd(rowMenu.ids)
+            text: qsTr("Play in split view")
+
+            onTriggered: root.splitViewRequested(rowMenu.ids)
         }
         MenuItem {
             text: qsTr("Play next")

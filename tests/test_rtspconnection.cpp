@@ -32,7 +32,14 @@ RtspConnection playing(Setting setting = Setting::Tcp) {
 
 } // namespace
 
-TEST(RtspConnectionTest, AutomaticStartsWithUdp) {
+class RtspConnectionTest : public ::testing::Test {
+protected:
+    void SetUp() override { RtspConnection::resetTransportMemory(); }
+};
+
+class RtspReconnectTest : public RtspConnectionTest {};
+
+TEST_F(RtspConnectionTest, AutomaticStartsWithUdp) {
     RtspConnection connection;
     const Step step = connection.open(camera, Setting::Automatic, 1000);
     EXPECT_EQ(step.kind, Kind::Open);
@@ -43,7 +50,7 @@ TEST(RtspConnectionTest, AutomaticStartsWithUdp) {
     EXPECT_EQ(connection.deadlineMs(), 6000);
 }
 
-TEST(RtspConnectionTest, UdpAttemptSucceeds) {
+TEST_F(RtspConnectionTest, UdpAttemptSucceeds) {
     RtspConnection connection;
     connection.open(camera, Setting::Automatic, 0);
     EXPECT_EQ(connection.firstPicture().kind, Kind::None);
@@ -52,7 +59,7 @@ TEST(RtspConnectionTest, UdpAttemptSucceeds) {
     EXPECT_EQ(connection.deadlineMs(), -1);
 }
 
-TEST(RtspConnectionTest, UdpErrorIsFollowedByTcp) {
+TEST_F(RtspConnectionTest, UdpErrorIsFollowedByTcp) {
     RtspConnection connection;
     connection.open(camera, Setting::Automatic, 0);
     const Step step = connection.playerError(Failure::Other, 300);
@@ -64,7 +71,7 @@ TEST(RtspConnectionTest, UdpErrorIsFollowedByTcp) {
     EXPECT_EQ(connection.transportInUse(), Transport::Tcp);
 }
 
-TEST(RtspConnectionTest, UdpWithNothingForFiveSecondsIsFollowedByTcp) {
+TEST_F(RtspConnectionTest, UdpWithNothingForFiveSecondsIsFollowedByTcp) {
     RtspConnection connection;
     connection.open(camera, Setting::Automatic, 0);
     EXPECT_EQ(connection.timePassed(4999).kind, Kind::None);
@@ -73,7 +80,7 @@ TEST(RtspConnectionTest, UdpWithNothingForFiveSecondsIsFollowedByTcp) {
     EXPECT_EQ(step.transport, Transport::Tcp);
 }
 
-TEST(RtspConnectionTest, LastAttemptErrorFails) {
+TEST_F(RtspConnectionTest, LastAttemptErrorFails) {
     RtspConnection connection;
     connection.open(camera, Setting::Automatic, 0);
     connection.timePassed(5000);
@@ -86,7 +93,7 @@ TEST(RtspConnectionTest, LastAttemptErrorFails) {
     EXPECT_EQ(connection.deadlineMs(), -1);
 }
 
-TEST(RtspConnectionTest, LastAttemptGivesUpAfterTwelveSeconds) {
+TEST_F(RtspConnectionTest, LastAttemptGivesUpAfterTwelveSeconds) {
     RtspConnection connection;
     connection.open(camera, Setting::Tcp, 1000);
     EXPECT_EQ(connection.timePassed(12999).kind, Kind::None);
@@ -95,7 +102,7 @@ TEST(RtspConnectionTest, LastAttemptGivesUpAfterTwelveSeconds) {
     EXPECT_EQ(step.failure, Failure::Other);
 }
 
-TEST(RtspConnectionTest, SignInFailureStopsWithoutTryingTcp) {
+TEST_F(RtspConnectionTest, SignInFailureStopsWithoutTryingTcp) {
     RtspConnection connection;
     connection.open(camera, Setting::Automatic, 0);
     const Step step = connection.playerError(Failure::SignIn, 200);
@@ -105,7 +112,7 @@ TEST(RtspConnectionTest, SignInFailureStopsWithoutTryingTcp) {
     EXPECT_EQ(connection.state(), State::Failed);
 }
 
-TEST(RtspConnectionTest, NotFoundStopsWithoutTryingTcp) {
+TEST_F(RtspConnectionTest, NotFoundStopsWithoutTryingTcp) {
     RtspConnection connection;
     connection.open(camera, Setting::Automatic, 0);
     const Step step = connection.playerError(Failure::NotFound, 200);
@@ -113,7 +120,7 @@ TEST(RtspConnectionTest, NotFoundStopsWithoutTryingTcp) {
     EXPECT_EQ(step.failure, Failure::NotFound);
 }
 
-TEST(RtspConnectionTest, SecureAddressesUseTcpWhateverTheSetting) {
+TEST_F(RtspConnectionTest, SecureAddressesUseTcpWhateverTheSetting) {
     for (const Setting setting : {Setting::Automatic, Setting::Tcp, Setting::Udp}) {
         RtspConnection connection;
         const Step step = connection.open(secureCamera, setting, 0);
@@ -124,7 +131,7 @@ TEST(RtspConnectionTest, SecureAddressesUseTcpWhateverTheSetting) {
     }
 }
 
-TEST(RtspConnectionTest, CloseCancelsFromEveryState) {
+TEST_F(RtspConnectionTest, CloseCancelsFromEveryState) {
     RtspConnection connection;
     connection.open(camera, Setting::Automatic, 0);
     connection.close();
@@ -145,7 +152,7 @@ TEST(RtspConnectionTest, CloseCancelsFromEveryState) {
     EXPECT_EQ(connection.timePassed(60000).kind, Kind::None);
 }
 
-TEST(RtspConnectionTest, ForcedTcpMakesOneTcpAttempt) {
+TEST_F(RtspConnectionTest, ForcedTcpMakesOneTcpAttempt) {
     RtspConnection connection;
     EXPECT_EQ(connection.open(camera, Setting::Tcp, 0).transport, Transport::Tcp);
     const Step step = connection.playerError(Failure::Other, 100);
@@ -154,7 +161,7 @@ TEST(RtspConnectionTest, ForcedTcpMakesOneTcpAttempt) {
     EXPECT_TRUE(step.forced);
 }
 
-TEST(RtspConnectionTest, ForcedUdpNeverFallsBack) {
+TEST_F(RtspConnectionTest, ForcedUdpNeverFallsBack) {
     RtspConnection connection;
     EXPECT_EQ(connection.open(camera, Setting::Udp, 0).transport, Transport::Udp);
     EXPECT_EQ(connection.timePassed(5000).kind, Kind::None);
@@ -165,7 +172,7 @@ TEST(RtspConnectionTest, ForcedUdpNeverFallsBack) {
     EXPECT_TRUE(step.forced);
 }
 
-TEST(RtspConnectionTest, RemembersForTheSessionThatASourceNeededTcp) {
+TEST_F(RtspConnectionTest, RemembersForTheSessionThatASourceNeededTcp) {
     RtspConnection connection;
     connection.open(camera, Setting::Automatic, 0);
     connection.playerError(Failure::Other, 100);
@@ -181,7 +188,7 @@ TEST(RtspConnectionTest, RemembersForTheSessionThatASourceNeededTcp) {
     EXPECT_EQ(connection.open(QUrl("rtsp://other.local/live"), Setting::Automatic, 0).transport, Transport::Udp);
 }
 
-TEST(RtspConnectionTest, ForcedTcpDoesNotFillTheMemory) {
+TEST_F(RtspConnectionTest, ForcedTcpDoesNotFillTheMemory) {
     RtspConnection connection;
     connection.open(camera, Setting::Tcp, 0);
     connection.firstPicture();
@@ -189,7 +196,7 @@ TEST(RtspConnectionTest, ForcedTcpDoesNotFillTheMemory) {
     EXPECT_EQ(connection.open(camera, Setting::Automatic, 0).transport, Transport::Udp);
 }
 
-TEST(RtspConnectionTest, ForgettingTransportsEmptiesTheMemory) {
+TEST_F(RtspConnectionTest, ForgettingTransportsEmptiesTheMemory) {
     RtspConnection connection;
     connection.open(camera, Setting::Automatic, 0);
     connection.playerError(Failure::Other, 100);
@@ -199,7 +206,44 @@ TEST(RtspConnectionTest, ForgettingTransportsEmptiesTheMemory) {
     EXPECT_EQ(connection.open(camera, Setting::Automatic, 0).transport, Transport::Udp);
 }
 
-TEST(RtspConnectionTest, UnknownSettingValuesAreAutomatic) {
+TEST_F(RtspConnectionTest, AnAttemptsTimeStartsWhenItReallyStarts) {
+    RtspConnection connection;
+    connection.open(camera, Setting::Automatic, 0);
+    connection.attemptStarted(3000);
+    EXPECT_EQ(connection.deadlineMs(), 8000);
+    EXPECT_EQ(connection.timePassed(7999).kind, Kind::None);
+    EXPECT_EQ(connection.timePassed(8000).transport, Transport::Tcp);
+}
+
+TEST_F(RtspConnectionTest, AttemptStartedIsIgnoredWhenNotOpening) {
+    RtspConnection connection = playing();
+    connection.attemptStarted(3000);
+    EXPECT_EQ(connection.deadlineMs(), -1);
+}
+
+TEST_F(RtspConnectionTest, ConnectionsShareWhatTheyLearnedAboutTcp) {
+    RtspConnection first;
+    first.open(camera, Setting::Automatic, 0);
+    first.playerError(Failure::Other, 100);
+    first.firstPicture();
+
+    RtspConnection second;
+    EXPECT_EQ(second.open(camera, Setting::Automatic, 0).transport, Transport::Tcp);
+}
+
+TEST_F(RtspConnectionTest, ForgettingTransportsOnOneConnectionForgetsForAll) {
+    RtspConnection first;
+    first.open(camera, Setting::Automatic, 0);
+    first.playerError(Failure::Other, 100);
+    first.firstPicture();
+
+    RtspConnection second;
+    second.forgetTransports();
+    EXPECT_EQ(first.open(camera, Setting::Automatic, 0).transport, Transport::Udp);
+    EXPECT_EQ(second.open(camera, Setting::Automatic, 0).transport, Transport::Udp);
+}
+
+TEST_F(RtspConnectionTest, UnknownSettingValuesAreAutomatic) {
     EXPECT_EQ(RtspConnection::settingFor("auto"), Setting::Automatic);
     EXPECT_EQ(RtspConnection::settingFor("tcp"), Setting::Tcp);
     EXPECT_EQ(RtspConnection::settingFor("udp"), Setting::Udp);
@@ -237,7 +281,7 @@ TEST(RtspConnectionFailureTest, KeepsTheLatestOpenFailureUntilTaken) {
     EXPECT_TRUE(RtspConnection::takeOpenFailure().isEmpty());
 }
 
-TEST(RtspReconnectTest, ALostStreamWaitsTwoSecondsThenReconnects) {
+TEST_F(RtspReconnectTest, ALostStreamWaitsTwoSecondsThenReconnects) {
     RtspConnection connection = playing(Setting::Udp);
     const Step wait = connection.lost(10000);
     EXPECT_EQ(wait.kind, Kind::Wait);
@@ -255,7 +299,7 @@ TEST(RtspReconnectTest, ALostStreamWaitsTwoSecondsThenReconnects) {
     EXPECT_EQ(connection.reconnectAttempt(), 0);
 }
 
-TEST(RtspReconnectTest, QuickFailuresKeepToTheSchedule) {
+TEST_F(RtspReconnectTest, QuickFailuresKeepToTheSchedule) {
     RtspConnection connection = playing();
     connection.lost(0);
     connection.timePassed(2000);
@@ -271,7 +315,7 @@ TEST(RtspReconnectTest, QuickFailuresKeepToTheSchedule) {
     EXPECT_EQ(connection.state(), State::Playing);
 }
 
-TEST(RtspReconnectTest, SlowFailuresStartTheNextAttemptAtOnce) {
+TEST_F(RtspReconnectTest, SlowFailuresStartTheNextAttemptAtOnce) {
     RtspConnection connection = playing();
     connection.lost(0);
     connection.timePassed(2000);
@@ -286,7 +330,7 @@ TEST(RtspReconnectTest, SlowFailuresStartTheNextAttemptAtOnce) {
     EXPECT_EQ(step.failure, Failure::Lost);
 }
 
-TEST(RtspReconnectTest, ThreeFailedAttemptsLoseTheStream) {
+TEST_F(RtspReconnectTest, ThreeFailedAttemptsLoseTheStream) {
     RtspConnection connection = playing();
     connection.lost(0);
     connection.timePassed(2000);
@@ -302,7 +346,7 @@ TEST(RtspReconnectTest, ThreeFailedAttemptsLoseTheStream) {
     EXPECT_EQ(connection.transportInUse(), Transport::None);
 }
 
-TEST(RtspReconnectTest, ARefusedSignInStopsReconnecting) {
+TEST_F(RtspReconnectTest, ARefusedSignInStopsReconnecting) {
     RtspConnection connection = playing();
     connection.lost(0);
     connection.timePassed(2000);
@@ -311,7 +355,7 @@ TEST(RtspReconnectTest, ARefusedSignInStopsReconnecting) {
     EXPECT_EQ(step.failure, Failure::SignIn);
 }
 
-TEST(RtspReconnectTest, ErrorsWhileWaitingAreIgnored) {
+TEST_F(RtspReconnectTest, ErrorsWhileWaitingAreIgnored) {
     RtspConnection connection = playing();
     connection.lost(0);
     EXPECT_EQ(connection.playerError(Failure::Other, 500).kind, Kind::None);
@@ -320,13 +364,13 @@ TEST(RtspReconnectTest, ErrorsWhileWaitingAreIgnored) {
     EXPECT_EQ(connection.deadlineMs(), 2000);
 }
 
-TEST(RtspReconnectTest, AnErrorWhilePlayingIsALoss) {
+TEST_F(RtspReconnectTest, AnErrorWhilePlayingIsALoss) {
     RtspConnection connection = playing();
     EXPECT_EQ(connection.playerError(Failure::Other, 5000).kind, Kind::Wait);
     EXPECT_EQ(connection.state(), State::Reconnecting);
 }
 
-TEST(RtspReconnectTest, LossIsIgnoredBeforeTheStreamPlayed) {
+TEST_F(RtspReconnectTest, LossIsIgnoredBeforeTheStreamPlayed) {
     RtspConnection connection;
     EXPECT_EQ(connection.lost(0).kind, Kind::None);
     connection.open(camera, Setting::Tcp, 0);
@@ -335,7 +379,7 @@ TEST(RtspReconnectTest, LossIsIgnoredBeforeTheStreamPlayed) {
     EXPECT_EQ(connection.state(), State::Connecting);
 }
 
-TEST(RtspReconnectTest, AStreamLostWhilePausedWaitsForPlay) {
+TEST_F(RtspReconnectTest, AStreamLostWhilePausedWaitsForPlay) {
     RtspConnection connection = playing();
     EXPECT_EQ(connection.lost(1000, true).kind, Kind::None);
     EXPECT_EQ(connection.state(), State::Idle);
@@ -345,13 +389,13 @@ TEST(RtspReconnectTest, AStreamLostWhilePausedWaitsForPlay) {
     EXPECT_FALSE(connection.reopenOnPlay());
 }
 
-TEST(RtspReconnectTest, TheEndOfALiveStreamIsALoss) {
+TEST_F(RtspReconnectTest, TheEndOfALiveStreamIsALoss) {
     RtspConnection connection = playing();
     EXPECT_EQ(connection.ended(false, 1000).kind, Kind::Wait);
     EXPECT_EQ(connection.state(), State::Reconnecting);
 }
 
-TEST(RtspReconnectTest, TheEndOfARecordingIsItsEnd) {
+TEST_F(RtspReconnectTest, TheEndOfARecordingIsItsEnd) {
     RtspConnection connection = playing();
     EXPECT_EQ(connection.ended(true, 1000).kind, Kind::Ended);
     EXPECT_EQ(connection.state(), State::Playing);

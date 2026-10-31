@@ -13,10 +13,12 @@ Rectangle {
     readonly property bool isLinux: Qt.platform.os === "linux"
     readonly property bool isMaximized: targetWindow.visibility === Window.Maximized
     required property Window targetWindow
+    property bool splitView: false
     property string windowTitle: ""
 
     signal aboutRequested
     signal checkUpdatesRequested
+    signal endSplitViewRequested
     signal exitRequested
     signal openFileRequested
     signal openPlaylistRequested
@@ -197,6 +199,13 @@ Rectangle {
                         text: qsTr("Settings")
 
                         onTriggered: root.settingsRequested()
+                    }
+                    MenuItem {
+                        height: visible ? implicitHeight : 0
+                        text: qsTr("End split view")
+                        visible: root.splitView
+
+                        onTriggered: root.endSplitViewRequested()
                     }
                 }
             }

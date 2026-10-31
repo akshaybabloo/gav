@@ -75,6 +75,8 @@ public:
     Q_INVOKABLE int sourceRowFor(int viewRow) const;
     Q_INVOKABLE int nextRow(bool repeat) const;
     Q_INVOKABLE int previousRow() const;
+    Q_INVOKABLE int nextRowExcluding(const QList<int> &ids, bool repeat) const;
+    Q_INVOKABLE int previousRowExcluding(const QList<int> &ids) const;
     Q_INVOKABLE QList<int> visibleIds() const;
     Q_INVOKABLE QList<int> playableIds() const;
 
@@ -138,6 +140,7 @@ private:
     void notify(const State &before);
     void updateNavigation();
     bool available(int viewRow) const;
+    bool playable(int viewRow, const QList<int> &excluded) const;
 
     QPointer<PlaylistModel> m_source;
     QList<Row> m_rows;
