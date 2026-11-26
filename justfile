@@ -5,7 +5,7 @@ set shell := ["pwsh.exe", "-c"]
 build_dir := env("GAV_BUILD_DIR", "build-cli")
 build_type := env("GAV_BUILD_TYPE", "Debug")
 vcpkg_root := env("VCPKG_ROOT", home_directory() / "vcpkg")
-qt_root := env("QT_ROOT", home_directory() / "Qt" / "6.12.0" / if os() == "windows" { "msvc2022_64" } else if os() == "macos" { "macos" } else { "gcc_64" })
+qt_root := env("QT_ROOT", home_directory() / "Qt" / "6.12.1" / if os() == "windows" { "msvc2022_64" } else if os() == "macos" { "macos" } else { "gcc_64" })
 exe := if os() == "windows" { ".exe" } else { "" }
 configure_if_needed := if path_exists(build_dir / "CMakeCache.txt") == "true" { "cmake -E true" } else { "just configure" }
 

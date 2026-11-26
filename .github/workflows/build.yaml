@@ -38,27 +38,27 @@ jobs:
       matrix:
         include:
           - os: ubuntu-24.04
-            artifact: 'qt6.12.0-essentials'
+            artifact: 'qt6.12.1-essentials'
             modules: 'qt.qt6.6120.addons.qt5compat qt.qt6.6120.addons.qtimageformats qt.qt6.6120.addons.qtmultimedia qt.qt6.6120.addons.qtquick3d'
-            qt_tag: 'v6.12.0'
+            qt_tag: 'v6.12.1'
             triplet: 'x64-linux-release'
             host_triplet: 'x64-linux-release'
           - os: windows-latest
-            artifact: 'qt6.12.0-msvc2022-essentials'
+            artifact: 'qt6.12.1-msvc2022-essentials'
             modules: 'qt.qt6.6120.addons.qt5compat qt.qt6.6120.addons.qtimageformats qt.qt6.6120.addons.qtmultimedia qt.qt6.6120.addons.qtquick3d'
-            qt_tag: 'v6.12.0'
+            qt_tag: 'v6.12.1'
             triplet: 'x64-windows-static-md-release'
             host_triplet: 'x64-windows'
           - os: macos-latest
-            artifact: 'qt6.12.0-essentials'
+            artifact: 'qt6.12.1-essentials'
             modules: 'qt.qt6.6120.addons.qt5compat qt.qt6.6120.addons.qtimageformats qt.qt6.6120.addons.qtmultimedia qt.qt6.6120.addons.qtquick3d'
-            qt_tag: 'v6.12.0'
+            qt_tag: 'v6.12.1'
             triplet: 'arm64-osx-release'
             host_triplet: 'arm64-osx-release'
           - os: ubuntu-24.04-arm
-            artifact: 'qt6.12.0-essentials'
+            artifact: 'qt6.12.1-essentials'
             modules: 'qt.qt6.6120.addons.qt5compat qt.qt6.6120.addons.qtimageformats qt.qt6.6120.addons.qtmultimedia qt.qt6.6120.addons.qtquick3d'
-            qt_tag: 'v6.12.0'
+            qt_tag: 'v6.12.1'
             triplet: 'arm64-linux-release'
             host_triplet: 'arm64-linux-release'
 
