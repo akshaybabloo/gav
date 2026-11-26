@@ -1,5 +1,6 @@
 # use PowerShell instead of sh:
-set windows-shell := ["pwsh.exe", "-c"]
+[windows]
+set shell := ["pwsh.exe", "-c"]
 
 build_dir := env("GAV_BUILD_DIR", "build-cli")
 build_type := env("GAV_BUILD_TYPE", "Debug")
