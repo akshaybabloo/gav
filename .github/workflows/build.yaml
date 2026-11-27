@@ -217,6 +217,7 @@ jobs:
         if: steps.cache-qtmm.outputs.cache-hit != 'true' && startsWith(matrix.os, 'windows-')
         run: |
           $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
           git clone --depth 1 --branch "${{ matrix.qt_tag }}" https://code.qt.io/qt/qtmultimedia.git "$env:GITHUB_WORKSPACE\qtmm-src"
           foreach ($p in Get-ChildItem "$env:GITHUB_WORKSPACE\support\qtmultimedia-*.patch") {
             Write-Host "Applying $p"

@@ -9,6 +9,15 @@ for them and fails:
 Restore the 6.11 behaviour of adding the FFmpeg library directory as an
 interface link directory so those bare names resolve against vcpkg's lib dir.
 
+Also, on Windows Qt's qt_build_internals_disable_pkg_config() caches an empty
+PKG_CONFIG_EXECUTABLE (""). Starting with vcpkg's ffmpeg 9.0.2#5 / 9.1#1
+(microsoft/vcpkg#54774), vcpkg-cmake-wrapper.cmake uses find_program() instead
+of set(... FORCE) to locate the host pkgconf after FindFFmpeg.cmake returns.
+Because a cached "" is not *-NOTFOUND, find_program() becomes a no-op,
+find_package(PkgConfig) fails, and imported targets such as PkgConfig::libvpl
+are never created. Unset the empty cache entry at the end of FindFFmpeg.cmake
+so the vcpkg wrapper can find its host pkgconf.
+
 Verified against qtmultimedia v6.12.0.
 
 --- a/cmake/FindFFmpeg.cmake
@@ -21,3 +30,12 @@ Verified against qtmultimedia v6.12.0.
  
              __ffmpeg_internal_set_dependencies(${_component})
              if (UNIX AND NOT APPLE)
+@@ -368,3 +369,8 @@ find_package_handle_standard_args(FFmpeg
+     REASON_FAILURE_MESSAGE
+     ${FIND_FFMPEG_HELP_STRING}
+ )
++
++if (CMAKE_HOST_WIN32 AND "${PKG_CONFIG_EXECUTABLE}" STREQUAL "")
++    unset(PKG_CONFIG_EXECUTABLE)
++    unset(PKG_CONFIG_EXECUTABLE CACHE)
++endif ()
