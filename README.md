@@ -143,7 +143,7 @@ Without just, configure and build with CMake directly:
 ```bash
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake \
-  -DCMAKE_PREFIX_PATH=$HOME/Qt/6.12.0/gcc_64
+  -DCMAKE_PREFIX_PATH=$HOME/Qt/6.12.1/gcc_64
 cmake --build build --target appgav
 ```
 

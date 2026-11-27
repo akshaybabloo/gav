@@ -8,6 +8,6 @@
     },
     "cmake.configureArgs": [
         "-DCMAKE_TOOLCHAIN_FILE=${userHome}/vcpkg/scripts/buildsystems/vcpkg.cmake",
-        "-DCMAKE_PREFIX_PATH=${userHome}/Qt/6.12.0/gcc_64"
+        "-DCMAKE_PREFIX_PATH=${userHome}/Qt/6.12.1/gcc_64"
     ]
 }
