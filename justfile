@@ -1,5 +1,6 @@
 # use PowerShell instead of sh:
-set windows-shell := ["pwsh.exe", "-c"]
+[windows]
+set shell := ["pwsh.exe", "-c"]
 
 build_dir := env("GAV_BUILD_DIR", "build-cli")
 build_type := env("GAV_BUILD_TYPE", "Debug")
@@ -22,7 +23,10 @@ list:
 
 # Configure the build directory (GAV_BUILD_DIR, GAV_BUILD_TYPE, VCPKG_ROOT and QT_ROOT override the defaults)
 configure:
-    cmake -S . -B {{ build_dir }} -G Ninja -DCMAKE_BUILD_TYPE={{ build_type }} -DCMAKE_TOOLCHAIN_FILE={{ vcpkg_root / "scripts" / "buildsystems" / "vcpkg.cmake" }} -DCMAKE_PREFIX_PATH={{ qt_root }}
+    cmake -S . -B {{ build_dir }} -G Ninja -DCMAKE_BUILD_TYPE={{ build_type }} \
+            -DCMAKE_TOOLCHAIN_FILE={{ vcpkg_root / "scripts" / "buildsystems" / "vcpkg.cmake" }} \
+            -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE={{ qt_root / "lib" / "cmake" / "Qt6" / "qt.toolchain.cmake" }} \
+            -DCMAKE_PREFIX_PATH={{ qt_root }}
 
 # Build the gav application
 build:
